@@ -103,7 +103,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
                   <div className="flex-1 overflow-hidden">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs text-muted-foreground">{item.codigo}</span>
-                      <Badge variant={ESTADO_COLORS[item.estado] as any} className="text-[10px] py-0">
+                      <Badge variant={ESTADO_COLORS[item.estado] as Parameters<typeof Badge>[0]["variant"]} className="text-[10px] py-0">
                         {ESTADO_LABELS[item.estado]}
                       </Badge>
                     </div>

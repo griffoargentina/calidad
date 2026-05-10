@@ -18,13 +18,36 @@ import {
 import { TipoItem } from "@/types/database";
 import { Loader2, X, Plus, LayoutTemplate } from "lucide-react";
 
+interface Plantilla {
+  id: string;
+  nombre: string;
+  tipo: TipoItem;
+  valores_default: Record<string, unknown>;
+}
+
+interface ItemInicial {
+  id: string;
+  tipo: TipoItem;
+  titulo: string;
+  descripcion: string | null;
+  clausula_iso: string;
+  area_id: string | null;
+  responsable_id: string | null;
+  fecha_emision: string | null;
+  fecha_vencimiento: string | null;
+  frecuencia_dias: number | null;
+  requiere_aprobacion: boolean;
+  es_borrador: boolean;
+  etiquetas: string[];
+}
+
 interface ItemFormProps {
   areas: { id: string; nombre: string }[];
   clausulas: { id: string; titulo: string }[];
   usuarios: { id: string; nombre: string }[];
-  plantillas: any[];
+  plantillas: Plantilla[];
   usuarioActual: { rol: string; area_id: string | null; tipos_habilitados: string[] };
-  itemInicial?: any;
+  itemInicial?: ItemInicial;
 }
 
 export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual, itemInicial }: ItemFormProps) {
@@ -65,11 +88,11 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
     const p = plantillas.find((pl) => pl.id === id);
     if (!p) return;
     const v = p.valores_default ?? {};
-    if (v.tipo) handleTipoChange(v.tipo);
-    if (v.clausula_iso) setClausulaIso(v.clausula_iso);
-    if (v.area_id) setAreaId(v.area_id);
-    if (v.frecuencia_dias) setFrecuenciaDias(v.frecuencia_dias.toString());
-    if (v.etiquetas) setEtiquetas(v.etiquetas);
+    if (typeof v.tipo === "string") handleTipoChange(v.tipo as TipoItem);
+    if (typeof v.clausula_iso === "string") setClausulaIso(v.clausula_iso);
+    if (typeof v.area_id === "string") setAreaId(v.area_id);
+    if (typeof v.frecuencia_dias === "number") setFrecuenciaDias(v.frecuencia_dias.toString());
+    if (Array.isArray(v.etiquetas)) setEtiquetas(v.etiquetas as string[]);
     setPlantillaId(id);
   }
 
@@ -98,7 +121,7 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
     setLoading(true);
     setError(null);
 
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       tipo,
       titulo: titulo.trim(),
       descripcion: descripcion.trim() || null,

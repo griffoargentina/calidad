@@ -14,8 +14,16 @@ import { TIPO_ITEM_LABELS, TIPO_ITEM_CLAUSULA_PRINCIPAL, FRECUENCIAS_COMUNES } f
 import { TipoItem } from "@/types/database";
 import { Plus, Trash2, LayoutTemplate, Loader2 } from "lucide-react";
 
+interface PlantillaRow {
+  id: string;
+  nombre: string;
+  tipo: string;
+  valores_default: Record<string, unknown>;
+  usuarios?: { nombre: string } | null;
+}
+
 export function PlantillasManager({ plantillas, areas, usuarios }: {
-  plantillas: any[];
+  plantillas: PlantillaRow[];
   areas: { id: string; nombre: string }[];
   usuarios: { id: string; nombre: string }[];
 }) {
@@ -89,9 +97,9 @@ export function PlantillasManager({ plantillas, areas, usuarios }: {
               <CardContent className="pb-4">
                 <Badge variant="secondary" className="text-xs mb-2">{TIPO_ITEM_LABELS[p.tipo as TipoItem]}</Badge>
                 <div className="text-xs text-muted-foreground space-y-0.5">
-                  {p.valores_default?.clausula_iso && <p>Cláusula: {p.valores_default.clausula_iso}</p>}
-                  {p.valores_default?.frecuencia_dias && (
-                    <p>Frecuencia: {FRECUENCIAS_COMUNES.find(f => f.dias === p.valores_default.frecuencia_dias)?.label ?? `${p.valores_default.frecuencia_dias} días`}</p>
+                  {typeof p.valores_default?.clausula_iso === "string" && <p>Cláusula: {p.valores_default.clausula_iso}</p>}
+                  {typeof p.valores_default?.frecuencia_dias === "number" && (
+                    <p>Frecuencia: {FRECUENCIAS_COMUNES.find(f => f.dias === (p.valores_default.frecuencia_dias as number))?.label ?? `${p.valores_default.frecuencia_dias} días`}</p>
                   )}
                   <p className="mt-1">Creada por: {p.usuarios?.nombre ?? "—"}</p>
                 </div>

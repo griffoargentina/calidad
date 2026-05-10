@@ -9,7 +9,7 @@ interface EstadoBadgeProps {
 
 export function EstadoBadge({ estado, className }: EstadoBadgeProps) {
   return (
-    <Badge variant={ESTADO_COLORS[estado] as any} className={className}>
+    <Badge variant={ESTADO_COLORS[estado] as Parameters<typeof Badge>[0]["variant"]} className={className}>
       {ESTADO_LABELS[estado]}
     </Badge>
   );

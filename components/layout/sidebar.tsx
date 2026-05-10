@@ -11,7 +11,6 @@ import {
   FileText,
   Users,
   BookOpen,
-  Settings,
   LogOut,
   ShieldCheck,
   Upload,

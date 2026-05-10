@@ -161,7 +161,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                   </p>
                 ) : (
                   <ul className="divide-y">
-                    {archivos.map((archivo: any) => (
+                    {(archivos as Array<Record<string, unknown> & { id: string; nombre_archivo: string; tamaño_bytes: number | null; subido_at: string; comentario: string | null; aprobado_at: string | null; version: number; archivo_url: string; subidor?: { nombre: string } | null; aprobador?: { nombre: string } | null }>).map((archivo) => (
                       <li key={archivo.id} className="flex items-center gap-4 px-6 py-4">
                         <FileText className="h-8 w-8 text-blue-400 shrink-0" />
                         <div className="flex-1 overflow-hidden">
@@ -200,7 +200,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                   <p className="px-6 py-10 text-sm text-muted-foreground text-center">Sin actividad registrada</p>
                 ) : (
                   <ul className="divide-y">
-                    {historial.map((h: any) => (
+                    {(historial as Array<{ id: string; accion: string; created_at: string; detalle: Record<string, unknown>; usuarios?: { nombre: string } | null }>).map((h) => (
                       <li key={h.id} className="px-6 py-3 flex items-start gap-3">
                         <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
                         <div>
@@ -210,8 +210,8 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                           </p>
                           {h.accion === "renovacion" && h.detalle && (
                             <p className="text-xs text-muted-foreground">
-                              v{h.detalle.version_anterior} → v{h.detalle.version_nueva}
-                              {h.detalle.archivo && ` · ${h.detalle.archivo}`}
+                              v{String(h.detalle.version_anterior)} → v{String(h.detalle.version_nueva)}
+                              {h.detalle.archivo ? ` · ${String(h.detalle.archivo)}` : ""}
                             </p>
                           )}
                           <p className="text-xs text-muted-foreground mt-0.5">{formatFecha(h.created_at)}</p>
