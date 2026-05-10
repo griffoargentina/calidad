@@ -33,8 +33,8 @@ export function PlantillasManager({ plantillas, areas }: {
   const [nombre, setNombre] = useState("");
   const [tipo, setTipo] = useState<TipoItem | "">("");
   const [clausulaIso, setClausulaIso] = useState("");
-  const [areaId, setAreaId] = useState("");
-  const [frecuenciaDias, setFrecuenciaDias] = useState("");
+  const [areaId, setAreaId] = useState("__none__");
+  const [frecuenciaDias, setFrecuenciaDias] = useState("__none__");
 
   async function handleCrear() {
     if (!nombre || !tipo) return;
@@ -44,12 +44,12 @@ export function PlantillasManager({ plantillas, areas }: {
       tipo,
       valores_default: {
         clausula_iso: clausulaIso || TIPO_ITEM_CLAUSULA_PRINCIPAL[tipo as TipoItem],
-        area_id: areaId || null,
-        frecuencia_dias: frecuenciaDias ? parseInt(frecuenciaDias) : null,
+        area_id: areaId && areaId !== "__none__" ? areaId : null,
+        frecuencia_dias: frecuenciaDias && frecuenciaDias !== "__none__" ? parseInt(frecuenciaDias) : null,
       },
     });
     setShowForm(false);
-    setNombre(""); setTipo(""); setClausulaIso(""); setAreaId(""); setFrecuenciaDias("");
+    setNombre(""); setTipo(""); setClausulaIso(""); setAreaId("__none__"); setFrecuenciaDias("__none__");
     setLoading(false);
     router.refresh();
   }
@@ -134,7 +134,7 @@ export function PlantillasManager({ plantillas, areas }: {
               <Select value={areaId} onValueChange={setAreaId}>
                 <SelectTrigger><SelectValue placeholder="Sin área" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin área</SelectItem>
+                  <SelectItem value="__none__">Sin área</SelectItem>
                   {areas.map((a) => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -144,7 +144,7 @@ export function PlantillasManager({ plantillas, areas }: {
               <Select value={frecuenciaDias} onValueChange={setFrecuenciaDias}>
                 <SelectTrigger><SelectValue placeholder="Sin frecuencia" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin frecuencia</SelectItem>
+                  <SelectItem value="__none__">Sin frecuencia</SelectItem>
                   {FRECUENCIAS_COMUNES.map((f) => <SelectItem key={f.dias} value={f.dias.toString()}>{f.label}</SelectItem>)}
                 </SelectContent>
               </Select>

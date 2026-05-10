@@ -57,11 +57,11 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [titulo, setTitulo] = useState(itemInicial?.titulo ?? "");
   const [descripcion, setDescripcion] = useState(itemInicial?.descripcion ?? "");
   const [clausulaIso, setClausulaIso] = useState(itemInicial?.clausula_iso ?? "");
-  const [areaId, setAreaId] = useState(itemInicial?.area_id ?? usuarioActual.area_id ?? "");
-  const [responsableId, setResponsableId] = useState(itemInicial?.responsable_id ?? "");
+  const [areaId, setAreaId] = useState(itemInicial?.area_id ?? usuarioActual.area_id ?? "__none__");
+  const [responsableId, setResponsableId] = useState(itemInicial?.responsable_id ?? "__none__");
   const [fechaEmision, setFechaEmision] = useState(itemInicial?.fecha_emision ?? new Date().toISOString().split("T")[0]);
   const [fechaVencimiento, setFechaVencimiento] = useState(itemInicial?.fecha_vencimiento ?? "");
-  const [frecuenciaDias, setFrecuenciaDias] = useState<string>(itemInicial?.frecuencia_dias?.toString() ?? "");
+  const [frecuenciaDias, setFrecuenciaDias] = useState<string>(itemInicial?.frecuencia_dias?.toString() ?? "__none__");
   const [requiereAprobacion, setRequiereAprobacion] = useState(itemInicial?.requiere_aprobacion ?? false);
   const [esBorrador, setEsBorrador] = useState(itemInicial?.es_borrador ?? false);
   const [etiquetas, setEtiquetas] = useState<string[]>(itemInicial?.etiquetas ?? []);
@@ -125,11 +125,11 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
       titulo: titulo.trim(),
       descripcion: descripcion.trim() || null,
       clausula_iso: clausulaIso,
-      area_id: areaId || null,
-      responsable_id: responsableId || null,
+      area_id: areaId && areaId !== "__none__" ? areaId : null,
+      responsable_id: responsableId && responsableId !== "__none__" ? responsableId : null,
       fecha_emision: fechaEmision || null,
       fecha_vencimiento: fechaVencimiento || null,
-      frecuencia_dias: frecuenciaDias ? parseInt(frecuenciaDias) : null,
+      frecuencia_dias: frecuenciaDias && frecuenciaDias !== "__none__" ? parseInt(frecuenciaDias) : null,
       requiere_aprobacion: requiereAprobacion,
       es_borrador: esBorrador,
       etiquetas,
@@ -255,7 +255,7 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
                   <SelectValue placeholder="Seleccionar área..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin área</SelectItem>
+                  <SelectItem value="__none__">Sin área</SelectItem>
                   {areas.map((a) => (
                     <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>
                   ))}
@@ -269,7 +269,7 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
                   <SelectValue placeholder="Seleccionar responsable..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin responsable específico</SelectItem>
+                  <SelectItem value="__none__">Sin responsable específico</SelectItem>
                   {usuarios.map((u) => (
                     <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>
                   ))}
@@ -304,7 +304,7 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
                   <SelectValue placeholder="Elegir..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin frecuencia</SelectItem>
+                  <SelectItem value="__none__">Sin frecuencia</SelectItem>
                   {FRECUENCIAS_COMUNES.map((f) => (
                     <SelectItem key={f.dias} value={f.dias.toString()}>{f.label}</SelectItem>
                   ))}

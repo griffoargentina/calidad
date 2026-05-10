@@ -17,6 +17,7 @@ interface FiltersProps {
 }
 
 const ESTADOS: EstadoItem[] = ["vigente", "por_vencer", "vencido", "obsoleto", "pendiente_aprobacion"];
+const ALL = "_all_";
 
 export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
   const router = useRouter();
@@ -26,7 +27,7 @@ export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
     const params = new URLSearchParams(
       Object.entries(searchParams).filter(([, v]) => v !== undefined) as [string, string][]
     );
-    if (value) {
+    if (value && value !== ALL) {
       params.set(key, value);
     } else {
       params.delete(key);
@@ -57,12 +58,12 @@ export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
         />
 
         {/* Estado */}
-        <Select value={searchParams.estado ?? ""} onValueChange={(v) => setFilter("estado", v || null)}>
+        <Select value={searchParams.estado ?? ALL} onValueChange={(v) => setFilter("estado", v)}>
           <SelectTrigger className="w-44 h-9">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos los estados</SelectItem>
+            <SelectItem value={ALL}>Todos los estados</SelectItem>
             {ESTADOS.map((e) => (
               <SelectItem key={e} value={e}>{ESTADO_LABELS[e]}</SelectItem>
             ))}
@@ -70,12 +71,12 @@ export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
         </Select>
 
         {/* Tipo */}
-        <Select value={searchParams.tipo ?? ""} onValueChange={(v) => setFilter("tipo", v || null)}>
+        <Select value={searchParams.tipo ?? ALL} onValueChange={(v) => setFilter("tipo", v)}>
           <SelectTrigger className="w-52 h-9">
             <SelectValue placeholder="Tipo de documento" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos los tipos</SelectItem>
+            <SelectItem value={ALL}>Todos los tipos</SelectItem>
             {(Object.entries(TIPO_ITEM_LABELS) as [TipoItem, string][]).map(([k, v]) => (
               <SelectItem key={k} value={k}>{v}</SelectItem>
             ))}
@@ -84,12 +85,12 @@ export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
 
         {/* Área */}
         {areas.length > 0 && (
-          <Select value={searchParams.area ?? ""} onValueChange={(v) => setFilter("area", v || null)}>
+          <Select value={searchParams.area ?? ALL} onValueChange={(v) => setFilter("area", v)}>
             <SelectTrigger className="w-44 h-9">
               <SelectValue placeholder="Área" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas las áreas</SelectItem>
+              <SelectItem value={ALL}>Todas las áreas</SelectItem>
               {areas.map((a) => (
                 <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>
               ))}
@@ -98,12 +99,12 @@ export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
         )}
 
         {/* Cláusula */}
-        <Select value={searchParams.clausula ?? ""} onValueChange={(v) => setFilter("clausula", v || null)}>
+        <Select value={searchParams.clausula ?? ALL} onValueChange={(v) => setFilter("clausula", v)}>
           <SelectTrigger className="w-44 h-9">
             <SelectValue placeholder="Cláusula ISO" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas las cláusulas</SelectItem>
+            <SelectItem value={ALL}>Todas las cláusulas</SelectItem>
             {clausulas.map((c) => (
               <SelectItem key={c.id} value={c.id}>{c.id} — {c.titulo}</SelectItem>
             ))}
