@@ -428,33 +428,32 @@ BEGIN
     ELSE
       v_nuevo_estado := 'vigente';
     END IF;
+
+    UPDATE items SET
+      estado = v_nuevo_estado,
+      updated_at = NOW()
+    WHERE id = p_item_id
+    RETURNING * INTO v_item;
+
+    -- Marcar archivo como aprobado
+    SELECT version INTO v_version_archivo FROM archivos WHERE item_id = p_item_id ORDER BY version DESC LIMIT 1;
+    UPDATE archivos SET
+      aprobado_por = auth.uid(),
+      aprobado_at = NOW()
+    WHERE item_id = p_item_id AND version = v_version_archivo;
+
   ELSE
     v_accion := 'rechazo';
-    v_nuevo_estado := 'vigente'; -- Vuelve al estado anterior (la versión anterior sigue vigente)
-    -- En la práctica, revertir versión
+    v_nuevo_estado := 'vigente';
+    -- Revertir versión: la versión rechazada se descarta
     UPDATE items SET
       version_actual = version_actual - 1,
       estado = v_nuevo_estado,
       updated_at = NOW()
     WHERE id = p_item_id
     RETURNING * INTO v_item;
-    GOTO done;
   END IF;
 
-  UPDATE items SET
-    estado = v_nuevo_estado,
-    updated_at = NOW()
-  WHERE id = p_item_id
-  RETURNING * INTO v_item;
-
-  -- Marcar archivo como aprobado
-  SELECT version INTO v_version_archivo FROM archivos WHERE item_id = p_item_id ORDER BY version DESC LIMIT 1;
-  UPDATE archivos SET
-    aprobado_por = auth.uid(),
-    aprobado_at = NOW()
-  WHERE item_id = p_item_id AND version = v_version_archivo;
-
-  <<done>>
   -- Registrar en historial
   INSERT INTO historial (item_id, accion, usuario_id, detalle)
   VALUES (
