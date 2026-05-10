@@ -69,7 +69,7 @@ export default async function UsuariosPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {usuariosOrdenados.map((u: any) => {
+                {(usuariosOrdenados as Array<{ id: string; nombre: string; email: string; rol: string; activo: boolean; ultimo_login: string | null; areas?: { nombre: string } | null }>).map((u) => {
                   const stats = statsMap[u.id] ?? { total: 0, vencidos: 0, porVencer: 0 };
                   const cumplimiento = stats.total > 0
                     ? Math.round(((stats.total - stats.vencidos) / stats.total) * 100)
@@ -84,7 +84,7 @@ export default async function UsuariosPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={ROL_COLORS[u.rol] as any} className="capitalize">{u.rol}</Badge>
+                        <Badge variant={ROL_COLORS[u.rol] as Parameters<typeof Badge>[0]["variant"]} className="capitalize">{u.rol}</Badge>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">{u.areas?.nombre ?? "—"}</span>

@@ -22,10 +22,9 @@ interface PlantillaRow {
   usuarios?: { nombre: string } | null;
 }
 
-export function PlantillasManager({ plantillas, areas, usuarios }: {
+export function PlantillasManager({ plantillas, areas }: {
   plantillas: PlantillaRow[];
   areas: { id: string; nombre: string }[];
-  usuarios: { id: string; nombre: string }[];
 }) {
   const router = useRouter();
   const supabase = createClient();

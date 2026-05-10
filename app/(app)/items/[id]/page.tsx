@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Topbar } from "@/components/layout/topbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EstadoBadge } from "@/components/shared/estado-badge";
@@ -128,9 +128,9 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
         {/* Metadata grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetaCard icon={Hash} label="Tipo" value={TIPO_ITEM_LABELS[item.tipo as keyof typeof TIPO_ITEM_LABELS]} />
-          <MetaCard icon={FileText} label="Cláusula ISO" value={`${(item as any).clausulas_iso?.id} — ${(item as any).clausulas_iso?.titulo?.slice(0, 30)}...`} />
-          <MetaCard icon={User} label="Responsable" value={(item as any).usuarios?.nombre ?? "—"} />
-          <MetaCard icon={FileText} label="Área" value={(item as any).areas?.nombre ?? "—"} />
+          <MetaCard icon={FileText} label="Cláusula ISO" value={`${(item as Record<string, unknown> & { clausulas_iso?: { id: string; titulo: string } }).clausulas_iso?.id} — ${(item as Record<string, unknown> & { clausulas_iso?: { id: string; titulo: string } }).clausulas_iso?.titulo?.slice(0, 30)}...`} />
+          <MetaCard icon={User} label="Responsable" value={(item as Record<string, unknown> & { usuarios?: { nombre: string } }).usuarios?.nombre ?? "—"} />
+          <MetaCard icon={FileText} label="Área" value={(item as Record<string, unknown> & { areas?: { nombre: string } }).areas?.nombre ?? "—"} />
           <MetaCard icon={Calendar} label="Emisión" value={formatFecha(item.fecha_emision)} />
           <MetaCard icon={Clock} label="Vencimiento" value={formatFecha(item.fecha_vencimiento)} highlighted={item.estado === "vencido" || item.estado === "por_vencer"} />
           <MetaCard icon={Clock} label="Frecuencia" value={item.frecuencia_dias ? `${item.frecuencia_dias} días` : "Sin frecuencia"} />
@@ -157,7 +157,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
               <CardContent className="p-0">
                 {!archivos?.length ? (
                   <p className="px-6 py-10 text-sm text-muted-foreground text-center">
-                    No hay archivos cargados. Usá el botón "Renovar" para subir el primer archivo.
+                    No hay archivos cargados. Usá el botón &quot;Renovar&quot; para subir el primer archivo.
                   </p>
                 ) : (
                   <ul className="divide-y">

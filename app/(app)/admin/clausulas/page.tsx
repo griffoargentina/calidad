@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Topbar } from "@/components/layout/topbar";
 import { Badge } from "@/components/ui/badge";
-import { EstadoBadge } from "@/components/shared/estado-badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import Link from "next/link";
 import { CheckCircle2, AlertTriangle, XCircle, FileText } from "lucide-react";

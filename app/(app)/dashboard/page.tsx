@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Topbar } from "@/components/layout/topbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EstadoBadge } from "@/components/shared/estado-badge";
 import { formatFecha } from "@/lib/utils/format";
@@ -116,7 +115,7 @@ export default async function DashboardPage() {
                   </div>
                 ) : (
                   <ul className="divide-y">
-                    {itemsUrgentes.map((item: any) => (
+                    {(itemsUrgentes as unknown as Array<{ id: string; codigo: string; titulo: string; tipo: string; estado: string; fecha_vencimiento: string | null; usuarios?: { nombre: string } | { nombre: string }[] | null }>).map((item) => (
                       <li key={item.id}>
                         <Link
                           href={`/items/${item.id}`}
@@ -125,12 +124,12 @@ export default async function DashboardPage() {
                           <div className="flex-1 overflow-hidden">
                             <div className="flex items-center gap-2 mb-0.5">
                               <span className="font-mono text-xs text-muted-foreground">{item.codigo}</span>
-                              <EstadoBadge estado={item.estado} />
+                              <EstadoBadge estado={item.estado as import("@/types/database").EstadoItem} />
                             </div>
                             <p className="text-sm font-medium truncate">{item.titulo}</p>
                             <p className="text-xs text-muted-foreground">
                               {TIPO_ITEM_LABELS[item.tipo as keyof typeof TIPO_ITEM_LABELS]} ·{" "}
-                              {(item.usuarios as any)?.nombre ?? "Sin responsable"}
+                              {(Array.isArray(item.usuarios) ? item.usuarios[0]?.nombre : item.usuarios?.nombre) ?? "Sin responsable"}
                             </p>
                           </div>
                           <div className="text-right shrink-0">
@@ -161,16 +160,12 @@ export default async function DashboardPage() {
                   <p className="px-6 py-8 text-sm text-muted-foreground text-center">Sin actividad reciente</p>
                 ) : (
                   <ul className="divide-y">
-                    {actividadReciente.map((h: any) => (
+                    {(actividadReciente as unknown as Array<{ id: string; accion: string; created_at: string; usuarios?: { nombre: string } | { nombre: string }[] | null; items?: { id: string; codigo: string; titulo: string } | { id: string; codigo: string; titulo: string }[] | null }>).map((h) => (
                       <li key={h.id} className="px-6 py-3">
                         <p className="text-xs font-medium">
-                          <span className="text-muted-foreground">{h.usuarios?.nombre ?? "Sistema"}</span>{" "}
+                          <span className="text-muted-foreground">{(Array.isArray(h.usuarios) ? h.usuarios[0]?.nombre : h.usuarios?.nombre) ?? "Sistema"}</span>{" "}
                           {accionLabel(h.accion)}{" "}
-                          {h.items && (
-                            <Link href={`/items/${h.items.id}`} className="text-primary hover:underline">
-                              {h.items.codigo}
-                            </Link>
-                          )}
+                          {h.items && (() => { const itm = Array.isArray(h.items) ? h.items[0] : h.items; return itm ? <Link href={`/items/${itm.id}`} className="text-primary hover:underline">{itm.codigo}</Link> : null; })()}
                         </p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {formatFecha(h.created_at)}

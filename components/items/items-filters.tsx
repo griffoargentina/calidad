@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,8 +50,8 @@ export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
           defaultValue={searchParams.q}
           onChange={(e) => {
             const v = e.target.value;
-            clearTimeout((window as any).__searchTimer);
-            (window as any).__searchTimer = setTimeout(() => setFilter("q", v || null), 300);
+            clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).__searchTimer);
+            (window as unknown as Record<string, ReturnType<typeof setTimeout>>).__searchTimer = setTimeout(() => setFilter("q", v || null), 300);
           }}
           className="w-56 h-9"
         />

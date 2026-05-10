@@ -117,7 +117,7 @@ export function ItemsTable({ items }: ItemsTableProps) {
               </TableCell>
               <TableCell>
                 <Link href={`/items/${item.id}`} className="block">
-                  <EstadoBadge estado={item.estado as any} />
+                  <EstadoBadge estado={item.estado as import("@/types/database").EstadoItem} />
                 </Link>
               </TableCell>
               <TableCell>

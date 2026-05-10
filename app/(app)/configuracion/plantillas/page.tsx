@@ -11,10 +11,9 @@ export default async function PlantillasPage() {
   const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
   if (usuario?.rol === "lector") redirect("/items");
 
-  const [{ data: plantillas }, { data: areas }, { data: usuarios }] = await Promise.all([
+  const [{ data: plantillas }, { data: areas }] = await Promise.all([
     supabase.from("plantillas").select("*, usuarios!created_by(nombre)").order("nombre"),
     supabase.from("areas").select("id, nombre").eq("activa", true).order("nombre"),
-    supabase.from("usuarios").select("id, nombre").eq("activo", true).order("nombre"),
   ]);
 
   return (
@@ -24,7 +23,6 @@ export default async function PlantillasPage() {
         <PlantillasManager
           plantillas={plantillas ?? []}
           areas={areas ?? []}
-          usuarios={usuarios ?? []}
         />
       </div>
     </div>

@@ -11,7 +11,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   TIPO_ITEM_LABELS, TIPO_ITEM_CLAUSULA_PRINCIPAL, TIPOS_REQUIEREN_APROBACION, FRECUENCIAS_COMUNES,
 } from "@/lib/constants/items";
