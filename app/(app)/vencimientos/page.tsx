@@ -14,28 +14,56 @@ const MESES_ES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-export default async function VencimientosPage() {
+interface PageProps {
+  searchParams: { responsable?: string };
+}
+
+export default async function VencimientosPage({ searchParams }: PageProps) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const admin = createAdminClient();
 
-  const { data: items } = await admin
+  const { data: todosItems } = await admin
     .from("items")
-    .select("id, codigo, titulo, tipo, estado, fecha_vencimiento, clausula_iso, usuarios!responsable_id(nombre)")
+    .select("id, codigo, titulo, tipo, estado, fecha_vencimiento, clausula_iso, responsable_id, usuarios!responsable_id(id, nombre)")
     .eq("es_borrador", false)
     .neq("estado", "obsoleto")
     .not("fecha_vencimiento", "is", null)
     .order("fecha_vencimiento", { ascending: true });
+
+  // Construir mapa responsable → { nombre, total, vencidos, porVencer }
+  type PersonaStats = { id: string; nombre: string; total: number; vencidos: number; porVencer: number };
+  const personaMap = new Map<string, PersonaStats>();
+
+  for (const item of todosItems ?? []) {
+    const u = Array.isArray(item.usuarios) ? item.usuarios[0] : item.usuarios;
+    const pid = item.responsable_id ?? "__sin_asignar__";
+    const pnombre = u?.nombre ?? "Sin asignar";
+    if (!personaMap.has(pid)) {
+      personaMap.set(pid, { id: pid, nombre: pnombre, total: 0, vencidos: 0, porVencer: 0 });
+    }
+    const ps = personaMap.get(pid)!;
+    ps.total++;
+    if (item.estado === "vencido") ps.vencidos++;
+    if (item.estado === "por_vencer") ps.porVencer++;
+  }
+
+  const personas = Array.from(personaMap.values()).sort((a, b) => b.vencidos - a.vencidos);
+
+  // Filtrar por responsable si hay searchParam
+  const filtroId = searchParams.responsable ?? null;
+  const items = filtroId
+    ? (todosItems ?? []).filter((i) => (i.responsable_id ?? "__sin_asignar__") === filtroId)
+    : (todosItems ?? []);
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
 
   // Agrupar por mes/año
   const grupos = new Map<string, { label: string; items: typeof items }>();
-
-  for (const item of items ?? []) {
+  for (const item of items) {
     if (!item.fecha_vencimiento) continue;
     const fecha = new Date(item.fecha_vencimiento);
     const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}`;
@@ -44,24 +72,70 @@ export default async function VencimientosPage() {
     grupos.get(key)!.items!.push(item);
   }
 
-  // Ordenar grupos cronológicamente
   const gruposOrdenados = Array.from(grupos.entries()).sort(([a], [b]) => a.localeCompare(b));
-
-  // Separar pasados, actuales y futuros
   const mesActualKey = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
 
-  const vencidos = gruposOrdenados.filter(([k]) => k < mesActualKey);
+  const vencidosGrupos = gruposOrdenados.filter(([k]) => k < mesActualKey);
   const actualesYFuturos = gruposOrdenados.filter(([k]) => k >= mesActualKey);
 
-  const totalVencidos = (items ?? []).filter(i => i.estado === "vencido").length;
-  const totalPorVencer = (items ?? []).filter(i => i.estado === "por_vencer").length;
-  const totalVigentes = (items ?? []).filter(i => i.estado === "vigente").length;
+  const totalVencidos  = items.filter(i => i.estado === "vencido").length;
+  const totalPorVencer = items.filter(i => i.estado === "por_vencer").length;
+  const totalVigentes  = items.filter(i => i.estado === "vigente").length;
+
+  const filtroNombre = filtroId ? personaMap.get(filtroId)?.nombre : null;
 
   return (
     <div className="flex flex-col h-full">
-      <Topbar title="Calendario de vencimientos" />
+      <Topbar title={filtroNombre ? `Vencimientos — ${filtroNombre}` : "Calendario de vencimientos"} />
 
       <div className="flex-1 p-6 space-y-6 max-w-4xl mx-auto w-full">
+
+        {/* Filtro por persona */}
+        {personas.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Filtrar por responsable</p>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/vencimientos"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  !filtroId
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-white border-border text-muted-foreground hover:border-primary hover:text-foreground"
+                }`}
+              >
+                Todos
+              </Link>
+              {personas.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/vencimientos?responsable=${p.id}`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    filtroId === p.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-white border-border text-foreground hover:border-primary"
+                  }`}
+                >
+                  {p.nombre}
+                  {p.vencidos > 0 && (
+                    <span className={`inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] rounded-full text-[10px] font-bold px-1 ${
+                      filtroId === p.id ? "bg-white text-red-600" : "bg-red-500 text-white"
+                    }`}>
+                      {p.vencidos}
+                    </span>
+                  )}
+                  {p.vencidos === 0 && p.porVencer > 0 && (
+                    <span className={`inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] rounded-full text-[10px] font-bold px-1 ${
+                      filtroId === p.id ? "bg-white text-yellow-600" : "bg-yellow-400 text-white"
+                    }`}>
+                      {p.porVencer}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Resumen */}
         <div className="grid grid-cols-3 gap-3">
           <div className="flex items-center gap-3 rounded-lg border bg-red-50 border-red-200 px-4 py-3">
@@ -87,19 +161,16 @@ export default async function VencimientosPage() {
           </div>
         </div>
 
-        {(items ?? []).length === 0 ? (
+        {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-lg">
             <CheckCircle2 className="h-10 w-10 text-green-400 mb-3" />
             <p className="text-sm font-medium text-muted-foreground">No hay documentos con fecha de vencimiento cargados.</p>
           </div>
         ) : (
           <div className="space-y-8">
-            {/* Vencidos (pasados) */}
-            {vencidos.map(([key, grupo]) => (
+            {vencidosGrupos.map(([key, grupo]) => (
               <GrupoMes key={key} label={grupo.label} items={grupo.items ?? []} esPasado />
             ))}
-
-            {/* Actuales y futuros */}
             {actualesYFuturos.map(([key, grupo]) => (
               <GrupoMes key={key} label={grupo.label} items={grupo.items ?? []} esActual={key === mesActualKey} />
             ))}
@@ -118,7 +189,8 @@ type ItemRow = {
   estado: string;
   fecha_vencimiento: string | null;
   clausula_iso: string;
-  usuarios?: { nombre: string } | { nombre: string }[] | null;
+  responsable_id?: string | null;
+  usuarios?: { id: string; nombre: string } | { id: string; nombre: string }[] | null;
 };
 
 function GrupoMes({ label, items, esPasado, esActual }: {

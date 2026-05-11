@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Topbar } from "@/components/layout/topbar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { AgregarClausulaDialog } from "@/components/admin/agregar-clausula-dialog";
 import Link from "next/link";
 import { CheckCircle2, AlertTriangle, XCircle, FileText } from "lucide-react";
 
@@ -61,7 +62,10 @@ export default async function ClausulasPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Topbar title="Mapa de cobertura — Cláusulas ISO 9001:2015" />
+      <Topbar
+        title="Mapa de cobertura — Cláusulas ISO 9001:2015"
+        actions={<AgregarClausulaDialog />}
+      />
       <div className="flex-1 p-6 space-y-4">
         <div className="flex gap-4 text-sm flex-wrap">
           <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-500" /> Todo vigente</span>

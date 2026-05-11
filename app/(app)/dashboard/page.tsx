@@ -7,7 +7,8 @@ import { EstadoBadge } from "@/components/shared/estado-badge";
 import { formatFecha } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import {
-  FileText, AlertTriangle, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp, BookOpen
+  FileText, AlertTriangle, CheckCircle2, XCircle,
+  ArrowRight, TrendingUp, BookOpen, FileX,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -17,26 +18,23 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Métricas principales
   const [
     { count: totalItems },
     { count: vencidos },
-    { count: porVencer },
     { count: vigentes },
     { data: itemsUrgentes },
     { data: actividadReciente },
-    { data: itemsIds },
-    { data: itemsConProcedimiento },
+    { data: todosPublicados },
+    { data: archivosDoc },
+    { data: archivosProc },
   ] = await Promise.all([
     supabase.from("items").select("*", { count: "exact", head: true }).eq("es_borrador", false),
     supabase.from("items").select("*", { count: "exact", head: true })
       .eq("estado", "vencido").eq("es_borrador", false),
     supabase.from("items").select("*", { count: "exact", head: true })
-      .eq("estado", "por_vencer").eq("es_borrador", false),
-    supabase.from("items").select("*", { count: "exact", head: true })
       .eq("estado", "vigente").eq("es_borrador", false),
     supabase.from("items")
-      .select("id, codigo, titulo, tipo, estado, fecha_vencimiento, responsable_id, usuarios(nombre)")
+      .select("id, codigo, titulo, tipo, estado, fecha_vencimiento, usuarios!responsable_id(nombre)")
       .eq("estado", "vencido")
       .eq("es_borrador", false)
       .order("fecha_vencimiento", { ascending: true })
@@ -45,20 +43,27 @@ export default async function DashboardPage() {
       .select("id, accion, created_at, detalle, usuarios(nombre), items(codigo, titulo)")
       .order("created_at", { ascending: false })
       .limit(8),
-    // IDs de todos los items publicados
-    supabase.from("items").select("id").eq("es_borrador", false),
-    // Items que YA tienen procedimiento
+    supabase.from("items").select("id, codigo, titulo, tipo").eq("es_borrador", false),
+    supabase.from("archivos").select("item_id").eq("categoria", "documento"),
     supabase.from("archivos").select("item_id").eq("categoria", "procedimiento"),
   ]);
 
-  const totalPublicados = itemsIds?.length ?? 0;
-  const conProcedimiento = new Set(itemsConProcedimiento?.map((a) => a.item_id) ?? []).size;
-  const sinProcedimiento = totalPublicados - conProcedimiento;
+  const conDocSet   = new Set(archivosDoc?.map((a) => a.item_id) ?? []);
+  const conProcSet  = new Set(archivosProc?.map((a) => a.item_id) ?? []);
+
+  const itemsSinArchivo     = (todosPublicados ?? []).filter((i) => !conDocSet.has(i.id));
+  const itemsSinProcedimiento = (todosPublicados ?? []).filter((i) => !conProcSet.has(i.id));
+
+  const sinArchivo      = itemsSinArchivo.length;
+  const sinProcedimiento = itemsSinProcedimiento.length;
+  const totalPublicados  = todosPublicados?.length ?? 0;
+  const conProcedimiento = totalPublicados - sinProcedimiento;
 
   const total = totalItems ?? 0;
   const cumplimiento = total > 0
-    ? Math.round(((total - (vencidos ?? 0)) / total) * 100)
+    ? Math.round(((total - (vencidos ?? 0) - sinArchivo) / total) * 100)
     : 0;
+  const cumplimientoClamp = Math.max(0, cumplimiento);
 
   return (
     <div className="flex flex-col h-full">
@@ -85,32 +90,104 @@ export default async function DashboardPage() {
             alert={!!vencidos && vencidos > 0}
           />
           <MetricCard
-            title="Por vencer ≤30d"
-            value={porVencer ?? 0}
-            icon={Clock}
-            iconColor="text-yellow-500"
-            bgColor="bg-yellow-50"
-            href="/items?estado=por_vencer"
+            title="Sin archivo"
+            value={sinArchivo}
+            icon={FileX}
+            iconColor={sinArchivo > 0 ? "text-red-500" : "text-green-500"}
+            bgColor={sinArchivo > 0 ? "bg-red-50" : "bg-green-50"}
+            subtitle={sinArchivo > 0 ? "Necesitan documento adjunto" : "Todos tienen archivo"}
+            alert={sinArchivo > 0}
+            href="#sin-archivo"
           />
           <MetricCard
             title="% cumplimiento"
-            value={`${cumplimiento}%`}
-            icon={cumplimiento >= 80 ? CheckCircle2 : cumplimiento >= 50 ? AlertTriangle : XCircle}
-            iconColor={cumplimiento >= 80 ? "text-green-500" : cumplimiento >= 50 ? "text-yellow-500" : "text-red-500"}
-            bgColor={cumplimiento >= 80 ? "bg-green-50" : cumplimiento >= 50 ? "bg-yellow-50" : "bg-red-50"}
+            value={`${cumplimientoClamp}%`}
+            icon={cumplimientoClamp >= 80 ? CheckCircle2 : cumplimientoClamp >= 50 ? AlertTriangle : XCircle}
+            iconColor={cumplimientoClamp >= 80 ? "text-green-500" : cumplimientoClamp >= 50 ? "text-yellow-500" : "text-red-500"}
+            bgColor={cumplimientoClamp >= 80 ? "bg-green-50" : cumplimientoClamp >= 50 ? "bg-yellow-50" : "bg-red-50"}
             subtitle={total === 0 ? "Sin documentos cargados" : `${vigentes ?? 0} vigentes`}
-            alert={cumplimiento < 50}
+            alert={cumplimientoClamp < 50}
           />
           <MetricCard
             title="Sin procedimiento"
             value={sinProcedimiento}
             icon={BookOpen}
-            iconColor={sinProcedimiento > 0 ? "text-purple-500" : "text-green-500"}
-            bgColor={sinProcedimiento > 0 ? "bg-purple-50" : "bg-green-50"}
+            iconColor={sinProcedimiento > 0 ? "text-orange-500" : "text-green-500"}
+            bgColor={sinProcedimiento > 0 ? "bg-orange-50" : "bg-green-50"}
             subtitle={`${conProcedimiento} de ${totalPublicados} tienen procedimiento`}
-            alert={false}
+            alert={sinProcedimiento > 0}
+            href="#sin-procedimiento"
           />
         </div>
+
+        {/* Documentos incompletos */}
+        {(sinArchivo > 0 || sinProcedimiento > 0) && (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {sinArchivo > 0 && (
+              <Card id="sin-archivo" className="border-red-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-red-700">
+                    <FileX className="h-4 w-4 text-red-500" />
+                    Sin archivo adjunto ({sinArchivo})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ul className="divide-y">
+                    {itemsSinArchivo.slice(0, 8).map((item) => (
+                      <li key={item.id}>
+                        <Link
+                          href={`/items/${item.id}`}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-50/50 transition-colors"
+                        >
+                          <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">{item.codigo}</span>
+                          <span className="text-xs font-medium flex-1 truncate">{item.titulo}</span>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                        </Link>
+                      </li>
+                    ))}
+                    {itemsSinArchivo.length > 8 && (
+                      <li className="px-4 py-2 text-xs text-muted-foreground">
+                        +{itemsSinArchivo.length - 8} más
+                      </li>
+                    )}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {sinProcedimiento > 0 && (
+              <Card id="sin-procedimiento" className="border-orange-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-orange-700">
+                    <BookOpen className="h-4 w-4 text-orange-500" />
+                    Sin procedimiento ({sinProcedimiento})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ul className="divide-y">
+                    {itemsSinProcedimiento.slice(0, 8).map((item) => (
+                      <li key={item.id}>
+                        <Link
+                          href={`/items/${item.id}`}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-orange-50/50 transition-colors"
+                        >
+                          <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">{item.codigo}</span>
+                          <span className="text-xs font-medium flex-1 truncate">{item.titulo}</span>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                        </Link>
+                      </li>
+                    ))}
+                    {itemsSinProcedimiento.length > 8 && (
+                      <li className="px-4 py-2 text-xs text-muted-foreground">
+                        +{itemsSinProcedimiento.length - 8} más
+                      </li>
+                    )}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Items más urgentes */}
@@ -209,13 +286,13 @@ export default async function DashboardPage() {
               <Link href="/items/nuevo">Nuevo documento</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/items/importar">Importar desde Excel</Link>
-            </Button>
-            <Button variant="outline" asChild>
               <Link href="/items?estado=por_vencer">Ver próximos a vencer</Link>
             </Button>
             <Button variant="outline" asChild>
               <Link href="/admin/clausulas">Mapa de cláusulas ISO</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/vencimientos">Calendario de vencimientos</Link>
             </Button>
           </CardContent>
         </Card>
