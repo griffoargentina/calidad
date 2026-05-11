@@ -8,7 +8,7 @@ import { formatFecha } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import {
   FileText, AlertTriangle, CheckCircle2, XCircle,
-  ArrowRight, TrendingUp, BookOpen, FileX,
+  ArrowRight, TrendingUp, BookOpen,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -20,11 +20,12 @@ export default async function DashboardPage() {
 
   const [
     { count: totalItems },
-    { count: vencidos },
+    { count: vencidosReales },
     { count: vigentes },
     { data: itemsUrgentes },
     { data: actividadReciente },
     { data: todosPublicados },
+    { data: todosItems },
     { data: archivosDoc },
     { data: archivosProc },
   ] = await Promise.all([
@@ -43,27 +44,29 @@ export default async function DashboardPage() {
       .select("id, accion, created_at, detalle, usuarios(nombre), items(codigo, titulo)")
       .order("created_at", { ascending: false })
       .limit(8),
+    // Solo publicados → para sin archivo
     supabase.from("items").select("id, codigo, titulo, tipo").eq("es_borrador", false),
+    // Todos (publicados + borradores) → para sin procedimiento
+    supabase.from("items").select("id, codigo, titulo, tipo, es_borrador").neq("estado", "obsoleto"),
     supabase.from("archivos").select("item_id").eq("categoria", "documento"),
     supabase.from("archivos").select("item_id").eq("categoria", "procedimiento"),
   ]);
 
-  const conDocSet   = new Set(archivosDoc?.map((a) => a.item_id) ?? []);
-  const conProcSet  = new Set(archivosProc?.map((a) => a.item_id) ?? []);
+  const conDocSet  = new Set(archivosDoc?.map((a) => a.item_id) ?? []);
+  const conProcSet = new Set(archivosProc?.map((a) => a.item_id) ?? []);
 
-  const itemsSinArchivo     = (todosPublicados ?? []).filter((i) => !conDocSet.has(i.id));
-  const itemsSinProcedimiento = (todosPublicados ?? []).filter((i) => !conProcSet.has(i.id));
+  // Sin archivo = publicados sin documento adjunto → se suman a "vencidos"
+  const itemsSinArchivo = (todosPublicados ?? []).filter((i) => !conDocSet.has(i.id));
+  const sinArchivo = itemsSinArchivo.length;
 
-  const sinArchivo      = itemsSinArchivo.length;
+  // Sin procedimiento = TODOS los items (inc. borradores) sin procedimiento adjunto
+  const itemsSinProcedimiento = (todosItems ?? []).filter((i) => !conProcSet.has(i.id));
   const sinProcedimiento = itemsSinProcedimiento.length;
-  const totalPublicados  = todosPublicados?.length ?? 0;
-  const conProcedimiento = totalPublicados - sinProcedimiento;
 
   const total = totalItems ?? 0;
-  const cumplimiento = total > 0
-    ? Math.round(((total - (vencidos ?? 0) - sinArchivo) / total) * 100)
-    : 0;
-  const cumplimientoClamp = Math.max(0, cumplimiento);
+  // Vencidos efectivos = vencidos reales + items sin archivo (sin evidencia = vencido)
+  const vencidosTotal = (vencidosReales ?? 0) + sinArchivo;
+  const cumplimiento = total > 0 ? Math.max(0, Math.round(((total - vencidosTotal) / total) * 100)) : 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -71,7 +74,7 @@ export default async function DashboardPage() {
 
       <div className="flex-1 p-6 space-y-6">
         {/* Tarjetas de métricas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <MetricCard
             title="Total documentos"
             value={total}
@@ -82,31 +85,22 @@ export default async function DashboardPage() {
           />
           <MetricCard
             title="Vencidos"
-            value={vencidos ?? 0}
+            value={vencidosTotal}
             icon={AlertTriangle}
             iconColor="text-red-500"
             bgColor="bg-red-50"
-            href="/items?estado=vencido"
-            alert={!!vencidos && vencidos > 0}
-          />
-          <MetricCard
-            title="Sin archivo"
-            value={sinArchivo}
-            icon={FileX}
-            iconColor={sinArchivo > 0 ? "text-red-500" : "text-green-500"}
-            bgColor={sinArchivo > 0 ? "bg-red-50" : "bg-green-50"}
-            subtitle={sinArchivo > 0 ? "Necesitan documento adjunto" : "Todos tienen archivo"}
-            alert={sinArchivo > 0}
-            href="#sin-archivo"
+            subtitle={sinArchivo > 0 ? `${vencidosReales ?? 0} reales + ${sinArchivo} sin archivo` : `${vencidosReales ?? 0} vencidos`}
+            alert={vencidosTotal > 0}
+            href="#vencidos-detalle"
           />
           <MetricCard
             title="% cumplimiento"
-            value={`${cumplimientoClamp}%`}
-            icon={cumplimientoClamp >= 80 ? CheckCircle2 : cumplimientoClamp >= 50 ? AlertTriangle : XCircle}
-            iconColor={cumplimientoClamp >= 80 ? "text-green-500" : cumplimientoClamp >= 50 ? "text-yellow-500" : "text-red-500"}
-            bgColor={cumplimientoClamp >= 80 ? "bg-green-50" : cumplimientoClamp >= 50 ? "bg-yellow-50" : "bg-red-50"}
+            value={`${cumplimiento}%`}
+            icon={cumplimiento >= 80 ? CheckCircle2 : cumplimiento >= 50 ? AlertTriangle : XCircle}
+            iconColor={cumplimiento >= 80 ? "text-green-500" : cumplimiento >= 50 ? "text-yellow-500" : "text-red-500"}
+            bgColor={cumplimiento >= 80 ? "bg-green-50" : cumplimiento >= 50 ? "bg-yellow-50" : "bg-red-50"}
             subtitle={total === 0 ? "Sin documentos cargados" : `${vigentes ?? 0} vigentes`}
-            alert={cumplimientoClamp < 50}
+            alert={cumplimiento < 50}
           />
           <MetricCard
             title="Sin procedimiento"
@@ -114,47 +108,53 @@ export default async function DashboardPage() {
             icon={BookOpen}
             iconColor={sinProcedimiento > 0 ? "text-orange-500" : "text-green-500"}
             bgColor={sinProcedimiento > 0 ? "bg-orange-50" : "bg-green-50"}
-            subtitle={`${conProcedimiento} de ${totalPublicados} tienen procedimiento`}
+            subtitle={`De ${todosItems?.length ?? 0} items en total`}
             alert={sinProcedimiento > 0}
             href="#sin-procedimiento"
           />
         </div>
 
-        {/* Documentos incompletos */}
-        {(sinArchivo > 0 || sinProcedimiento > 0) && (
+        {/* Listas de atención */}
+        {(vencidosTotal > 0 || sinProcedimiento > 0) && (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            {sinArchivo > 0 && (
-              <Card id="sin-archivo" className="border-red-200">
+
+            {/* Vencidos + sin archivo */}
+            {vencidosTotal > 0 && (
+              <Card id="vencidos-detalle" className="border-red-200">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2 text-red-700">
-                    <FileX className="h-4 w-4 text-red-500" />
-                    Sin archivo adjunto ({sinArchivo})
+                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                    Vencidos / sin archivo ({vencidosTotal})
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent className="p-0 max-h-72 overflow-y-auto">
                   <ul className="divide-y">
-                    {itemsSinArchivo.slice(0, 8).map((item) => (
+                    {(itemsUrgentes as unknown as Array<{ id: string; codigo: string; titulo: string; tipo: string; estado: string; fecha_vencimiento: string | null }>)?.map((item) => (
                       <li key={item.id}>
-                        <Link
-                          href={`/items/${item.id}`}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-50/50 transition-colors"
-                        >
+                        <Link href={`/items/${item.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-50/50 transition-colors">
                           <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">{item.codigo}</span>
                           <span className="text-xs font-medium flex-1 truncate">{item.titulo}</span>
+                          <EstadoBadge estado={item.estado as import("@/types/database").EstadoItem} />
                           <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
                         </Link>
                       </li>
                     ))}
-                    {itemsSinArchivo.length > 8 && (
-                      <li className="px-4 py-2 text-xs text-muted-foreground">
-                        +{itemsSinArchivo.length - 8} más
+                    {itemsSinArchivo.map((item) => (
+                      <li key={item.id}>
+                        <Link href={`/items/${item.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-50/50 transition-colors">
+                          <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">{item.codigo}</span>
+                          <span className="text-xs font-medium flex-1 truncate">{item.titulo}</span>
+                          <span className="text-[10px] font-medium text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full shrink-0">Sin archivo</span>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                        </Link>
                       </li>
-                    )}
+                    ))}
                   </ul>
                 </CardContent>
               </Card>
             )}
 
+            {/* Sin procedimiento — todos los items */}
             {sinProcedimiento > 0 && (
               <Card id="sin-procedimiento" className="border-orange-200">
                 <CardHeader className="pb-3">
@@ -163,25 +163,20 @@ export default async function DashboardPage() {
                     Sin procedimiento ({sinProcedimiento})
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent className="p-0 max-h-72 overflow-y-auto">
                   <ul className="divide-y">
-                    {itemsSinProcedimiento.slice(0, 8).map((item) => (
+                    {itemsSinProcedimiento.map((item) => (
                       <li key={item.id}>
-                        <Link
-                          href={`/items/${item.id}`}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-orange-50/50 transition-colors"
-                        >
+                        <Link href={`/items/${item.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-orange-50/50 transition-colors">
                           <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">{item.codigo}</span>
                           <span className="text-xs font-medium flex-1 truncate">{item.titulo}</span>
+                          {item.es_borrador && (
+                            <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full shrink-0">Borrador</span>
+                          )}
                           <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
                         </Link>
                       </li>
                     ))}
-                    {itemsSinProcedimiento.length > 8 && (
-                      <li className="px-4 py-2 text-xs text-muted-foreground">
-                        +{itemsSinProcedimiento.length - 8} más
-                      </li>
-                    )}
                   </ul>
                 </CardContent>
               </Card>
@@ -214,10 +209,7 @@ export default async function DashboardPage() {
                   <ul className="divide-y">
                     {(itemsUrgentes as unknown as Array<{ id: string; codigo: string; titulo: string; tipo: string; estado: string; fecha_vencimiento: string | null; usuarios?: { nombre: string } | { nombre: string }[] | null }>).map((item) => (
                       <li key={item.id}>
-                        <Link
-                          href={`/items/${item.id}`}
-                          className="flex items-center gap-4 px-6 py-3 hover:bg-muted/50 transition-colors"
-                        >
+                        <Link href={`/items/${item.id}`} className="flex items-center gap-4 px-6 py-3 hover:bg-muted/50 transition-colors">
                           <div className="flex-1 overflow-hidden">
                             <div className="flex items-center gap-2 mb-0.5">
                               <span className="font-mono text-xs text-muted-foreground">{item.codigo}</span>
@@ -230,9 +222,7 @@ export default async function DashboardPage() {
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-xs text-red-500 font-medium">
-                              Venció {formatFecha(item.fecha_vencimiento)}
-                            </p>
+                            <p className="text-xs text-red-500 font-medium">Venció {formatFecha(item.fecha_vencimiento)}</p>
                           </div>
                         </Link>
                       </li>
@@ -264,9 +254,7 @@ export default async function DashboardPage() {
                           {accionLabel(h.accion)}{" "}
                           {h.items && (() => { const itm = Array.isArray(h.items) ? h.items[0] : h.items; return itm ? <Link href={`/items/${itm.id}`} className="text-primary hover:underline">{itm.codigo}</Link> : null; })()}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {formatFecha(h.created_at)}
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{formatFecha(h.created_at)}</p>
                       </li>
                     ))}
                   </ul>
