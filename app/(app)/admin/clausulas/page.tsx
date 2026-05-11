@@ -4,7 +4,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import Link from "next/link";
-import { CheckCircle2, AlertTriangle, XCircle, FileText, Clock } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle, FileText } from "lucide-react";
 
 export default async function ClausulasPage() {
   const supabase = await createClient();
