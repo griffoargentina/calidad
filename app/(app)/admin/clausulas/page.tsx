@@ -53,9 +53,7 @@ export default async function ClausulasPage() {
 
   function getSemaforo(clausulaId: string) {
     const s = clausulaStats[clausulaId];
-    if (!s) return "rojo";                          // sin nada
-    if (s.total === 0 && s.borradores > 0) return "gris";  // solo borradores = pendiente
-    if (s.total === 0) return "rojo";               // sin publicados
+    if (!s || s.total === 0) return "rojo";   // sin documentos publicados = rojo
     if (s.vencidos > 0) return "rojo";
     if (s.porVencer > 0) return "amarillo";
     return "verde";
@@ -69,7 +67,6 @@ export default async function ClausulasPage() {
           <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-500" /> Todo vigente</span>
           <span className="flex items-center gap-1.5"><AlertTriangle className="h-4 w-4 text-yellow-500" /> Por vencer</span>
           <span className="flex items-center gap-1.5"><XCircle className="h-4 w-4 text-red-500" /> Vencido o sin evidencia</span>
-          <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-slate-400" /> Pendiente (borrador)</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -82,8 +79,7 @@ export default async function ClausulasPage() {
                 <Card className={`h-full transition-all hover:shadow-md cursor-pointer ${
                   semaforo === "rojo"     ? "border-red-200 bg-red-50/40" :
                   semaforo === "amarillo" ? "border-yellow-200 bg-yellow-50/40" :
-                  semaforo === "verde"    ? "border-green-200 bg-green-50/20" :
-                  "border-slate-200 bg-slate-50/30"
+                  "border-green-200 bg-green-50/20"
                 }`}>
                   <CardHeader className="pb-2 pt-4 px-4">
                     <div className="flex items-start justify-between gap-2">
@@ -91,7 +87,6 @@ export default async function ClausulasPage() {
                       {semaforo === "verde"    && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
                       {semaforo === "amarillo" && <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />}
                       {semaforo === "rojo"     && <XCircle className="h-4 w-4 text-red-500 shrink-0" />}
-                      {semaforo === "gris"     && <Clock className="h-4 w-4 text-slate-400 shrink-0" />}
                     </div>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">

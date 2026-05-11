@@ -44,8 +44,6 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
     if (publicados.some((i) => i.estado === "vencido")) semaforo = "vencido";
     else if (publicados.some((i) => i.estado === "por_vencer")) semaforo = "por_vencer";
     else semaforo = "vigente";
-  } else if (borradores.length > 0) {
-    semaforo = "borrador";
   }
 
   return (
@@ -66,30 +64,23 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
 
         {/* Estado general */}
         <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${
-          semaforo === "vigente"      ? "border-green-200 bg-green-50" :
-          semaforo === "por_vencer"   ? "border-yellow-200 bg-yellow-50" :
-          semaforo === "vencido"      ? "border-red-200 bg-red-50" :
-          semaforo === "borrador"     ? "border-slate-200 bg-slate-50" :
+          semaforo === "vigente"    ? "border-green-200 bg-green-50" :
+          semaforo === "por_vencer" ? "border-yellow-200 bg-yellow-50" :
           "border-red-200 bg-red-50"
         }`}>
           {semaforo === "vigente"    && <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />}
           {semaforo === "por_vencer" && <Clock className="h-5 w-5 text-yellow-500 shrink-0" />}
-          {semaforo === "vencido"    && <XCircle className="h-5 w-5 text-red-500 shrink-0" />}
-          {semaforo === "borrador"   && <PenLine className="h-5 w-5 text-slate-400 shrink-0" />}
-          {semaforo === "sin_evidencia" && <XCircle className="h-5 w-5 text-red-500 shrink-0" />}
+          {(semaforo === "vencido" || semaforo === "sin_evidencia") && <XCircle className="h-5 w-5 text-red-500 shrink-0" />}
           <div>
             <p className={`text-sm font-medium ${
-              semaforo === "vigente"      ? "text-green-700" :
-              semaforo === "por_vencer"   ? "text-yellow-700" :
-              semaforo === "vencido"      ? "text-red-700" :
-              semaforo === "borrador"     ? "text-slate-600" :
+              semaforo === "vigente"    ? "text-green-700" :
+              semaforo === "por_vencer" ? "text-yellow-700" :
               "text-red-700"
             }`}>
-              {semaforo === "vigente"      && "Evidencia vigente"}
+              {semaforo === "vigente"       && "Evidencia vigente"}
               {semaforo === "por_vencer"   && "Evidencia por vencer"}
               {semaforo === "vencido"      && "Evidencia vencida"}
-              {semaforo === "borrador"     && "Placeholder cargado — pendiente de completar"}
-              {semaforo === "sin_evidencia" && "Sin evidencia — no hay documentos para esta cláusula"}
+              {semaforo === "sin_evidencia" && "Sin evidencia — subí el documento para completar esta cláusula"}
             </p>
             {clausula.descripcion && (
               <p className="text-xs text-muted-foreground mt-0.5">{clausula.descripcion}</p>
