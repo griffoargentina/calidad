@@ -164,22 +164,12 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
 
     // Subir archivo si se adjuntó
     if (archivo) {
-      const ext = archivo.name.split(".").pop();
-      const path = `items/${result.data.id}/v1_${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("documentos")
-        .upload(path, archivo, { upsert: false });
-      if (!uploadError) {
-        const { data: { publicUrl } } = supabase.storage.from("documentos").getPublicUrl(path);
-        await supabase.from("archivos").insert({
-          item_id: result.data.id,
-          version: 1,
-          archivo_url: publicUrl,
-          nombre_archivo: archivo.name,
-          tamaño_bytes: archivo.size,
-          categoria: "documento",
-        });
-      }
+      const fd = new FormData();
+      fd.append("file", archivo);
+      fd.append("item_id", result.data.id);
+      fd.append("categoria", "documento");
+      fd.append("version", "1");
+      await fetch("/api/upload", { method: "POST", body: fd });
     }
 
     router.push(`/items/${result.data.id}`);
