@@ -19,11 +19,7 @@ export type TipoItem =
   | "formulario"
   | "registro"
   | "manual"
-  | "diseno_plan"
-  | "diseno_entrada"
-  | "diseno_revision"
-  | "diseno_salida"
-  | "diseno_cambio"
+  | "diseno_desarrollo"
   | "evaluacion_proveedor"
   | "producto_no_conforme"
   | "satisfaccion_cliente"
@@ -107,6 +103,7 @@ export interface Item {
   estado: EstadoItem;
   requiere_aprobacion: boolean;
   version_actual: number;
+  codigo_formal: string | null;
   etiquetas: string[];
   es_borrador: boolean;
   metadata: Record<string, unknown>;

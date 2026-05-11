@@ -97,6 +97,9 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="font-mono text-sm font-bold text-primary">{item.codigo}</span>
               <span className="text-muted-foreground text-sm font-mono">({item.codigo_completo})</span>
+              {item.codigo_formal && (
+                <span className="text-xs text-muted-foreground">· <span className="font-medium">{item.codigo_formal}</span></span>
+              )}
               <EstadoBadge estado={item.estado} />
               <Badge variant="outline" className="text-xs">v{item.version_actual}</Badge>
               {item.es_borrador && (

@@ -111,11 +111,9 @@ export const CLAUSULA_REQUISITOS: Record<string, RequisitoISO[]> = {
     { id: "8.2-c", descripcion: "Cambios en requisitos comunicados y registros actualizados", tipo_item: "registro" },
   ],
   "8.3": [
-    { id: "8.3-a", descripcion: "Plan de diseño y desarrollo con etapas, revisiones, responsables", tipo_item: "diseno_plan" },
-    { id: "8.3-b", descripcion: "Entradas de diseño documentadas (requisitos funcionales, legales, de clientes)", tipo_item: "diseno_entrada" },
-    { id: "8.3-c", descripcion: "Revisiones de diseño realizadas y registradas", tipo_item: "diseno_revision" },
-    { id: "8.3-d", descripcion: "Salidas de diseño verificadas y validadas contra las entradas", tipo_item: "diseno_salida" },
-    { id: "8.3-e", descripcion: "Cambios de diseño controlados y sus efectos evaluados", tipo_item: "diseno_cambio" },
+    { id: "8.3-a", descripcion: "Plan, entradas, revisiones, salidas y cambios de diseño documentados con etapas, responsables y criterios de aceptación", tipo_item: "diseno_desarrollo" },
+    { id: "8.3-b", descripcion: "Verificación y validación de salidas de diseño contra las entradas definidas", tipo_item: "diseno_desarrollo" },
+    { id: "8.3-c", descripcion: "Control de cambios de diseño con evaluación de efectos sobre productos y procesos", tipo_item: "diseno_desarrollo" },
   ],
   "8.4": [
     { id: "8.4-a", descripcion: "Criterios de evaluación y selección de proveedores externos definidos", tipo_item: "evaluacion_proveedor" },

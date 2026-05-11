@@ -13,6 +13,7 @@ interface ItemRow {
   id: string;
   codigo: string;
   codigo_completo: string;
+  codigo_formal?: string | null;
   tipo: TipoItem;
   clausula_iso: string;
   titulo: string;
@@ -65,6 +66,9 @@ export function ItemsTable({ items }: ItemsTableProps) {
                   <span className="font-mono text-xs font-semibold text-primary">
                     {item.codigo}
                   </span>
+                  {item.codigo_formal && (
+                    <span className="text-[10px] text-muted-foreground block mt-0.5">{item.codigo_formal}</span>
+                  )}
                 </Link>
               </TableCell>
               <TableCell>

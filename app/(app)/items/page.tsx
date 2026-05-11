@@ -34,7 +34,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
   let query = supabase
     .from("items")
     .select(`
-      id, codigo, codigo_completo, tipo, clausula_iso, titulo, estado,
+      id, codigo, codigo_completo, codigo_formal, tipo, clausula_iso, titulo, estado,
       fecha_vencimiento, version_actual, etiquetas, es_borrador, responsable_id,
       area_id, created_at, updated_at,
       usuarios!responsable_id(nombre),

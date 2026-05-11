@@ -38,6 +38,7 @@ interface ItemInicial {
   requiere_aprobacion: boolean;
   es_borrador: boolean;
   etiquetas: string[];
+  codigo_formal?: string | null;
 }
 
 interface ItemFormProps {
@@ -68,6 +69,7 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [esBorrador, setEsBorrador] = useState(itemInicial?.es_borrador ?? false);
   const [etiquetas, setEtiquetas] = useState<string[]>(itemInicial?.etiquetas ?? []);
   const [etiquetaInput, setEtiquetaInput] = useState("");
+  const [codigoFormal, setCodigoFormal] = useState(itemInicial?.codigo_formal ?? "");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +137,7 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
       requiere_aprobacion: requiereAprobacion,
       es_borrador: esBorrador,
       etiquetas,
+      codigo_formal: codigoFormal.trim() || null,
     };
 
     if (esBorrador) {
@@ -229,6 +232,16 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
               placeholder="Ej: Procedimiento de control de documentos"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Código formal</Label>
+            <Input
+              value={codigoFormal}
+              onChange={(e) => setCodigoFormal(e.target.value)}
+              placeholder="Ej. DS GEN 05, PGC PRO 01"
+            />
+            <p className="text-xs text-muted-foreground">Nomenclatura interna de Griffo (opcional)</p>
           </div>
 
           <div className="space-y-2">
