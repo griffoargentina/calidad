@@ -24,7 +24,6 @@ export default async function DashboardPage() {
     { count: vigentes },
     { data: itemsUrgentes },
     { data: actividadReciente },
-    { data: todosPublicados },
     { data: todosItems },
     { data: archivosDoc },
     { data: archivosProc },
@@ -44,9 +43,7 @@ export default async function DashboardPage() {
       .select("id, accion, created_at, detalle, usuarios(nombre), items(codigo, titulo)")
       .order("created_at", { ascending: false })
       .limit(8),
-    // Solo publicados → para sin archivo
-    supabase.from("items").select("id, codigo, titulo, tipo").eq("es_borrador", false),
-    // Todos (publicados + borradores) → para sin procedimiento
+    // Todos (publicados + borradores) → para sin archivo y sin procedimiento
     supabase.from("items").select("id, codigo, titulo, tipo, es_borrador").neq("estado", "obsoleto"),
     supabase.from("archivos").select("item_id").eq("categoria", "documento"),
     supabase.from("archivos").select("item_id").eq("categoria", "procedimiento"),
@@ -55,8 +52,8 @@ export default async function DashboardPage() {
   const conDocSet  = new Set(archivosDoc?.map((a) => a.item_id) ?? []);
   const conProcSet = new Set(archivosProc?.map((a) => a.item_id) ?? []);
 
-  // Sin archivo = publicados sin documento adjunto → se suman a "vencidos"
-  const itemsSinArchivo = (todosPublicados ?? []).filter((i) => !conDocSet.has(i.id));
+  // Sin archivo = TODOS los items sin documento adjunto → se suman a "vencidos"
+  const itemsSinArchivo = (todosItems ?? []).filter((i) => !conDocSet.has(i.id));
   const sinArchivo = itemsSinArchivo.length;
 
   // Sin procedimiento = TODOS los items (inc. borradores) sin procedimiento adjunto
@@ -64,9 +61,12 @@ export default async function DashboardPage() {
   const sinProcedimiento = itemsSinProcedimiento.length;
 
   const total = totalItems ?? 0;
-  // Vencidos efectivos = vencidos reales + items sin archivo (sin evidencia = vencido)
+  const totalConBorradores = todosItems?.length ?? 0;
+  // Vencidos efectivos = vencidos reales + TODOS los items sin archivo (incluyendo borradores)
   const vencidosTotal = (vencidosReales ?? 0) + sinArchivo;
-  const cumplimiento = total > 0 ? Math.max(0, Math.round(((total - vencidosTotal) / total) * 100)) : 0;
+  const cumplimiento = totalConBorradores > 0
+    ? Math.max(0, Math.round(((totalConBorradores - vencidosTotal) / totalConBorradores) * 100))
+    : 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -99,7 +99,7 @@ export default async function DashboardPage() {
             icon={cumplimiento >= 80 ? CheckCircle2 : cumplimiento >= 50 ? AlertTriangle : XCircle}
             iconColor={cumplimiento >= 80 ? "text-green-500" : cumplimiento >= 50 ? "text-yellow-500" : "text-red-500"}
             bgColor={cumplimiento >= 80 ? "bg-green-50" : cumplimiento >= 50 ? "bg-yellow-50" : "bg-red-50"}
-            subtitle={total === 0 ? "Sin documentos cargados" : `${vigentes ?? 0} vigentes`}
+            subtitle={totalConBorradores === 0 ? "Sin documentos cargados" : `${vigentes ?? 0} vigentes`}
             alert={cumplimiento < 50}
           />
           <MetricCard
