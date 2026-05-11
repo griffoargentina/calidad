@@ -11,7 +11,7 @@ import { EstadoItem } from "@/types/database";
 import { formatFecha } from "@/lib/utils/format";
 import {
   CheckCircle2, AlertTriangle, XCircle, Plus, ArrowLeft,
-  FileText, ChevronRight, Clock
+  FileText, ChevronRight, Clock, PenLine
 } from "lucide-react";
 import Link from "next/link";
 
@@ -28,9 +28,10 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
   const [{ data: clausula }, { data: items }] = await Promise.all([
     admin.from("clausulas_iso").select("*").eq("id", params.id).single(),
     admin.from("items")
-      .select("id, codigo, titulo, tipo, estado, fecha_vencimiento")
+      .select("id, codigo, titulo, tipo, estado, fecha_vencimiento, es_borrador")
       .eq("clausula_iso", params.id)
-      .eq("es_borrador", false)
+      .neq("estado", "obsoleto")
+      .order("es_borrador", { ascending: true })
       .order("tipo"),
   ]);
 
@@ -38,25 +39,34 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
 
   const requisitos = CLAUSULA_REQUISITOS[params.id] ?? [];
 
+  // Separar publicados y borradores
+  const itemsPublicados = items?.filter((i) => !i.es_borrador) ?? [];
+  const itemsBorrador = items?.filter((i) => i.es_borrador) ?? [];
+
   // Para cada requisito, buscar los items que lo cubren (mismo tipo)
-  const itemsByTipo = new Map<string, typeof items>();
+  const publicadosByTipo = new Map<string, typeof itemsPublicados>();
+  const borradoresByTipo = new Map<string, typeof itemsBorrador>();
   for (const req of requisitos) {
     if (req.tipo_item) {
-      itemsByTipo.set(req.tipo_item, items?.filter((i) => i.tipo === req.tipo_item) ?? []);
+      publicadosByTipo.set(req.tipo_item, itemsPublicados.filter((i) => i.tipo === req.tipo_item));
+      borradoresByTipo.set(req.tipo_item, itemsBorrador.filter((i) => i.tipo === req.tipo_item));
     }
   }
 
   function getEstadoRequisito(req: (typeof requisitos)[0]) {
     if (!req.tipo_item) return "sin_tipo";
-    const its = itemsByTipo.get(req.tipo_item) ?? [];
-    if (its.length === 0) return "sin_evidencia";
-    if (its.some((i) => i.estado === "vencido")) return "vencido";
-    if (its.some((i) => i.estado === "por_vencer")) return "por_vencer";
+    const pub = publicadosByTipo.get(req.tipo_item) ?? [];
+    const bor = borradoresByTipo.get(req.tipo_item) ?? [];
+    if (pub.length === 0 && bor.length === 0) return "sin_evidencia";
+    if (pub.length === 0 && bor.length > 0) return "borrador";
+    if (pub.some((i) => i.estado === "vencido")) return "vencido";
+    if (pub.some((i) => i.estado === "por_vencer")) return "por_vencer";
     return "vigente";
   }
 
   const vigentes = requisitos.filter((r) => getEstadoRequisito(r) === "vigente").length;
   const porVencer = requisitos.filter((r) => getEstadoRequisito(r) === "por_vencer").length;
+  const pendientes = requisitos.filter((r) => getEstadoRequisito(r) === "borrador").length;
   const sinEvidencia = requisitos.filter((r) =>
     getEstadoRequisito(r) === "sin_evidencia" || getEstadoRequisito(r) === "vencido"
   ).length;
@@ -84,26 +94,33 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
         )}
 
         {/* Resumen */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           <div className="flex items-center gap-3 rounded-lg border bg-green-50 border-green-200 px-4 py-3">
             <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
             <div>
               <p className="text-2xl font-bold text-green-700">{vigentes}</p>
-              <p className="text-xs text-green-600">Con evidencia vigente</p>
+              <p className="text-xs text-green-600">Vigente</p>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg border bg-yellow-50 border-yellow-200 px-4 py-3">
             <Clock className="h-5 w-5 text-yellow-500 shrink-0" />
             <div>
               <p className="text-2xl font-bold text-yellow-700">{porVencer}</p>
-              <p className="text-xs text-yellow-600">Por vencer pronto</p>
+              <p className="text-xs text-yellow-600">Por vencer</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg border bg-slate-50 border-slate-200 px-4 py-3">
+            <PenLine className="h-5 w-5 text-slate-400 shrink-0" />
+            <div>
+              <p className="text-2xl font-bold text-slate-600">{pendientes}</p>
+              <p className="text-xs text-slate-500">Pendiente (borrador)</p>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg border bg-red-50 border-red-200 px-4 py-3">
             <XCircle className="h-5 w-5 text-red-500 shrink-0" />
             <div>
               <p className="text-2xl font-bold text-red-700">{sinEvidencia}</p>
-              <p className="text-xs text-red-600">Sin evidencia / vencido</p>
+              <p className="text-xs text-red-600">Sin evidencia</p>
             </div>
           </div>
         </div>
@@ -124,11 +141,14 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
 
             {requisitos.map((req) => {
               const estado = getEstadoRequisito(req);
-              const its = req.tipo_item ? (itemsByTipo.get(req.tipo_item) ?? []) : [];
+              const pub = req.tipo_item ? (publicadosByTipo.get(req.tipo_item) ?? []) : [];
+              const bor = req.tipo_item ? (borradoresByTipo.get(req.tipo_item) ?? []) : [];
+              const its = [...pub, ...bor];
 
               const borderColor =
-                estado === "vigente" ? "border-green-200 bg-green-50/20" :
-                estado === "por_vencer" ? "border-yellow-200 bg-yellow-50/20" :
+                estado === "vigente"     ? "border-green-200 bg-green-50/20" :
+                estado === "por_vencer"  ? "border-yellow-200 bg-yellow-50/20" :
+                estado === "borrador"    ? "border-slate-200 bg-slate-50/30" :
                 estado === "sin_evidencia" || estado === "vencido" ? "border-red-200 bg-red-50/20" :
                 "border-slate-200 bg-slate-50/20";
 
@@ -137,10 +157,11 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
                   {/* Cabecera del requisito */}
                   <div className="flex items-start gap-3 px-4 py-3">
                     <div className="mt-0.5 shrink-0">
-                      {estado === "vigente" && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                      {estado === "vigente"    && <CheckCircle2 className="h-4 w-4 text-green-500" />}
                       {estado === "por_vencer" && <AlertTriangle className="h-4 w-4 text-yellow-500" />}
+                      {estado === "borrador"   && <PenLine className="h-4 w-4 text-slate-400" />}
                       {(estado === "sin_evidencia" || estado === "vencido") && <XCircle className="h-4 w-4 text-red-500" />}
-                      {estado === "sin_tipo" && <div className="h-4 w-4 rounded-full border-2 border-slate-300" />}
+                      {estado === "sin_tipo"   && <div className="h-4 w-4 rounded-full border-2 border-slate-300" />}
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -160,6 +181,11 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
                       {estado === "sin_evidencia" && req.tipo_item && (
                         <p className="text-xs text-red-500 mt-1 font-medium">
                           Sin evidencia — no hay documentos de este tipo cargados
+                        </p>
+                      )}
+                      {estado === "borrador" && (
+                        <p className="text-xs text-slate-500 mt-1">
+                          Borrador — pendiente de completar y publicar
                         </p>
                       )}
                       {estado === "sin_tipo" && (
@@ -193,7 +219,10 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
                               {item.codigo}
                             </span>
                             <span className="flex-1 text-sm truncate">{item.titulo}</span>
-                            <EstadoBadge estado={item.estado as EstadoItem} />
+                            {item.es_borrador
+                              ? <Badge variant="outline" className="text-xs text-slate-500 border-slate-300">Borrador</Badge>
+                              : <EstadoBadge estado={item.estado as EstadoItem} />
+                            }
                             <span className="text-xs text-muted-foreground shrink-0">
                               {item.fecha_vencimiento ? formatFecha(item.fecha_vencimiento) : "Sin venc."}
                             </span>

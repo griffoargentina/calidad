@@ -4,7 +4,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import Link from "next/link";
-import { CheckCircle2, AlertTriangle, XCircle, FileText } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle, FileText, Clock } from "lucide-react";
 
 export default async function ClausulasPage() {
   const supabase = await createClient();
@@ -26,29 +26,36 @@ export default async function ClausulasPage() {
     return 0;
   });
 
-  // Contar items por cláusula y su peor estado
-  const { data: itemsPorClausula } = await supabase
+  // Traer todos los items (publicados + borradores)
+  const { data: todosItems } = await supabase
     .from("items")
-    .select("clausula_iso, estado")
-    .eq("es_borrador", false)
+    .select("clausula_iso, estado, es_borrador")
     .neq("estado", "obsoleto");
 
-  const clausulaStats: Record<string, { total: number; vencidos: number; porVencer: number; vigentes: number }> = {};
+  const clausulaStats: Record<string, {
+    total: number; vencidos: number; porVencer: number; vigentes: number; borradores: number;
+  }> = {};
 
-  for (const item of itemsPorClausula ?? []) {
+  for (const item of todosItems ?? []) {
     if (!clausulaStats[item.clausula_iso]) {
-      clausulaStats[item.clausula_iso] = { total: 0, vencidos: 0, porVencer: 0, vigentes: 0 };
+      clausulaStats[item.clausula_iso] = { total: 0, vencidos: 0, porVencer: 0, vigentes: 0, borradores: 0 };
     }
     const s = clausulaStats[item.clausula_iso];
-    s.total++;
-    if (item.estado === "vencido") s.vencidos++;
-    else if (item.estado === "por_vencer") s.porVencer++;
-    else if (item.estado === "vigente") s.vigentes++;
+    if (item.es_borrador) {
+      s.borradores++;
+    } else {
+      s.total++;
+      if (item.estado === "vencido") s.vencidos++;
+      else if (item.estado === "por_vencer") s.porVencer++;
+      else if (item.estado === "vigente") s.vigentes++;
+    }
   }
 
   function getSemaforo(clausulaId: string) {
     const s = clausulaStats[clausulaId];
-    if (!s || s.total === 0) return "rojo"; // sin evidencia = rojo
+    if (!s) return "rojo";                          // sin nada
+    if (s.total === 0 && s.borradores > 0) return "gris";  // solo borradores = pendiente
+    if (s.total === 0) return "rojo";               // sin publicados
     if (s.vencidos > 0) return "rojo";
     if (s.porVencer > 0) return "amarillo";
     return "verde";
@@ -58,11 +65,11 @@ export default async function ClausulasPage() {
     <div className="flex flex-col h-full">
       <Topbar title="Mapa de cobertura — Cláusulas ISO 9001:2015" />
       <div className="flex-1 p-6 space-y-4">
-        {/* Leyenda */}
-        <div className="flex gap-4 text-sm">
+        <div className="flex gap-4 text-sm flex-wrap">
           <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-500" /> Todo vigente</span>
           <span className="flex items-center gap-1.5"><AlertTriangle className="h-4 w-4 text-yellow-500" /> Por vencer</span>
           <span className="flex items-center gap-1.5"><XCircle className="h-4 w-4 text-red-500" /> Vencido o sin evidencia</span>
+          <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-slate-400" /> Pendiente (borrador)</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -73,33 +80,32 @@ export default async function ClausulasPage() {
             return (
               <Link key={c.id} href={`/admin/clausulas/${c.id}`}>
                 <Card className={`h-full transition-all hover:shadow-md cursor-pointer ${
-                  semaforo === "rojo" ? "border-red-200 bg-red-50/40" :
+                  semaforo === "rojo"     ? "border-red-200 bg-red-50/40" :
                   semaforo === "amarillo" ? "border-yellow-200 bg-yellow-50/40" :
-                  semaforo === "verde" ? "border-green-200 bg-green-50/20" :
-                  "border-slate-200"
+                  semaforo === "verde"    ? "border-green-200 bg-green-50/20" :
+                  "border-slate-200 bg-slate-50/30"
                 }`}>
                   <CardHeader className="pb-2 pt-4 px-4">
                     <div className="flex items-start justify-between gap-2">
                       <Badge variant="outline" className="font-mono text-xs shrink-0">{c.id}</Badge>
-                      {semaforo === "verde" && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
+                      {semaforo === "verde"    && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
                       {semaforo === "amarillo" && <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />}
-                      {semaforo === "rojo" && <XCircle className="h-4 w-4 text-red-500 shrink-0" />}
+                      {semaforo === "rojo"     && <XCircle className="h-4 w-4 text-red-500 shrink-0" />}
+                      {semaforo === "gris"     && <Clock className="h-4 w-4 text-slate-400 shrink-0" />}
                     </div>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
                     <p className="text-xs font-medium leading-snug mb-3">{c.titulo}</p>
-                    {stats ? (
+                    {stats?.total > 0 ? (
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <FileText className="h-3 w-3" /> {stats.total}
                         </span>
-                        {stats.vencidos > 0 && (
-                          <span className="text-red-600 font-medium">{stats.vencidos} vencidos</span>
-                        )}
-                        {stats.porVencer > 0 && (
-                          <span className="text-yellow-600">{stats.porVencer} por vencer</span>
-                        )}
+                        {stats.vencidos > 0 && <span className="text-red-600 font-medium">{stats.vencidos} vencidos</span>}
+                        {stats.porVencer > 0 && <span className="text-yellow-600">{stats.porVencer} por vencer</span>}
                       </div>
+                    ) : stats?.borradores > 0 ? (
+                      <p className="text-xs text-slate-500">Borrador — pendiente de completar</p>
                     ) : (
                       <p className="text-xs text-red-500 font-medium">Sin evidencia</p>
                     )}
