@@ -7,6 +7,9 @@
 ALTER TABLE items ADD COLUMN IF NOT EXISTS codigo_formal text;
 
 -- b) Recrear tipo_item enum (5 subtipos diseño → diseno_desarrollo)
+-- Primero eliminar la vista que depende de la columna tipo
+DROP VIEW IF EXISTS v_items_con_estado;
+
 ALTER TABLE items ALTER COLUMN tipo TYPE text;
 ALTER TABLE plantillas ALTER COLUMN tipo TYPE text;
 DROP TYPE IF EXISTS tipo_item;
@@ -22,6 +25,30 @@ CREATE TYPE tipo_item AS ENUM (
 );
 ALTER TABLE items ALTER COLUMN tipo TYPE tipo_item USING tipo::tipo_item;
 ALTER TABLE plantillas ALTER COLUMN tipo TYPE tipo_item USING tipo::tipo_item;
+
+-- Recrear la vista después de cambiar el enum
+CREATE OR REPLACE VIEW v_items_con_estado AS
+SELECT
+  i.*,
+  CASE
+    WHEN i.es_borrador = true                                          THEN 'borrador'::estado_item
+    WHEN i.estado IN ('obsoleto', 'pendiente_aprobacion')             THEN i.estado
+    WHEN i.fecha_vencimiento IS NULL                                   THEN 'vigente'::estado_item
+    WHEN i.fecha_vencimiento < CURRENT_DATE                           THEN 'vencido'::estado_item
+    WHEN i.fecha_vencimiento <= CURRENT_DATE + INTERVAL '30 days'     THEN 'por_vencer'::estado_item
+    ELSE 'vigente'::estado_item
+  END AS estado_calculado,
+  CASE
+    WHEN i.fecha_vencimiento IS NOT NULL AND i.fecha_vencimiento < CURRENT_DATE
+    THEN CURRENT_DATE - i.fecha_vencimiento
+    ELSE NULL
+  END AS dias_vencido,
+  CASE
+    WHEN i.fecha_vencimiento IS NOT NULL AND i.fecha_vencimiento >= CURRENT_DATE
+    THEN i.fecha_vencimiento - CURRENT_DATE
+    ELSE NULL
+  END AS dias_para_vencer
+FROM items i;
 
 -- c) Actualizar función fn_generar_codigo_item
 CREATE OR REPLACE FUNCTION fn_generar_codigo_item()
