@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Topbar } from "@/components/layout/topbar";
 import { ItemForm } from "@/components/items/item-form";
 
-export default async function NuevoItemPage() {
+export default async function NuevoItemPage({ searchParams }: { searchParams: { tipo?: string; clausula?: string } }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -44,6 +44,8 @@ export default async function NuevoItemPage() {
           usuarios={usuarios ?? []}
           plantillas={plantillas ?? []}
           usuarioActual={{ rol: usuario?.rol, area_id: usuario?.area_id, tipos_habilitados: usuario?.tipos_habilitados }}
+          tipoInicial={searchParams.tipo}
+          clausulaInicial={searchParams.clausula}
         />
       </div>
     </div>

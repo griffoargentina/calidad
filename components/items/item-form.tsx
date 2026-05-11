@@ -47,16 +47,18 @@ interface ItemFormProps {
   plantillas: Plantilla[];
   usuarioActual: { rol: string; area_id: string | null; tipos_habilitados: string[] };
   itemInicial?: ItemInicial;
+  tipoInicial?: string;
+  clausulaInicial?: string;
 }
 
-export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual, itemInicial }: ItemFormProps) {
+export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual, itemInicial, tipoInicial, clausulaInicial }: ItemFormProps) {
   const router = useRouter();
   const supabase = createClient();
 
-  const [tipo, setTipo] = useState<TipoItem | "">(itemInicial?.tipo ?? "");
+  const [tipo, setTipo] = useState<TipoItem | "">(itemInicial?.tipo ?? (tipoInicial as TipoItem) ?? "");
   const [titulo, setTitulo] = useState(itemInicial?.titulo ?? "");
   const [descripcion, setDescripcion] = useState(itemInicial?.descripcion ?? "");
-  const [clausulaIso, setClausulaIso] = useState(itemInicial?.clausula_iso ?? "");
+  const [clausulaIso, setClausulaIso] = useState(itemInicial?.clausula_iso ?? clausulaInicial ?? (tipoInicial ? (TIPO_ITEM_CLAUSULA_PRINCIPAL[tipoInicial as TipoItem] ?? "") : ""));
   const [areaId, setAreaId] = useState(itemInicial?.area_id ?? usuarioActual.area_id ?? "__none__");
   const [responsableId, setResponsableId] = useState(itemInicial?.responsable_id ?? "__none__");
   const [fechaEmision, setFechaEmision] = useState(itemInicial?.fecha_emision ?? new Date().toISOString().split("T")[0]);
