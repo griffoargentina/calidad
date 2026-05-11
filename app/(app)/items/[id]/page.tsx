@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EstadoBadge } from "@/components/shared/estado-badge";
 import { RenovarModal } from "@/components/items/renovar-modal";
+import { SubirProcedimientoModal } from "@/components/items/subir-procedimiento-modal";
 import { ComentariosSection } from "@/components/items/comentarios-section";
 import { formatFecha, formatBytes } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
@@ -48,6 +49,9 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
     .eq("item_id", params.id)
     .order("version", { ascending: false });
 
+  const documentos = archivos?.filter((a) => (a.categoria ?? "documento") === "documento") ?? [];
+  const procedimientos = archivos?.filter((a) => a.categoria === "procedimiento") ?? [];
+
   // Historial
   const { data: historial } = await supabase
     .from("historial")
@@ -72,6 +76,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
         actions={
           canEdit ? (
             <>
+              <SubirProcedimientoModal item={item} />
               <RenovarModal item={item} />
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/items/${params.id}/editar`}>Editar</Link>
@@ -146,7 +151,10 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
         <Tabs defaultValue="archivos">
           <TabsList>
             <TabsTrigger value="archivos">
-              Archivos ({archivos?.length ?? 0})
+              Documento ({documentos.length})
+            </TabsTrigger>
+            <TabsTrigger value="procedimiento">
+              Procedimiento ({procedimientos.length})
             </TabsTrigger>
             <TabsTrigger value="historial">
               Historial ({historial?.length ?? 0})
@@ -154,17 +162,17 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
             <TabsTrigger value="comentarios">Comentarios</TabsTrigger>
           </TabsList>
 
-          {/* Archivos */}
+          {/* Documento principal */}
           <TabsContent value="archivos" className="mt-4">
             <Card>
               <CardContent className="p-0">
-                {!archivos?.length ? (
+                {!documentos.length ? (
                   <p className="px-6 py-10 text-sm text-muted-foreground text-center">
-                    No hay archivos cargados. Usá el botón &quot;Renovar&quot; para subir el primer archivo.
+                    No hay documento cargado. Usá el botón &quot;Renovar&quot; para subir el primer archivo.
                   </p>
                 ) : (
                   <ul className="divide-y">
-                    {(archivos as Array<Record<string, unknown> & { id: string; nombre_archivo: string; tamaño_bytes: number | null; subido_at: string; comentario: string | null; aprobado_at: string | null; version: number; archivo_url: string; subidor?: { nombre: string } | null; aprobador?: { nombre: string } | null }>).map((archivo) => (
+                    {(documentos as Array<Record<string, unknown> & { id: string; nombre_archivo: string; tamaño_bytes: number | null; subido_at: string; comentario: string | null; aprobado_at: string | null; version: number; archivo_url: string; subidor?: { nombre: string } | null; aprobador?: { nombre: string } | null }>).map((archivo) => (
                       <li key={archivo.id} className="flex items-center gap-4 px-6 py-4">
                         <FileText className="h-8 w-8 text-blue-400 shrink-0" />
                         <div className="flex-1 overflow-hidden">
@@ -182,6 +190,42 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                           )}
                         </div>
                         <Badge variant="outline" className="shrink-0">v{archivo.version}</Badge>
+                        <Button variant="ghost" size="icon" asChild>
+                          <a href={archivo.archivo_url} target="_blank" rel="noopener noreferrer" download>
+                            <Download className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Procedimiento */}
+          <TabsContent value="procedimiento" className="mt-4">
+            <Card>
+              <CardContent className="p-0">
+                {!procedimientos.length ? (
+                  <div className="px-6 py-10 text-center text-sm text-muted-foreground">
+                    No hay procedimiento cargado.{" "}
+                    {canEdit && <span>Usá el botón &quot;Subir procedimiento&quot; arriba.</span>}
+                  </div>
+                ) : (
+                  <ul className="divide-y">
+                    {(procedimientos as Array<Record<string, unknown> & { id: string; nombre_archivo: string; tamaño_bytes: number | null; subido_at: string; comentario: string | null; version: number; archivo_url: string; subidor?: { nombre: string } | null }>).map((archivo) => (
+                      <li key={archivo.id} className="flex items-center gap-4 px-6 py-4">
+                        <FileText className="h-8 w-8 text-purple-400 shrink-0" />
+                        <div className="flex-1 overflow-hidden">
+                          <p className="text-sm font-medium truncate">{archivo.nombre_archivo}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatBytes(archivo.tamaño_bytes)} · {formatFecha(archivo.subido_at)} · por {archivo.subidor?.nombre ?? "—"}
+                          </p>
+                          {archivo.comentario && (
+                            <p className="text-xs text-muted-foreground italic mt-0.5">{archivo.comentario}</p>
+                          )}
+                        </div>
                         <Button variant="ghost" size="icon" asChild>
                           <a href={archivo.archivo_url} target="_blank" rel="noopener noreferrer" download>
                             <Download className="h-4 w-4" />

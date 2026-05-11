@@ -7,7 +7,7 @@ import { EstadoBadge } from "@/components/shared/estado-badge";
 import { formatFecha } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import {
-  FileText, AlertTriangle, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp
+  FileText, AlertTriangle, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp, BookOpen
 } from "lucide-react";
 import Link from "next/link";
 
@@ -25,6 +25,8 @@ export default async function DashboardPage() {
     { count: vigentes },
     { data: itemsUrgentes },
     { data: actividadReciente },
+    { data: itemsIds },
+    { data: itemsConProcedimiento },
   ] = await Promise.all([
     supabase.from("items").select("*", { count: "exact", head: true }).eq("es_borrador", false),
     supabase.from("items").select("*", { count: "exact", head: true })
@@ -43,7 +45,15 @@ export default async function DashboardPage() {
       .select("id, accion, created_at, detalle, usuarios(nombre), items(codigo, titulo)")
       .order("created_at", { ascending: false })
       .limit(8),
+    // IDs de todos los items publicados
+    supabase.from("items").select("id").eq("es_borrador", false),
+    // Items que YA tienen procedimiento
+    supabase.from("archivos").select("item_id").eq("categoria", "procedimiento"),
   ]);
+
+  const totalPublicados = itemsIds?.length ?? 0;
+  const conProcedimiento = new Set(itemsConProcedimiento?.map((a) => a.item_id) ?? []).size;
+  const sinProcedimiento = totalPublicados - conProcedimiento;
 
   const total = totalItems ?? 0;
   const cumplimiento = total > 0
@@ -56,7 +66,7 @@ export default async function DashboardPage() {
 
       <div className="flex-1 p-6 space-y-6">
         {/* Tarjetas de métricas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
           <MetricCard
             title="Total documentos"
             value={total}
@@ -90,6 +100,15 @@ export default async function DashboardPage() {
             bgColor={cumplimiento >= 80 ? "bg-green-50" : cumplimiento >= 50 ? "bg-yellow-50" : "bg-red-50"}
             subtitle={total === 0 ? "Sin documentos cargados" : `${vigentes ?? 0} vigentes`}
             alert={cumplimiento < 50}
+          />
+          <MetricCard
+            title="Sin procedimiento"
+            value={sinProcedimiento}
+            icon={BookOpen}
+            iconColor={sinProcedimiento > 0 ? "text-purple-500" : "text-green-500"}
+            bgColor={sinProcedimiento > 0 ? "bg-purple-50" : "bg-green-50"}
+            subtitle={`${conProcedimiento} de ${totalPublicados} tienen procedimiento`}
+            alert={false}
           />
         </div>
 
