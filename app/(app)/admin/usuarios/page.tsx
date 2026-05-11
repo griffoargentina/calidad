@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatFecha } from "@/lib/utils/format";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { InviteUsuarioDialog } from "@/components/admin/invite-usuario-dialog";
 
 export default async function UsuariosPage() {
   const supabase = await createClient();
@@ -15,10 +16,10 @@ export default async function UsuariosPage() {
   const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
   if (usuario?.rol !== "admin") redirect("/dashboard");
 
-  const { data: usuarios } = await supabase
-    .from("usuarios")
-    .select("*, areas(nombre)")
-    .order("nombre");
+  const [{ data: usuarios }, { data: areas }] = await Promise.all([
+    supabase.from("usuarios").select("*, areas(nombre)").order("nombre"),
+    supabase.from("areas").select("id, nombre").eq("activa", true).order("nombre"),
+  ]);
 
   // Contar items por responsable y sus estados
   const { data: itemsStats } = await supabase
@@ -50,7 +51,7 @@ export default async function UsuariosPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Topbar title="Usuarios" />
+      <Topbar title="Usuarios" actions={<InviteUsuarioDialog areas={areas ?? []} />} />
       <div className="flex-1 p-6">
         <Card>
           <CardContent className="p-0">
