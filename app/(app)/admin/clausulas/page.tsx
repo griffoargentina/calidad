@@ -14,7 +14,17 @@ export default async function ClausulasPage() {
   const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
   if (usuario?.rol !== "admin") redirect("/dashboard");
 
-  const { data: clausulas } = await supabase.from("clausulas_iso").select("*").order("id");
+  const { data: clausulasRaw } = await supabase.from("clausulas_iso").select("*");
+
+  const clausulas = (clausulasRaw ?? []).sort((a, b) => {
+    const pa = a.id.split(".").map(Number);
+    const pb = b.id.split(".").map(Number);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+      if (diff !== 0) return diff;
+    }
+    return 0;
+  });
 
   // Contar items por cláusula y su peor estado
   const { data: itemsPorClausula } = await supabase

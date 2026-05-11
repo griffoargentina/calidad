@@ -24,7 +24,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
   // Cargar áreas y cláusulas para los filtros
   const [{ data: areas }, { data: clausulas }, { data: usuario }] = await Promise.all([
     supabase.from("areas").select("id, nombre").eq("activa", true).order("nombre"),
-    supabase.from("clausulas_iso").select("id, titulo").order("id"),
+    supabase.from("clausulas_iso").select("id, titulo"),
     supabase.from("usuarios").select("rol, area_id, tipos_habilitados")
       .eq("id", (await supabase.auth.getUser()).data.user?.id ?? "")
       .single(),
@@ -63,6 +63,17 @@ export default async function ItemsPage({ searchParams }: PageProps) {
 
   const { data: items } = await query.limit(200);
 
+  const sortClausulas = (list: { id: string; titulo: string }[]) =>
+    list.sort((a, b) => {
+      const pa = a.id.split(".").map(Number);
+      const pb = b.id.split(".").map(Number);
+      for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+        if (diff !== 0) return diff;
+      }
+      return 0;
+    });
+
   const canEdit = usuario?.rol === "admin" || usuario?.rol === "editor";
 
   return (
@@ -84,7 +95,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
       <div className="flex-1 p-6 space-y-4">
         <ItemsFilters
           areas={areas ?? []}
-          clausulas={clausulas ?? []}
+          clausulas={sortClausulas(clausulas ?? [])}
           searchParams={searchParams}
         />
         <ItemsTable items={items ?? []} />
