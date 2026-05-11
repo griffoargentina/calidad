@@ -15,7 +15,8 @@ import {
   TIPO_ITEM_LABELS, TIPO_ITEM_CLAUSULA_PRINCIPAL, TIPOS_REQUIEREN_APROBACION, FRECUENCIAS_COMUNES,
 } from "@/lib/constants/items";
 import { TipoItem } from "@/types/database";
-import { Loader2, X, Plus, LayoutTemplate } from "lucide-react";
+import { Loader2, X, Plus, LayoutTemplate, Upload, FileText } from "lucide-react";
+import { useRef } from "react";
 
 interface Plantilla {
   id: string;
@@ -74,6 +75,8 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plantillaId, setPlantillaId] = useState("");
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Cuando cambia el tipo, auto-sugiere la cláusula ISO
   function handleTipoChange(t: TipoItem) {
@@ -157,6 +160,26 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
       setError(result.error.message);
       setLoading(false);
       return;
+    }
+
+    // Subir archivo si se adjuntó
+    if (archivo) {
+      const ext = archivo.name.split(".").pop();
+      const path = `items/${result.data.id}/v1_${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(path, archivo, { upsert: false });
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage.from("documentos").getPublicUrl(path);
+        await supabase.from("archivos").insert({
+          item_id: result.data.id,
+          version: 1,
+          archivo_url: publicUrl,
+          nombre_archivo: archivo.name,
+          tamaño_bytes: archivo.size,
+          categoria: "documento",
+        });
+      }
     }
 
     router.push(`/items/${result.data.id}`);
@@ -397,6 +420,46 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
               Guardar como borrador (no visible en el SGC hasta publicar)
             </Label>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Archivo */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Documento (opcional)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div
+            onClick={() => fileRef.current?.click()}
+            className="border-2 border-dashed rounded-lg p-5 text-center cursor-pointer hover:border-primary transition-colors"
+          >
+            {archivo ? (
+              <div className="flex items-center justify-center gap-2 text-primary">
+                <FileText className="h-5 w-5" />
+                <span className="text-sm font-medium truncate max-w-xs">{archivo.name}</span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setArchivo(null); }}
+                  className="text-muted-foreground hover:text-destructive ml-1"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="text-muted-foreground">
+                <Upload className="h-7 w-7 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">Cliqueá para adjuntar el documento</p>
+                <p className="text-xs mt-1 opacity-70">PDF, Excel, Word — opcional</p>
+              </div>
+            )}
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.xlsx,.xls,.doc,.docx,.jpg,.jpeg,.png"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) setArchivo(f); }}
+          />
         </CardContent>
       </Card>
 

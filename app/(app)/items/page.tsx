@@ -63,6 +63,13 @@ export default async function ItemsPage({ searchParams }: PageProps) {
 
   const { data: items } = await query.limit(200);
 
+  // Qué items tienen al menos un archivo (documento principal)
+  const { data: archivosExistentes } = await supabase
+    .from("archivos")
+    .select("item_id")
+    .eq("categoria", "documento");
+  const itemsConArchivo = new Set(archivosExistentes?.map((a) => a.item_id) ?? []);
+
   const sortClausulas = (list: { id: string; titulo: string }[]) =>
     list.sort((a, b) => {
       const pa = a.id.split(".").map(Number);
@@ -98,7 +105,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
           clausulas={sortClausulas(clausulas ?? [])}
           searchParams={searchParams}
         />
-        <ItemsTable items={items ?? []} />
+        <ItemsTable items={items ?? []} itemsConArchivo={itemsConArchivo} />
       </div>
     </div>
   );
