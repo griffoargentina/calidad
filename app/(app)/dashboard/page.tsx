@@ -7,7 +7,7 @@ import { EstadoBadge } from "@/components/shared/estado-badge";
 import { formatFecha } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import {
-  FileText, AlertTriangle, Clock, CheckCircle2, ArrowRight, TrendingUp
+  FileText, AlertTriangle, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp
 } from "lucide-react";
 import Link from "next/link";
 
@@ -48,7 +48,7 @@ export default async function DashboardPage() {
   const total = totalItems ?? 0;
   const cumplimiento = total > 0
     ? Math.round(((total - (vencidos ?? 0)) / total) * 100)
-    : 100;
+    : 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -85,10 +85,11 @@ export default async function DashboardPage() {
           <MetricCard
             title="% cumplimiento"
             value={`${cumplimiento}%`}
-            icon={CheckCircle2}
-            iconColor="text-green-500"
-            bgColor="bg-green-50"
-            subtitle={`${vigentes ?? 0} vigentes`}
+            icon={cumplimiento >= 80 ? CheckCircle2 : cumplimiento >= 50 ? AlertTriangle : XCircle}
+            iconColor={cumplimiento >= 80 ? "text-green-500" : cumplimiento >= 50 ? "text-yellow-500" : "text-red-500"}
+            bgColor={cumplimiento >= 80 ? "bg-green-50" : cumplimiento >= 50 ? "bg-yellow-50" : "bg-red-50"}
+            subtitle={total === 0 ? "Sin documentos cargados" : `${vigentes ?? 0} vigentes`}
+            alert={cumplimiento < 50}
           />
         </div>
 
