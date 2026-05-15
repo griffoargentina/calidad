@@ -2,6 +2,31 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+async function uploadToStorage(path: string, file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const url = `${SUPABASE_URL}/storage/v1/object/documentos/${path}`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+      "Content-Type": file.type || "application/octet-stream",
+      "Cache-Control": "3600",
+    },
+    body: arrayBuffer,
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(body);
+  }
+
+  return `${SUPABASE_URL}/storage/v1/object/public/documentos/${path}`;
+}
+
 export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -20,29 +45,22 @@ export async function POST(req: Request) {
   const ext = file.name.split(".").pop();
   const path = `items/${itemId}/v${version}_${Date.now()}.${ext}`;
 
-  const admin = createAdminClient();
+  try {
+    const publicUrl = await uploadToStorage(path, file);
 
-  const { error: storageError } = await admin.storage
-    .from("documentos")
-    .upload(path, file, { upsert: false });
+    const admin = createAdminClient();
+    const { error: rpcError } = await admin.rpc("fn_renovar_item", {
+      p_item_id: itemId,
+      p_archivo_url: publicUrl,
+      p_nombre_archivo: file.name,
+      p_tamaño_bytes: file.size,
+      p_comentario: comentario || null,
+    });
 
-  if (storageError) {
-    return NextResponse.json({ error: storageError.message }, { status: 500 });
+    if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
   }
-
-  const { data: { publicUrl } } = admin.storage.from("documentos").getPublicUrl(path);
-
-  const { error: rpcError } = await admin.rpc("fn_renovar_item", {
-    p_item_id: itemId,
-    p_archivo_url: publicUrl,
-    p_nombre_archivo: file.name,
-    p_tamaño_bytes: file.size,
-    p_comentario: comentario || null,
-  });
-
-  if (rpcError) {
-    return NextResponse.json({ error: rpcError.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: true });
 }
