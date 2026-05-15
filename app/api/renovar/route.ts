@@ -57,10 +57,10 @@ export async function POST(req: Request) {
       p_comentario: comentario || null,
     });
 
-    if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 });
+    if (rpcError) return NextResponse.json({ error: `[RPC] ${rpcError.message}` }, { status: 500 });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
+    return NextResponse.json({ error: `[Storage] ${err instanceof Error ? err.message : "Error"}` }, { status: 500 });
   }
 }

@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { RefreshCw, Upload, FileText, Loader2, CheckCircle2 } from "lucide-react";
+import { RefreshCw, Upload, FileText, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface RenovarModalProps {
   item: {
@@ -17,6 +17,7 @@ interface RenovarModalProps {
     titulo: string;
     version_actual: number;
     requiere_aprobacion: boolean;
+    frecuencia_dias?: number | null;
   };
 }
 
@@ -98,8 +99,30 @@ export function RenovarModal({ item }: RenovarModalProps) {
               <p className="font-semibold">¡Documento renovado!</p>
               <p className="text-sm text-muted-foreground">v{item.version_actual + 1} generada correctamente</p>
             </div>
+          ) : !item.frecuencia_dias ? (
+            <div className="flex flex-col items-center py-8 gap-3 text-center">
+              <AlertTriangle className="h-10 w-10 text-yellow-500" />
+              <p className="font-semibold text-yellow-700">Configurá la periodicidad primero</p>
+              <p className="text-sm text-muted-foreground">
+                Para subir un archivo necesitás definir la frecuencia de revisión del documento.<br />
+                Hacé clic en el ícono de edición junto a &ldquo;Frecuencia de revisión&rdquo; y guardá.
+              </p>
+            </div>
           ) : (
             <div className="space-y-4">
+              {/* Fecha calculada */}
+              {(() => {
+                const venc = new Date();
+                venc.setDate(venc.getDate() + item.frecuencia_dias!);
+                return (
+                  <div className="flex items-center gap-2 text-sm bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    <span className="text-blue-600">Nuevo vencimiento:</span>
+                    <span className="font-semibold text-blue-700">
+                      {venc.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                    </span>
+                  </div>
+                );
+              })()}
               {/* Selector de archivo */}
               <div className="space-y-2">
                 <Label>Nuevo archivo <span className="text-destructive">*</span></Label>
@@ -146,7 +169,7 @@ export function RenovarModal({ item }: RenovarModalProps) {
             </div>
           )}
 
-          {!done && (
+          {!done && !!item.frecuencia_dias && (
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
                 Cancelar

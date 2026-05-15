@@ -62,10 +62,10 @@ export async function POST(req: Request) {
       ...(comentario ? { comentario } : {}),
     });
 
-    if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+    if (dbError) return NextResponse.json({ error: `[DB] ${dbError.message}` }, { status: 500 });
 
     return NextResponse.json({ url: publicUrl });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
+    return NextResponse.json({ error: `[Storage] ${err instanceof Error ? err.message : "Error"}` }, { status: 500 });
   }
 }

@@ -6,32 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EstadoBadge } from "@/components/shared/estado-badge";
 import { RenovarModal } from "@/components/items/renovar-modal";
 import { SubirProcedimientoModal } from "@/components/items/subir-procedimiento-modal";
+import { QuickEditPanel } from "@/components/items/quick-edit-panel";
 import { ComentariosSection } from "@/components/items/comentarios-section";
 import { formatFecha, formatBytes } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import {
-  FileText, Download, User, Tag, Calendar, Hash, ArrowLeft,
-  BookOpen, RefreshCw, Clock, CheckCircle2, AlertTriangle, XCircle,
-  Building2, Layers,
+  FileText, Download, Tag, Calendar, Hash, ArrowLeft,
+  BookOpen, CheckCircle2, XCircle, Building2, Layers, User,
 } from "lucide-react";
 import Link from "next/link";
-
-const FRECUENCIA_LABEL: Record<number, string> = {
-  30: "Mensual",
-  60: "Bimestral",
-  90: "Trimestral",
-  180: "Semestral",
-  365: "Anual",
-  730: "Bienal",
-};
-
-function frecuenciaLabel(dias: number | null) {
-  if (!dias) return "Sin frecuencia definida";
-  return FRECUENCIA_LABEL[dias] ?? `Cada ${dias} días`;
-}
 
 export default async function ItemDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
@@ -39,13 +24,14 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: item }, { data: usuario }] = await Promise.all([
+  const [{ data: item }, { data: usuario }, { data: todosUsuarios }] = await Promise.all([
     supabase
       .from("items")
       .select(`*, clausulas_iso(id, titulo), areas(id, nombre), usuarios!responsable_id(id, nombre, email)`)
       .eq("id", params.id)
       .single(),
     supabase.from("usuarios").select("*").eq("id", user.id).single(),
+    supabase.from("usuarios").select("id, nombre").eq("activo", true).order("nombre"),
   ]);
 
   if (!item) notFound();
@@ -63,7 +49,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
     .order("created_at", { ascending: false })
     .limit(20);
 
-  const documentos = archivos?.filter((a) => (a.categoria ?? "documento") === "documento") ?? [];
+  const documentos    = archivos?.filter((a) => (a.categoria ?? "documento") === "documento") ?? [];
   const procedimientos = archivos?.filter((a) => a.categoria === "procedimiento") ?? [];
 
   const canEdit = usuario?.rol === "admin" || (
@@ -75,23 +61,14 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
   );
   const isAdmin = usuario?.rol === "admin";
 
-  const clausula = item.clausulas_iso as { id: string; titulo: string } | null;
-  const area = item.areas as { nombre: string } | null;
-  const responsable = item.usuarios as { nombre: string; email: string } | null;
+  const clausula   = item.clausulas_iso as { id: string; titulo: string } | null;
+  const area       = item.areas as { nombre: string } | null;
+  const responsable = item.usuarios as { id: string; nombre: string; email: string } | null;
 
-  // Semáforo de estado
-  const semaforoColor =
-    item.estado === "vigente"             ? "text-green-600 bg-green-50 border-green-200" :
-    item.estado === "por_vencer"          ? "text-yellow-600 bg-yellow-50 border-yellow-200" :
-    item.estado === "vencido"             ? "text-red-600 bg-red-50 border-red-200" :
-    item.estado === "pendiente_aprobacion"? "text-blue-600 bg-blue-50 border-blue-200" :
-    "text-slate-500 bg-slate-50 border-slate-200";
-
-  const SemaforoIcon =
-    item.estado === "vigente"              ? CheckCircle2 :
-    item.estado === "por_vencer"           ? AlertTriangle :
-    item.estado === "vencido"              ? XCircle :
-    Clock;
+  // Semáforos
+  const tieneDoc  = documentos.length > 0;
+  const tieneProc = procedimientos.length > 0;
+  const vencimientoOk = item.estado === "vigente" || item.estado === "por_vencer";
 
   return (
     <div className="flex flex-col h-full">
@@ -100,7 +77,6 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
         actions={
           canEdit ? (
             <div className="flex gap-2">
-              <SubirProcedimientoModal item={item} />
               <RenovarModal item={item} />
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/items/${params.id}/editar`}>Editar</Link>
@@ -124,7 +100,6 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
               <Badge variant="outline" className="text-xs font-normal">{item.codigo_formal}</Badge>
             )}
             <Badge variant="outline" className="text-xs">v{item.version_actual}</Badge>
-            {item.es_borrador && <Badge variant="secondary">Borrador</Badge>}
           </div>
         </div>
 
@@ -158,9 +133,34 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
           </div>
         )}
 
+        {/* ── SEMÁFOROS ── */}
+        <div className="grid grid-cols-3 gap-3">
+          <SemaforoCard
+            label="Procedimiento"
+            ok={tieneProc}
+            okText="Cargado"
+            failText="Falta cargar"
+            icon={BookOpen}
+          />
+          <SemaforoCard
+            label="Documento"
+            ok={tieneDoc}
+            okText="Cargado"
+            failText="Falta cargar"
+            icon={FileText}
+          />
+          <SemaforoCard
+            label="Vencimiento"
+            ok={vencimientoOk && !!item.fecha_vencimiento}
+            okText={formatFecha(item.fecha_vencimiento) ?? ""}
+            failText={item.fecha_vencimiento ? `Venció ${formatFecha(item.fecha_vencimiento)}` : "Sin fecha"}
+            icon={Calendar}
+          />
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-          {/* ── SECCIÓN 1: PROCEDIMIENTO ── */}
+          {/* ── PROCEDIMIENTO ── */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -177,7 +177,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                 </div>
               ) : (
                 <ul className="space-y-2">
-                  {(procedimientos as Array<Record<string, unknown> & { id: string; nombre_archivo: string; tamaño_bytes: number | null; subido_at: string; comentario: string | null; archivo_url: string; subidor?: { nombre: string } | null }>).map((p) => (
+                  {(procedimientos as Array<Record<string, unknown> & { id: string; nombre_archivo: string; tamaño_bytes: number | null; subido_at: string; archivo_url: string }>).map((p) => (
                     <li key={p.id} className="flex items-center gap-3 p-3 rounded-lg bg-purple-50 border border-purple-100">
                       <FileText className="h-5 w-5 text-purple-400 shrink-0" />
                       <div className="flex-1 min-w-0">
@@ -191,12 +191,17 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                       </Button>
                     </li>
                   ))}
+                  {canEdit && (
+                    <li className="pt-1">
+                      <SubirProcedimientoModal item={item} />
+                    </li>
+                  )}
                 </ul>
               )}
             </CardContent>
           </Card>
 
-          {/* ── SECCIÓN 2: INFORMACIÓN GENERAL ── */}
+          {/* ── INFORMACIÓN + EDICIÓN RÁPIDA ── */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -204,53 +209,40 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                 Información general
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <InfoRow icon={Hash} label="Tipo" value={TIPO_ITEM_LABELS[item.tipo as keyof typeof TIPO_ITEM_LABELS]} />
-              <InfoRow icon={FileText} label="Cláusula ISO" value={clausula ? `${clausula.id} — ${clausula.titulo}` : "—"} />
-              <InfoRow icon={Building2} label="Área" value={area?.nombre ?? "—"} />
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-3">
+                <Hash className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Tipo</p>
+                  <p className="text-sm font-medium">{TIPO_ITEM_LABELS[item.tipo as keyof typeof TIPO_ITEM_LABELS]}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Cláusula ISO</p>
+                  <p className="text-sm font-medium">{clausula ? `${clausula.id} — ${clausula.titulo}` : "—"}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Building2 className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Área</p>
+                  <p className="text-sm font-medium">{area?.nombre ?? "—"}</p>
+                </div>
+              </div>
               <Separator />
-              <InfoRow
-                icon={RefreshCw}
-                label="Frecuencia de revisión"
-                value={frecuenciaLabel(item.frecuencia_dias)}
-                highlight={!!item.frecuencia_dias}
-              />
-            </CardContent>
-          </Card>
-
-          {/* ── SECCIÓN 3: ESTADO ── */}
-          <Card className="md:col-span-2">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <SemaforoIcon className="h-4 w-4" />
-                Estado del documento
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className={`rounded-lg border px-4 py-3 ${semaforoColor}`}>
-                  <p className="text-xs font-medium opacity-70 mb-1">Estado</p>
-                  <EstadoBadge estado={item.estado} />
-                </div>
-                <div className="rounded-lg border px-4 py-3 bg-slate-50">
-                  <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                    <User className="h-3 w-3" /> Responsable
-                  </p>
-                  <p className="text-sm font-medium">{responsable?.nombre ?? "—"}</p>
-                </div>
-                <div className={`rounded-lg border px-4 py-3 ${item.estado === "vencido" ? "bg-red-50 border-red-200" : "bg-slate-50"}`}>
-                  <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> Vencimiento
-                  </p>
-                  <p className={`text-sm font-medium ${item.estado === "vencido" ? "text-red-600" : ""}`}>
-                    {formatFecha(item.fecha_vencimiento) ?? "Sin fecha"}
-                  </p>
-                </div>
-                <div className="rounded-lg border px-4 py-3 bg-slate-50">
-                  <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> Última modificación
-                  </p>
-                  <p className="text-sm font-medium">{formatFecha(item.updated_at)}</p>
+              <div className="flex items-start gap-3">
+                <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                <div className="flex-1">
+                  <QuickEditPanel
+                    itemId={params.id}
+                    responsableId={responsable?.id ?? null}
+                    responsableNombre={responsable?.nombre ?? null}
+                    frecuenciaDias={item.frecuencia_dias ?? null}
+                    usuarios={todosUsuarios ?? []}
+                    canEdit={canEdit}
+                  />
                 </div>
               </div>
             </CardContent>
@@ -259,7 +251,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
 
         <Separator />
 
-        {/* Documento principal + Historial + Comentarios */}
+        {/* Documento + Historial + Comentarios */}
         <Tabs defaultValue="documento">
           <TabsList>
             <TabsTrigger value="documento">
@@ -353,18 +345,27 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
   );
 }
 
-function InfoRow({ icon: Icon, label, value, highlight }: {
-  icon: React.ElementType;
+function SemaforoCard({ label, ok, okText, failText, icon: Icon }: {
   label: string;
-  value: string;
-  highlight?: boolean;
+  ok: boolean;
+  okText: string;
+  failText: string;
+  icon: React.ElementType;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${highlight ? "text-primary" : "text-muted-foreground"}`} />
-      <div>
+    <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${ok ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+      <Icon className={`h-5 w-5 shrink-0 ${ok ? "text-green-500" : "text-red-500"}`} />
+      <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`text-sm font-medium ${highlight ? "text-primary" : ""}`}>{value}</p>
+        <div className="flex items-center gap-1.5">
+          {ok
+            ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+            : <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+          }
+          <p className={`text-sm font-medium truncate ${ok ? "text-green-700" : "text-red-700"}`}>
+            {ok ? okText : failText}
+          </p>
+        </div>
       </div>
     </div>
   );

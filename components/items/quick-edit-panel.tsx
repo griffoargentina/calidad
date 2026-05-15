@@ -1,0 +1,130 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Pencil, Check, X } from "lucide-react";
+
+const FRECUENCIAS = [
+  { dias: 30,  label: "Mensual" },
+  { dias: 60,  label: "Bimestral" },
+  { dias: 90,  label: "Trimestral" },
+  { dias: 180, label: "Semestral" },
+  { dias: 365, label: "Anual" },
+  { dias: 730, label: "Bienal" },
+];
+
+interface Usuario { id: string; nombre: string }
+
+interface Props {
+  itemId: string;
+  responsableId: string | null;
+  responsableNombre: string | null;
+  frecuenciaDias: number | null;
+  usuarios: Usuario[];
+  canEdit: boolean;
+}
+
+export function QuickEditPanel({ itemId, responsableId, responsableNombre, frecuenciaDias, usuarios, canEdit }: Props) {
+  const router = useRouter();
+  const [editingResp, setEditingResp] = useState(false);
+  const [editingFrec, setEditingFrec] = useState(false);
+  const [respVal, setRespVal]   = useState(responsableId ?? "");
+  const [frecVal, setFrecVal]   = useState(frecuenciaDias?.toString() ?? "");
+  const [saving, setSaving]     = useState(false);
+
+  async function save(patch: Record<string, unknown>) {
+    setSaving(true);
+    await fetch(`/api/items/${itemId}/quick-edit`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    setSaving(false);
+    setEditingResp(false);
+    setEditingFrec(false);
+    router.refresh();
+  }
+
+  const frecLabel = frecuenciaDias
+    ? (FRECUENCIAS.find(f => f.dias === frecuenciaDias)?.label ?? `Cada ${frecuenciaDias} días`)
+    : "Sin frecuencia definida";
+
+  return (
+    <div className="space-y-4">
+      {/* Responsable */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-1">Responsable</p>
+        {editingResp ? (
+          <div className="flex items-center gap-2">
+            <select
+              className="flex-1 border rounded-md px-2 py-1.5 text-sm bg-white"
+              value={respVal}
+              onChange={e => setRespVal(e.target.value)}
+            >
+              <option value="">Sin asignar</option>
+              {usuarios.map(u => (
+                <option key={u.id} value={u.id}>{u.nombre}</option>
+              ))}
+            </select>
+            <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+              onClick={() => save({ responsable_id: respVal || null })}>
+              <Check className="h-3.5 w-3.5 text-green-600" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7"
+              onClick={() => { setEditingResp(false); setRespVal(responsableId ?? ""); }}>
+              <X className="h-3.5 w-3.5 text-red-500" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium">{responsableNombre ?? "—"}</p>
+            {canEdit && (
+              <Button size="icon" variant="ghost" className="h-6 w-6 opacity-40 hover:opacity-100"
+                onClick={() => setEditingResp(true)}>
+                <Pencil className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Periodicidad */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-1">Frecuencia de revisión</p>
+        {editingFrec ? (
+          <div className="flex items-center gap-2">
+            <select
+              className="flex-1 border rounded-md px-2 py-1.5 text-sm bg-white"
+              value={frecVal}
+              onChange={e => setFrecVal(e.target.value)}
+            >
+              <option value="">Sin frecuencia</option>
+              {FRECUENCIAS.map(f => (
+                <option key={f.dias} value={f.dias}>{f.label}</option>
+              ))}
+            </select>
+            <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+              onClick={() => save({ frecuencia_dias: frecVal ? parseInt(frecVal) : null })}>
+              <Check className="h-3.5 w-3.5 text-green-600" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7"
+              onClick={() => { setEditingFrec(false); setFrecVal(frecuenciaDias?.toString() ?? ""); }}>
+              <X className="h-3.5 w-3.5 text-red-500" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <p className={`text-sm font-medium ${!frecuenciaDias ? "text-red-500" : ""}`}>{frecLabel}</p>
+            {canEdit && (
+              <Button size="icon" variant="ghost" className="h-6 w-6 opacity-40 hover:opacity-100"
+                onClick={() => setEditingFrec(true)}>
+                <Pencil className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
