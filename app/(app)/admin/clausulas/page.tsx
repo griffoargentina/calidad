@@ -27,34 +27,30 @@ export default async function ClausulasPage() {
     return 0;
   });
 
-  // Traer todos los items (publicados + borradores)
+  // Traer todos los items sin distinguir borradores
   const { data: todosItems } = await supabase
     .from("items")
-    .select("clausula_iso, estado, es_borrador")
+    .select("clausula_iso, estado")
     .neq("estado", "obsoleto");
 
   const clausulaStats: Record<string, {
-    total: number; vencidos: number; porVencer: number; vigentes: number; borradores: number;
+    total: number; vencidos: number; porVencer: number; vigentes: number;
   }> = {};
 
   for (const item of todosItems ?? []) {
     if (!clausulaStats[item.clausula_iso]) {
-      clausulaStats[item.clausula_iso] = { total: 0, vencidos: 0, porVencer: 0, vigentes: 0, borradores: 0 };
+      clausulaStats[item.clausula_iso] = { total: 0, vencidos: 0, porVencer: 0, vigentes: 0 };
     }
     const s = clausulaStats[item.clausula_iso];
-    if (item.es_borrador) {
-      s.borradores++;
-    } else {
-      s.total++;
-      if (item.estado === "vencido") s.vencidos++;
-      else if (item.estado === "por_vencer") s.porVencer++;
-      else if (item.estado === "vigente") s.vigentes++;
-    }
+    s.total++;
+    if (item.estado === "vencido") s.vencidos++;
+    else if (item.estado === "por_vencer") s.porVencer++;
+    else if (item.estado === "vigente") s.vigentes++;
   }
 
   function getSemaforo(clausulaId: string) {
     const s = clausulaStats[clausulaId];
-    if (!s || s.total === 0) return "rojo";   // sin documentos publicados = rojo
+    if (!s || s.total === 0) return "rojo";
     if (s.vencidos > 0) return "rojo";
     if (s.porVencer > 0) return "amarillo";
     return "verde";
@@ -103,8 +99,6 @@ export default async function ClausulasPage() {
                         {stats.vencidos > 0 && <span className="text-red-600 font-medium">{stats.vencidos} vencidos</span>}
                         {stats.porVencer > 0 && <span className="text-yellow-600">{stats.porVencer} por vencer</span>}
                       </div>
-                    ) : stats?.borradores > 0 ? (
-                      <p className="text-xs text-slate-500">Borrador — pendiente de completar</p>
                     ) : (
                       <p className="text-xs text-red-500 font-medium">Sin evidencia</p>
                     )}

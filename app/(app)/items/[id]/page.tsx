@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RenovarModal } from "@/components/items/renovar-modal";
 import { SubirProcedimientoModal } from "@/components/items/subir-procedimiento-modal";
 import { QuickEditPanel } from "@/components/items/quick-edit-panel";
+import { ProcNaToggle } from "@/components/items/proc-na-toggle";
 import { ComentariosSection } from "@/components/items/comentarios-section";
 import { formatFecha, formatBytes } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
@@ -67,7 +68,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
 
   // Semáforos
   const tieneDoc  = documentos.length > 0;
-  const tieneProc = procedimientos.length > 0;
+  const tieneProc = procedimientos.length > 0 || !!item.procedimiento_na;
   const vencimientoOk = item.estado === "vigente" || item.estado === "por_vencer";
 
   return (
@@ -173,7 +174,12 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                 <div className="flex flex-col items-center justify-center py-6 text-center gap-3 border-2 border-dashed rounded-lg">
                   <BookOpen className="h-8 w-8 text-muted-foreground/30" />
                   <p className="text-xs text-muted-foreground">Sin procedimiento cargado</p>
-                  {canEdit && <SubirProcedimientoModal item={item} />}
+                  {canEdit && (
+                    <div className="w-full space-y-2 px-2">
+                      <SubirProcedimientoModal item={item} />
+                      <ProcNaToggle itemId={params.id} value={!!item.procedimiento_na} />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <ul className="space-y-2">
