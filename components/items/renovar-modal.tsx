@@ -2,7 +2,6 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -23,7 +22,6 @@ interface RenovarModalProps {
 
 export function RenovarModal({ item }: RenovarModalProps) {
   const router = useRouter();
-  const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -46,29 +44,15 @@ export function RenovarModal({ item }: RenovarModalProps) {
     setError(null);
 
     try {
-      // 1. Subir archivo a Supabase Storage
-      const ext = file.name.split(".").pop();
-      const path = `items/${item.id}/v${item.version_actual + 1}_${Date.now()}.${ext}`;
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("item_id", item.id);
+      fd.append("version", String(item.version_actual + 1));
+      if (comentario) fd.append("comentario", comentario);
 
-      const { error: uploadError } = await supabase.storage
-        .from("documentos")
-        .upload(path, file, { upsert: false });
-
-      if (uploadError) throw new Error(`Error al subir archivo: ${uploadError.message}`);
-
-      // 2. Obtener URL pública (firmada)
-      const { data: { publicUrl } } = supabase.storage.from("documentos").getPublicUrl(path);
-
-      // 3. Llamar a fn_renovar_item via RPC
-      const { error: rpcError } = await supabase.rpc("fn_renovar_item", {
-        p_item_id: item.id,
-        p_archivo_url: publicUrl,
-        p_nombre_archivo: file.name,
-        p_tamaño_bytes: file.size,
-        p_comentario: comentario || null,
-      });
-
-      if (rpcError) throw new Error(rpcError.message);
+      const res = await fetch("/api/renovar", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al renovar");
 
       setDone(true);
       setTimeout(() => {

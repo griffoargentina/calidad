@@ -2,7 +2,6 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -17,7 +16,6 @@ interface Props {
 
 export function SubirProcedimientoModal({ item }: Props) {
   const router = useRouter();
-  const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -37,28 +35,16 @@ export function SubirProcedimientoModal({ item }: Props) {
     setError(null);
 
     try {
-      const ext = file.name.split(".").pop();
-      const path = `items/${item.id}/procedimiento_${Date.now()}.${ext}`;
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("item_id", item.id);
+      fd.append("categoria", "procedimiento");
+      fd.append("version", "1");
+      if (comentario) fd.append("comentario", comentario);
 
-      const { error: uploadError } = await supabase.storage
-        .from("documentos")
-        .upload(path, file, { upsert: true });
-
-      if (uploadError) throw new Error(uploadError.message);
-
-      const { data: { publicUrl } } = supabase.storage.from("documentos").getPublicUrl(path);
-
-      const { error: insertError } = await supabase.from("archivos").insert({
-        item_id: item.id,
-        version: 1,
-        archivo_url: publicUrl,
-        nombre_archivo: file.name,
-        tamaño_bytes: file.size,
-        comentario: comentario || null,
-        categoria: "procedimiento",
-      });
-
-      if (insertError) throw new Error(insertError.message);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al subir");
 
       setDone(true);
       setTimeout(() => {
