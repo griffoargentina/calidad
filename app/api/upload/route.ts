@@ -36,22 +36,32 @@ export async function POST(req: Request) {
   const file      = formData.get("file") as File | null;
   const itemId    = formData.get("item_id") as string;
   const categoria = (formData.get("categoria") as string) || "documento";
-  const version   = parseInt(formData.get("version") as string) || 1;
   const comentario = formData.get("comentario") as string | null;
 
   if (!file || !itemId) {
     return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
   }
 
+  const admin = createAdminClient();
+
+  // Calcular la siguiente versión disponible para este item+categoria
+  const { data: existing } = await admin
+    .from("archivos")
+    .select("version")
+    .eq("item_id", itemId)
+    .eq("categoria", categoria)
+    .order("version", { ascending: false })
+    .limit(1);
+  const version = existing?.[0] ? existing[0].version + 1 : 1;
+
   const ext = file.name.split(".").pop();
   const path = categoria === "procedimiento"
-    ? `items/${itemId}/procedimiento_${Date.now()}.${ext}`
+    ? `items/${itemId}/procedimiento_v${version}_${Date.now()}.${ext}`
     : `items/${itemId}/v${version}_${Date.now()}.${ext}`;
 
   try {
     const publicUrl = await uploadToStorage(path, file);
 
-    const admin = createAdminClient();
     const { error: dbError } = await admin.from("archivos").insert({
       item_id: itemId,
       version,
