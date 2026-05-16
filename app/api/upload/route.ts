@@ -44,12 +44,11 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
 
-  // Calcular la siguiente versión disponible para este item+categoria
+  // Versión global por item (el constraint UNIQUE es item_id+version sin categoría)
   const { data: existing } = await admin
     .from("archivos")
     .select("version")
     .eq("item_id", itemId)
-    .eq("categoria", categoria)
     .order("version", { ascending: false })
     .limit(1);
   const version = existing?.[0] ? existing[0].version + 1 : 1;
