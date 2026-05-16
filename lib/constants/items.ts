@@ -103,7 +103,7 @@ export const ESTADO_LABELS: Record<EstadoItem, string> = {
   por_vencer: "Por vencer",
   vencido: "Vencido",
   obsoleto: "Obsoleto",
-  pendiente_aprobacion: "Pendiente aprobación",
+  pendiente_aprobacion: "Vigente",
   borrador: "Borrador",
 };
 
@@ -112,7 +112,7 @@ export const ESTADO_COLORS: Record<EstadoItem, string> = {
   por_vencer: "warning",
   vencido: "danger",
   obsoleto: "muted",
-  pendiente_aprobacion: "secondary",
+  pendiente_aprobacion: "success",
   borrador: "outline",
 };
 
