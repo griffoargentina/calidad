@@ -33,10 +33,11 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const formData = await req.formData();
-  const file       = formData.get("file") as File | null;
-  const itemId     = formData.get("item_id") as string;
-  const version    = parseInt(formData.get("version") as string) || 1;
-  const comentario = formData.get("comentario") as string | null;
+  const file             = formData.get("file") as File | null;
+  const itemId           = formData.get("item_id") as string;
+  const version          = parseInt(formData.get("version") as string) || 1;
+  const comentario       = formData.get("comentario") as string | null;
+  const fechaVencimiento = formData.get("fecha_vencimiento") as string | null;
 
   if (!file || !itemId) {
     return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
@@ -58,6 +59,15 @@ export async function POST(req: Request) {
     });
 
     if (rpcError) return NextResponse.json({ error: `[RPC] ${rpcError.message}` }, { status: 500 });
+
+    // Aplicar fecha de vencimiento personalizada si fue enviada
+    if (fechaVencimiento) {
+      const { error: updateError } = await admin
+        .from("items")
+        .update({ fecha_vencimiento: fechaVencimiento })
+        .eq("id", itemId);
+      if (updateError) return NextResponse.json({ error: `[FECHA] ${updateError.message}` }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
