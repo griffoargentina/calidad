@@ -211,29 +211,41 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tipo <span className="text-destructive">*</span></Label>
-              <Select value={tipo} onValueChange={(v) => handleTipoChange(v as TipoItem)} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar tipo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.entries(TIPO_ITEM_LABELS) as [TipoItem, string][]).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {tipoInicial ? (
+                <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground cursor-not-allowed">
+                  {TIPO_ITEM_LABELS[tipo as TipoItem] ?? tipo}
+                </div>
+              ) : (
+                <Select value={tipo} onValueChange={(v) => handleTipoChange(v as TipoItem)} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar tipo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(TIPO_ITEM_LABELS) as [TipoItem, string][]).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Cláusula ISO <span className="text-destructive">*</span></Label>
-              <Select value={clausulaIso} onValueChange={setClausulaIso} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar cláusula..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {clausulas.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.id} — {c.titulo}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {clausulaInicial ? (
+                <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground cursor-not-allowed truncate">
+                  {clausulaIso} — {clausulas.find(c => c.id === clausulaIso)?.titulo ?? ""}
+                </div>
+              ) : (
+                <Select value={clausulaIso} onValueChange={setClausulaIso} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar cláusula..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clausulas.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.id} — {c.titulo}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
