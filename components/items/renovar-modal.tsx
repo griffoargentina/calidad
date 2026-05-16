@@ -6,6 +6,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RefreshCw, Upload, FileText, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
@@ -21,15 +22,27 @@ interface RenovarModalProps {
   };
 }
 
+function calcVencimiento(frecuenciaDias: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + frecuenciaDias);
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD para el input type="date"
+}
+
 export function RenovarModal({ item }: RenovarModalProps) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [comentario, setComentario] = useState("");
+  const [fechaVenc, setFechaVenc] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  function handleOpen() {
+    if (item.frecuencia_dias) setFechaVenc(calcVencimiento(item.frecuencia_dias));
+    setOpen(true);
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -37,10 +50,7 @@ export function RenovarModal({ item }: RenovarModalProps) {
   }
 
   async function handleRenovar() {
-    if (!file) {
-      setError("Seleccioná un archivo antes de renovar.");
-      return;
-    }
+    if (!file) { setError("Seleccioná un archivo antes de renovar."); return; }
     setLoading(true);
     setError(null);
 
@@ -49,7 +59,8 @@ export function RenovarModal({ item }: RenovarModalProps) {
       fd.append("file", file);
       fd.append("item_id", item.id);
       fd.append("version", String(item.version_actual + 1));
-      if (comentario) fd.append("comentario", comentario);
+      if (comentario)  fd.append("comentario", comentario);
+      if (fechaVenc)   fd.append("fecha_vencimiento", fechaVenc);
 
       const res = await fetch("/api/renovar", { method: "POST", body: fd });
       const data = await res.json();
@@ -72,7 +83,7 @@ export function RenovarModal({ item }: RenovarModalProps) {
 
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>
+      <Button size="sm" onClick={handleOpen}>
         <RefreshCw className="h-4 w-4 mr-1.5" />
         Renovar
       </Button>
@@ -110,19 +121,21 @@ export function RenovarModal({ item }: RenovarModalProps) {
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Fecha calculada */}
-              {(() => {
-                const venc = new Date();
-                venc.setDate(venc.getDate() + item.frecuencia_dias!);
-                return (
-                  <div className="flex items-center gap-2 text-sm bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                    <span className="text-blue-600">Nuevo vencimiento:</span>
-                    <span className="font-semibold text-blue-700">
-                      {venc.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                    </span>
-                  </div>
-                );
-              })()}
+
+              {/* Fecha de vencimiento editable */}
+              <div className="space-y-1.5">
+                <Label>Fecha de vencimiento</Label>
+                <Input
+                  type="date"
+                  value={fechaVenc}
+                  onChange={(e) => setFechaVenc(e.target.value)}
+                  min={new Date().toISOString().slice(0, 10)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Sugerida según periodicidad ({item.frecuencia_dias} días). Podés cambiarla.
+                </p>
+              </div>
+
               {/* Selector de archivo */}
               <div className="space-y-2">
                 <Label>Nuevo archivo <span className="text-destructive">*</span></Label>
