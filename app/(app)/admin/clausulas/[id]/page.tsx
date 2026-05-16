@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { EliminarClausulaButton } from "@/components/admin/eliminar-clausula-button";
+import { ClausulasRelacionadasEditor } from "@/components/admin/clausulas-relacionadas-editor";
 
 export default async function ClausulaDetallePage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
@@ -85,6 +86,15 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
       />
 
       <div className="flex-1 p-6 space-y-6 max-w-3xl mx-auto w-full">
+
+        {/* Puntos relacionados */}
+        <div className="flex items-start gap-3">
+          <p className="text-sm text-muted-foreground w-44 shrink-0 pt-0.5">Puntos relacionados</p>
+          <ClausulasRelacionadasEditor
+            clausulaId={clausula.id}
+            relacionadas={(clausula.relacionadas as string[]) ?? []}
+          />
+        </div>
 
         {/* Estado general de la cláusula */}
         <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${
