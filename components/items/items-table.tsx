@@ -182,7 +182,7 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
         return (
           <div className="flex flex-col gap-1">
             {files.map(({ categoria, nombre }) => (
-              <span key={categoria} className="text-xs text-muted-foreground truncate block max-w-[200px]" title={nombre}>
+              <span key={categoria} className="text-xs text-muted-foreground block whitespace-normal" title={nombre}>
                 {nombre}
               </span>
             ))}
