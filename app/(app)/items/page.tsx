@@ -64,17 +64,15 @@ export default async function ItemsPage({ searchParams }: PageProps) {
     .select("item_id, nombre_archivo, categoria")
     .order("subido_at", { ascending: false });
 
-  const itemsConArchivo = new Set<string>();
-  const archivoNombre: Record<string, string> = {};       // nombre del doc más reciente
-  const itemCategorias: Record<string, Set<string>> = {}; // categorías que tiene cada item
+  // Por item: lista de { categoria, nombre } — uno por categoría (el más reciente primero)
+  const archivosDetalle: Record<string, { categoria: string; nombre: string }[]> = {};
 
   for (const a of archivosExistentes ?? []) {
-    if (a.categoria !== "procedimiento") {
-      itemsConArchivo.add(a.item_id);
-      if (!archivoNombre[a.item_id]) archivoNombre[a.item_id] = a.nombre_archivo;
+    const cat = a.categoria ?? "documento";
+    if (!archivosDetalle[a.item_id]) archivosDetalle[a.item_id] = [];
+    if (!archivosDetalle[a.item_id].find((x) => x.categoria === cat)) {
+      archivosDetalle[a.item_id].push({ categoria: cat, nombre: a.nombre_archivo });
     }
-    if (!itemCategorias[a.item_id]) itemCategorias[a.item_id] = new Set();
-    itemCategorias[a.item_id].add(a.categoria ?? "documento");
   }
 
   const sortClausulas = (list: { id: string; titulo: string }[]) =>
@@ -112,7 +110,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
           clausulas={sortClausulas(clausulas ?? [])}
           searchParams={searchParams}
         />
-        <ItemsTable items={items ?? []} itemsConArchivo={itemsConArchivo} archivoNombre={archivoNombre} itemCategorias={itemCategorias} />
+        <ItemsTable items={items ?? []} archivosDetalle={archivosDetalle} />
       </div>
     </div>
   );

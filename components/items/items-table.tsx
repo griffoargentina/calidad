@@ -1,13 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  useReactTable, getCoreRowModel, getSortedRowModel,
+  flexRender, ColumnDef, SortingState, ColumnResizeMode,
+} from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EstadoBadge } from "@/components/shared/estado-badge";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import { formatFecha } from "@/lib/utils/format";
-import { TipoItem } from "@/types/database";
-import { FileText } from "lucide-react";
+import { TipoItem, EstadoItem } from "@/types/database";
+import { FileText, ArrowUpDown, ArrowUp, ArrowDown, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface ItemRow {
   id: string;
@@ -26,14 +32,197 @@ interface ItemRow {
   areas?: { nombre: string } | { nombre: string }[] | null;
 }
 
-interface ItemsTableProps {
-  items: ItemRow[];
-  itemsConArchivo?: Set<string>;
-  archivoNombre?: Record<string, string>;
-  itemCategorias?: Record<string, Set<string>>;
+interface ArchivoDetalle {
+  categoria: string;
+  nombre: string;
 }
 
-export function ItemsTable({ items, archivoNombre, itemCategorias }: ItemsTableProps) {
+interface ItemsTableProps {
+  items: ItemRow[];
+  archivosDetalle?: Record<string, ArchivoDetalle[]>;
+}
+
+function getUsuarioNombre(u: ItemRow["usuarios"]) {
+  return (Array.isArray(u) ? u[0]?.nombre : u?.nombre) ?? "—";
+}
+function getAreaNombre(a: ItemRow["areas"]) {
+  return (Array.isArray(a) ? a[0]?.nombre : a?.nombre) ?? "—";
+}
+
+export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const columnResizeMode: ColumnResizeMode = "onChange";
+
+  const columns: ColumnDef<ItemRow>[] = [
+    {
+      accessorKey: "codigo",
+      header: "Código",
+      size: 120,
+      cell: ({ row }) => (
+        <Link href={`/items/${row.original.id}`} className="block">
+          <span className="font-mono text-xs font-semibold text-primary">{row.original.codigo}</span>
+          {row.original.codigo_formal && (
+            <span className="text-[10px] text-muted-foreground block mt-0.5">{row.original.codigo_formal}</span>
+          )}
+        </Link>
+      ),
+    },
+    {
+      accessorKey: "titulo",
+      header: "Título",
+      size: 220,
+      cell: ({ row }) => (
+        <Link href={`/items/${row.original.id}`} className="block">
+          <span className="font-medium text-sm line-clamp-1">{row.original.titulo}</span>
+          {row.original.etiquetas?.length > 0 && (
+            <div className="flex gap-1 mt-1 flex-wrap">
+              {row.original.etiquetas.slice(0, 2).map((tag) => (
+                <Badge key={tag} variant="outline" className="text-[10px] py-0 px-1.5">{tag}</Badge>
+              ))}
+            </div>
+          )}
+        </Link>
+      ),
+    },
+    {
+      accessorKey: "tipo",
+      header: "Tipo",
+      size: 160,
+      cell: ({ getValue }) => (
+        <span className="text-xs text-muted-foreground">
+          {TIPO_ITEM_LABELS[getValue() as TipoItem]}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "clausula_iso",
+      header: "Cláusula",
+      size: 90,
+      cell: ({ getValue }) => (
+        <Badge variant="outline" className="font-mono text-[10px]">{getValue() as string}</Badge>
+      ),
+    },
+    {
+      id: "area",
+      header: "Área",
+      size: 110,
+      accessorFn: (row) => getAreaNombre(row.areas),
+      cell: ({ getValue }) => <span className="text-xs text-muted-foreground">{getValue() as string}</span>,
+    },
+    {
+      id: "responsable",
+      header: "Responsable",
+      size: 130,
+      accessorFn: (row) => getUsuarioNombre(row.usuarios),
+      cell: ({ getValue }) => <span className="text-xs text-muted-foreground">{getValue() as string}</span>,
+    },
+    {
+      accessorKey: "fecha_vencimiento",
+      header: "Vencimiento",
+      size: 110,
+      cell: ({ row, getValue }) => (
+        <span className={`text-xs ${row.original.estado === "vencido" ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+          {formatFecha(getValue() as string | null)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "estado",
+      header: "Estado",
+      size: 110,
+      cell: ({ getValue }) => <EstadoBadge estado={getValue() as EstadoItem} />,
+    },
+    {
+      accessorKey: "version_actual",
+      header: "v.",
+      size: 50,
+      cell: ({ getValue }) => <span className="text-xs text-muted-foreground">v{getValue() as number}</span>,
+    },
+    {
+      id: "archivos",
+      header: "Tipo archivo",
+      size: 90,
+      enableSorting: false,
+      enableResizing: false,
+      cell: ({ row }) => {
+        const files = archivosDetalle?.[row.original.id];
+        if (!files?.length) return <span className="text-[10px] text-muted-foreground">—</span>;
+        return (
+          <div className="flex flex-col gap-1">
+            {files.map(({ categoria }) => (
+              <span key={categoria} className={`text-[10px] border rounded px-1.5 py-0.5 ${
+                categoria === "procedimiento"
+                  ? "bg-purple-50 text-purple-700 border-purple-200"
+                  : "bg-blue-50 text-blue-700 border-blue-200"
+              }`}>
+                {categoria === "procedimiento" ? "Proc" : "Doc"}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      id: "nombre_archivo",
+      header: "Nombre archivo",
+      size: 200,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const files = archivosDetalle?.[row.original.id];
+        if (!files?.length) return <span className="text-xs text-muted-foreground">—</span>;
+        return (
+          <div className="flex flex-col gap-1">
+            {files.map(({ categoria, nombre }) => (
+              <span key={categoria} className="text-xs text-muted-foreground truncate block max-w-[200px]" title={nombre}>
+                {nombre}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    },
+  ];
+
+  const table = useReactTable({
+    data: items,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    columnResizeMode,
+    enableColumnResizing: true,
+  });
+
+  function exportToExcel() {
+    const rows = table.getSortedRowModel().rows.flatMap((row) => {
+      const files = archivosDetalle?.[row.original.id];
+      const base = {
+        Código: row.original.codigo,
+        "Código formal": row.original.codigo_formal ?? "",
+        Título: row.original.titulo,
+        Tipo: TIPO_ITEM_LABELS[row.original.tipo],
+        Cláusula: row.original.clausula_iso,
+        Área: getAreaNombre(row.original.areas),
+        Responsable: getUsuarioNombre(row.original.usuarios),
+        Vencimiento: row.original.fecha_vencimiento ?? "",
+        Estado: row.original.estado,
+        Versión: row.original.version_actual,
+      };
+      if (!files?.length) return [{ ...base, "Tipo archivo": "", "Nombre archivo": "" }];
+      return files.map(({ categoria, nombre }) => ({
+        ...base,
+        "Tipo archivo": categoria === "procedimiento" ? "Proc" : "Doc",
+        "Nombre archivo": nombre,
+      }));
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Documentos");
+    XLSX.writeFile(wb, `documentos_sgc_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -45,124 +234,72 @@ export function ItemsTable({ items, archivoNombre, itemCategorias }: ItemsTableP
   }
 
   return (
-    <div className="rounded-lg border bg-white overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead className="w-32">Código</TableHead>
-            <TableHead>Título</TableHead>
-            <TableHead className="w-44">Tipo</TableHead>
-            <TableHead className="w-24">Cláusula</TableHead>
-            <TableHead className="w-32">Área</TableHead>
-            <TableHead className="w-36">Responsable</TableHead>
-            <TableHead className="w-28">Vencimiento</TableHead>
-            <TableHead className="w-28">Estado</TableHead>
-            <TableHead className="w-16">v.</TableHead>
-            <TableHead className="w-24">Archivos</TableHead>
-            <TableHead>Nombre archivo</TableHead>
-            <TableHead className="w-8" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item) => (
-            <TableRow key={item.id} className="group cursor-pointer">
-              <TableCell>
-                <Link href={`/items/${item.id}`} className="block">
-                  <span className="font-mono text-xs font-semibold text-primary">
-                    {item.codigo}
-                  </span>
-                  {item.codigo_formal && (
-                    <span className="text-[10px] text-muted-foreground block mt-0.5">{item.codigo_formal}</span>
-                  )}
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Link href={`/items/${item.id}`} className="block">
-                  <span className="font-medium text-sm line-clamp-1">{item.titulo}</span>
-                  {item.etiquetas.length > 0 && (
-                    <div className="flex gap-1 mt-1 flex-wrap">
-                      {item.etiquetas.slice(0, 3).map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-[10px] py-0 px-1.5">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {item.etiquetas.length > 3 && (
-                        <Badge variant="outline" className="text-[10px] py-0 px-1.5">
-                          +{item.etiquetas.length - 3}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Link href={`/items/${item.id}`} className="block">
-                  <span className="text-xs text-muted-foreground">
-                    {TIPO_ITEM_LABELS[item.tipo]}
-                  </span>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Link href={`/items/${item.id}`} className="block">
-                  <Badge variant="outline" className="font-mono text-[10px]">{item.clausula_iso}</Badge>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Link href={`/items/${item.id}`} className="block">
-                  <span className="text-xs text-muted-foreground">{(Array.isArray(item.areas) ? item.areas[0]?.nombre : item.areas?.nombre) ?? "—"}</span>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Link href={`/items/${item.id}`} className="block">
-                  <span className="text-xs text-muted-foreground">{(Array.isArray(item.usuarios) ? item.usuarios[0]?.nombre : item.usuarios?.nombre) ?? "—"}</span>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Link href={`/items/${item.id}`} className="block">
-                  <span className={`text-xs ${item.estado === "vencido" ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
-                    {formatFecha(item.fecha_vencimiento)}
-                  </span>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Link href={`/items/${item.id}`} className="block">
-                  <EstadoBadge estado={item.estado as import("@/types/database").EstadoItem} />
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Link href={`/items/${item.id}`} className="block">
-                  <span className="text-xs text-muted-foreground">v{item.version_actual}</span>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Link href={`/items/${item.id}`} className="block">
-                  <div className="flex flex-wrap gap-1">
-                    {itemCategorias?.[item.id]?.has("documento") && (
-                      <span className="text-[10px] border rounded px-1.5 py-0.5 bg-blue-50 text-blue-700 border-blue-200">Doc</span>
-                    )}
-                    {itemCategorias?.[item.id]?.has("procedimiento") && (
-                      <span className="text-[10px] border rounded px-1.5 py-0.5 bg-purple-50 text-purple-700 border-purple-200">Proc</span>
-                    )}
-                    {!itemCategorias?.[item.id]?.size && (
-                      <span className="text-[10px] text-muted-foreground">—</span>
-                    )}
-                  </div>
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Link href={`/items/${item.id}`} className="block">
-                  <span className="text-xs text-muted-foreground truncate block max-w-[180px]" title={archivoNombre?.[item.id]}>
-                    {archivoNombre?.[item.id] ?? "—"}
-                  </span>
-                </Link>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div className="space-y-2">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={exportToExcel}>
+          <Download className="h-4 w-4 mr-1.5" />
+          Exportar Excel
+        </Button>
+      </div>
 
-      <div className="px-4 py-2 border-t bg-muted/20 text-xs text-muted-foreground">
-        {items.length} {items.length === 1 ? "documento" : "documentos"}
+      <div className="rounded-lg border bg-white overflow-x-auto">
+        <table style={{ width: table.getCenterTotalSize() }} className="text-sm">
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id} className="bg-muted/30 border-b">
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    style={{ width: header.getSize(), position: "relative" }}
+                    className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground whitespace-nowrap select-none"
+                  >
+                    {header.isPlaceholder ? null : (
+                      <div
+                        className={`flex items-center gap-1 ${header.column.getCanSort() ? "cursor-pointer hover:text-foreground" : ""}`}
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getCanSort() && (
+                          header.column.getIsSorted() === "asc" ? <ArrowUp className="h-3 w-3" /> :
+                          header.column.getIsSorted() === "desc" ? <ArrowDown className="h-3 w-3" /> :
+                          <ArrowUpDown className="h-3 w-3 opacity-30" />
+                        )}
+                      </div>
+                    )}
+                    {header.column.getCanResize() && (
+                      <div
+                        onMouseDown={header.getResizeHandler()}
+                        onTouchStart={header.getResizeHandler()}
+                        className={`absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none select-none hover:bg-primary/40 ${
+                          header.column.getIsResizing() ? "bg-primary" : ""
+                        }`}
+                      />
+                    )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr key={row.id} className="border-b last:border-0 hover:bg-muted/20 group">
+                {row.getVisibleCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    style={{ width: cell.column.getSize() }}
+                    className="px-3 py-2.5 align-middle overflow-hidden"
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="px-4 py-2 border-t bg-muted/20 text-xs text-muted-foreground">
+          {items.length} {items.length === 1 ? "documento" : "documentos"}
+        </div>
       </div>
     </div>
   );

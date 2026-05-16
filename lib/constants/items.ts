@@ -104,7 +104,7 @@ export const ESTADO_LABELS: Record<EstadoItem, string> = {
   vencido: "Vencido",
   obsoleto: "Obsoleto",
   pendiente_aprobacion: "Vigente",
-  borrador: "Borrador",
+  borrador: "Vigente",
 };
 
 export const ESTADO_COLORS: Record<EstadoItem, string> = {
@@ -113,7 +113,7 @@ export const ESTADO_COLORS: Record<EstadoItem, string> = {
   vencido: "danger",
   obsoleto: "muted",
   pendiente_aprobacion: "success",
-  borrador: "outline",
+  borrador: "success",
 };
 
 export const FRECUENCIAS_COMUNES = [
