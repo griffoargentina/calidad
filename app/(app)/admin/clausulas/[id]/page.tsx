@@ -46,13 +46,22 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
     else tieneDoc[a.item_id] = true;
   }
 
-  // Top-level semáforo for the clause
+  // Top-level semáforo for the clause (usa fecha real, no campo estado)
+  const hoyClausula = new Date(); hoyClausula.setHours(0, 0, 0, 0);
+  const en30dias = new Date(hoyClausula.getTime() + 30 * 24 * 60 * 60 * 1000);
   let semaforo = "sin_evidencia";
   if ((items?.length ?? 0) > 0) {
     const allItems = items ?? [];
-    const anyVencido    = allItems.some((i) => i.estado === "vencido" || !tieneDoc[i.id]);
-    const anyPorVencer  = allItems.some((i) => i.estado === "por_vencer");
-    if (anyVencido)       semaforo = "vencido";
+    const anyVencido = allItems.some((i) => {
+      if (!tieneDoc[i.id]) return true;
+      const fv = i.fecha_vencimiento ? new Date(i.fecha_vencimiento + "T00:00:00") : null;
+      return fv ? fv < hoyClausula : true;
+    });
+    const anyPorVencer = !anyVencido && allItems.some((i) => {
+      const fv = i.fecha_vencimiento ? new Date(i.fecha_vencimiento + "T00:00:00") : null;
+      return fv ? fv >= hoyClausula && fv <= en30dias : false;
+    });
+    if (anyVencido)        semaforo = "vencido";
     else if (anyPorVencer) semaforo = "por_vencer";
     else                   semaforo = "vigente";
   }
@@ -110,10 +119,11 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
                 const doc  = tieneDoc[item.id]  ?? false;
                 const itemMeta = (item.metadata ?? {}) as Record<string, unknown>;
                 const proc = (tieneProc[item.id] ?? false) || itemMeta.procedimiento_na === true;
-                const vencColor =
-                  item.estado === "vigente"    ? "ok" :
-                  item.estado === "por_vencer" ? "warn" :
-                  "fail";
+                const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+                const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
+                const vencOk   = fv ? fv >= hoy : false;
+                const vencWarn = vencOk && fv ? fv <= new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000) : false;
+                const vencColor: "ok" | "warn" | "fail" = vencOk ? (vencWarn ? "warn" : "ok") : "fail";
 
                 return (
                   <Link
