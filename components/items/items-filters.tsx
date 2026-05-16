@@ -16,7 +16,7 @@ interface FiltersProps {
   searchParams: Record<string, string | undefined>;
 }
 
-const ESTADOS: EstadoItem[] = ["vigente", "por_vencer", "vencido", "obsoleto", "pendiente_aprobacion"];
+const ESTADOS: EstadoItem[] = ["vigente", "por_vencer", "vencido", "obsoleto"];
 const ALL = "_all_";
 
 export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
