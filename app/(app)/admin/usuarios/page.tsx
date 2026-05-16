@@ -22,10 +22,15 @@ export default async function UsuariosPage() {
 
   const admin = createAdminClient();
 
-  const [{ data: usuarios }, { data: areas }] = await Promise.all([
-    admin.from("usuarios").select("*, areas(nombre)").order("nombre"),
+  const [{ data: usuarios }, { data: areas }, { data: areasMap }] = await Promise.all([
+    admin.from("usuarios").select("id, nombre, email, rol, activo, ultimo_login, area_id").order("nombre"),
     admin.from("areas").select("id, nombre").eq("activa", true).order("nombre"),
+    admin.from("areas").select("id, nombre"),
   ]);
+
+  // Construir mapa de áreas
+  const areaNombre: Record<string, string> = {};
+  for (const a of areasMap ?? []) areaNombre[a.id] = a.nombre;
 
   // Contar items por responsable y sus estados
   const { data: itemsStats } = await admin
@@ -80,7 +85,7 @@ export default async function UsuariosPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(usuariosOrdenados as Array<{ id: string; nombre: string; email: string; rol: string; activo: boolean; ultimo_login: string | null; areas?: { nombre: string } | null }>).map((u) => {
+                {(usuariosOrdenados as Array<{ id: string; nombre: string; email: string; rol: string; activo: boolean; ultimo_login: string | null; area_id: string | null }>).map((u) => {
                   const stats = statsMap[u.id] ?? { total: 0, vencidos: 0, porVencer: 0 };
                   const cumplimiento = stats.total > 0
                     ? Math.round(((stats.total - stats.vencidos) / stats.total) * 100)
@@ -98,7 +103,7 @@ export default async function UsuariosPage() {
                         <Badge variant={ROL_COLORS[u.rol] as Parameters<typeof Badge>[0]["variant"]} className="capitalize">{u.rol}</Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground">{u.areas?.nombre ?? "—"}</span>
+                        <span className="text-sm text-muted-foreground">{u.area_id ? (areaNombre[u.area_id] ?? "—") : "—"}</span>
                       </TableCell>
                       <TableCell className="text-center">
                         <span className="text-sm">{stats.total}</span>
