@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  TIPO_ITEM_LABELS, TIPO_ITEM_CLAUSULA_PRINCIPAL, TIPOS_REQUIEREN_APROBACION, FRECUENCIAS_COMUNES,
+  TIPO_ITEM_LABELS, TIPO_ITEM_CLAUSULA_PRINCIPAL, FRECUENCIAS_COMUNES,
 } from "@/lib/constants/items";
 import { TipoItem } from "@/types/database";
 import { Loader2, X, Plus, LayoutTemplate, Upload, FileText } from "lucide-react";
@@ -65,8 +65,6 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [fechaEmision] = useState(itemInicial?.fecha_emision ?? new Date().toISOString().split("T")[0]);
   const [fechaVencimiento, setFechaVencimiento] = useState(itemInicial?.fecha_vencimiento ?? "");
   const [frecuenciaDias, setFrecuenciaDias] = useState<string>(itemInicial?.frecuencia_dias?.toString() ?? "__none__");
-  const [requiereAprobacion, setRequiereAprobacion] = useState(itemInicial?.requiere_aprobacion ?? false);
-  const [esBorrador] = useState(itemInicial?.es_borrador ?? false);
   const [etiquetas, setEtiquetas] = useState<string[]>(itemInicial?.etiquetas ?? []);
   const [etiquetaInput, setEtiquetaInput] = useState("");
   const [codigoFormal, setCodigoFormal] = useState(itemInicial?.codigo_formal ?? "");
@@ -82,9 +80,6 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
     setTipo(t);
     if (!clausulaIso) {
       setClausulaIso(TIPO_ITEM_CLAUSULA_PRINCIPAL[t] ?? "");
-    }
-    if (TIPOS_REQUIEREN_APROBACION.includes(t)) {
-      setRequiereAprobacion(true);
     }
   }
 
@@ -136,17 +131,12 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
       fecha_emision: fechaEmision || null,
       fecha_vencimiento: fechaVencimiento || null,
       frecuencia_dias: frecuenciaDias && frecuenciaDias !== "__none__" ? parseInt(frecuenciaDias) : null,
-      requiere_aprobacion: requiereAprobacion,
-      es_borrador: esBorrador,
+      requiere_aprobacion: false,
+      es_borrador: false,
       etiquetas,
       codigo_formal: codigoFormal.trim() || null,
+      estado: "vigente",
     };
-
-    if (esBorrador) {
-      payload.estado = "borrador";
-    } else if (requiereAprobacion) {
-      payload.estado = "pendiente_aprobacion";
-    }
 
     let result;
     if (itemInicial) {

@@ -60,7 +60,6 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
       (usuario.tipos_habilitados as string[]).includes(item.tipo)
     )
   );
-  const isAdmin = usuario?.rol === "admin";
 
   const clausula   = item.clausulas_iso as { id: string; titulo: string } | null;
   const area       = item.areas as { nombre: string } | null;
@@ -125,20 +124,6 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
           </div>
         )}
 
-        {/* Aprobación pendiente */}
-        {isAdmin && item.estado === "pendiente_aprobacion" && (
-          <div className="flex gap-2 items-center p-3 border border-yellow-200 bg-yellow-50 rounded-lg">
-            <span className="text-sm text-yellow-700 font-medium flex-1">Pendiente de aprobación</span>
-            <form action={`/api/items/${params.id}/aprobar`} method="POST">
-              <input type="hidden" name="aprobar" value="true" />
-              <Button type="submit" size="sm" className="bg-green-600 hover:bg-green-700">Aprobar</Button>
-            </form>
-            <form action={`/api/items/${params.id}/aprobar`} method="POST">
-              <input type="hidden" name="aprobar" value="false" />
-              <Button type="submit" size="sm" variant="destructive">Rechazar</Button>
-            </form>
-          </div>
-        )}
 
         {/* ── SEMÁFOROS ── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
