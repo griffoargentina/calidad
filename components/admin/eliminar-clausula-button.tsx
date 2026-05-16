@@ -11,7 +11,6 @@ export function EliminarClausulaButton({ clausulaId }: { clausulaId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   async function handleDelete() {
-    // Primer intento
     if (!confirm(`¿Eliminar la cláusula ${clausulaId}? Esta acción no se puede deshacer.`)) return;
     setLoading(true);
     setError(null);
@@ -20,7 +19,6 @@ export function EliminarClausulaButton({ clausulaId }: { clausulaId: string }) {
     const data = await res.json();
 
     if (res.status === 409) {
-      // Tiene documentos — preguntar si forzar
       setLoading(false);
       if (!confirm(`${data.error}\n\n¿Eliminar igual junto con todos sus documentos?`)) return;
       setLoading(true);
