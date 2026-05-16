@@ -7,7 +7,7 @@ import { EstadoBadge } from "@/components/shared/estado-badge";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import { formatFecha } from "@/lib/utils/format";
 import { TipoItem } from "@/types/database";
-import { ChevronRight, FileText, Paperclip } from "lucide-react";
+import { FileText } from "lucide-react";
 
 interface ItemRow {
   id: string;
@@ -29,9 +29,11 @@ interface ItemRow {
 interface ItemsTableProps {
   items: ItemRow[];
   itemsConArchivo?: Set<string>;
+  archivoNombre?: Record<string, string>;
+  itemCategorias?: Record<string, Set<string>>;
 }
 
-export function ItemsTable({ items, itemsConArchivo }: ItemsTableProps) {
+export function ItemsTable({ items, archivoNombre, itemCategorias }: ItemsTableProps) {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -56,9 +58,8 @@ export function ItemsTable({ items, itemsConArchivo }: ItemsTableProps) {
             <TableHead className="w-28">Vencimiento</TableHead>
             <TableHead className="w-28">Estado</TableHead>
             <TableHead className="w-16">v.</TableHead>
-            <TableHead className="w-10 text-center" title="Archivo">
-              <Paperclip className="h-3.5 w-3.5 mx-auto text-muted-foreground" />
-            </TableHead>
+            <TableHead className="w-24">Archivos</TableHead>
+            <TableHead>Nombre archivo</TableHead>
             <TableHead className="w-8" />
           </TableRow>
         </TableHeader>
@@ -133,18 +134,26 @@ export function ItemsTable({ items, itemsConArchivo }: ItemsTableProps) {
                   <span className="text-xs text-muted-foreground">v{item.version_actual}</span>
                 </Link>
               </TableCell>
-              <TableCell className="text-center">
+              <TableCell>
                 <Link href={`/items/${item.id}`} className="block">
-                  {itemsConArchivo ? (
-                    itemsConArchivo.has(item.id)
-                      ? <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500" title="Tiene archivo" />
-                      : <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400" title="Sin archivo" />
-                  ) : null}
+                  <div className="flex flex-wrap gap-1">
+                    {itemCategorias?.[item.id]?.has("documento") && (
+                      <span className="text-[10px] border rounded px-1.5 py-0.5 bg-blue-50 text-blue-700 border-blue-200">Doc</span>
+                    )}
+                    {itemCategorias?.[item.id]?.has("procedimiento") && (
+                      <span className="text-[10px] border rounded px-1.5 py-0.5 bg-purple-50 text-purple-700 border-purple-200">Proc</span>
+                    )}
+                    {!itemCategorias?.[item.id]?.size && (
+                      <span className="text-[10px] text-muted-foreground">—</span>
+                    )}
+                  </div>
                 </Link>
               </TableCell>
               <TableCell>
-                <Link href={`/items/${item.id}`} className="block text-muted-foreground group-hover:text-foreground transition-colors">
-                  <ChevronRight className="h-4 w-4" />
+                <Link href={`/items/${item.id}`} className="block">
+                  <span className="text-xs text-muted-foreground truncate block max-w-[180px]" title={archivoNombre?.[item.id]}>
+                    {archivoNombre?.[item.id] ?? "—"}
+                  </span>
                 </Link>
               </TableCell>
             </TableRow>
