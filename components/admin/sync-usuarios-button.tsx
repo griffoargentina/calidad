@@ -13,8 +13,12 @@ export function SyncUsuariosButton() {
     setMsg(null);
     const res = await fetch("/api/admin/seed-usuarios", { method: "POST" });
     const data = await res.json();
-    if (!res.ok) { setLoading(false); setMsg("Error: " + (data.error ?? "desconocido")); return; }
-    window.location.reload();
+    setLoading(false);
+    if (!res.ok) { setMsg("Error: " + (data.error ?? "desconocido")); return; }
+    const lineas = Object.entries(data.resultados as Record<string, string>)
+      .map(([e, s]) => `${e}: ${s}`)
+      .join("\n");
+    setMsg(`Total en tabla: ${data.total_en_tabla}\n${lineas}`);
   }
 
   return (
@@ -23,7 +27,11 @@ export function SyncUsuariosButton() {
         <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
         {loading ? "Sincronizando…" : "Sincronizar usuarios"}
       </Button>
-      {msg && <p className="text-xs text-red-600">{msg}</p>}
+      {msg && (
+        <pre className="text-xs text-right whitespace-pre-wrap max-w-xs text-muted-foreground border rounded p-2 bg-muted/50">
+          {msg}
+        </pre>
+      )}
     </div>
   );
 }
