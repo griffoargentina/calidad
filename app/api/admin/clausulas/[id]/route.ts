@@ -2,6 +2,21 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
+  if (usuario?.rol !== "admin") return NextResponse.json({ error: "Solo admins" }, { status: 403 });
+
+  const body = await req.json();
+  const admin = createAdminClient();
+  const { error } = await admin.from("clausulas_iso").update(body).eq("id", params.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

@@ -104,7 +104,12 @@ export default async function ClausulasPage() {
                 }`}>
                   <CardHeader className="pb-2 pt-4 px-4">
                     <div className="flex items-start justify-between gap-2">
-                      <Badge variant="outline" className="font-mono text-xs shrink-0">{c.id}</Badge>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge variant="outline" className="font-mono text-xs shrink-0">{c.id}</Badge>
+                        {(c.relacionadas as string[] | null)?.map((r: string) => (
+                          <span key={r} className="font-mono text-[10px] text-muted-foreground">({r})</span>
+                        ))}
+                      </div>
                       {semaforo === "verde"    && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
                       {semaforo === "amarillo" && <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />}
                       {semaforo === "rojo"     && <XCircle className="h-4 w-4 text-red-500 shrink-0" />}
