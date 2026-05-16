@@ -15,12 +15,10 @@ export function SyncUsuariosButton() {
     const data = await res.json();
     setLoading(false);
     if (!res.ok) { setMsg("Error: " + (data.error ?? "desconocido")); return; }
-    // Mostrar resultado antes de recargar
     const lineas = Object.entries(data.resultados as Record<string, string>)
       .map(([e, s]) => `${e}: ${s}`)
       .join("\n");
     setMsg(`Total en tabla: ${data.total_en_tabla}\n${lineas}`);
-    // No recarga automática — el usuario ve el diagnóstico
   }
 
   return (
