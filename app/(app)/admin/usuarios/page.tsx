@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatFecha } from "@/lib/utils/format";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { InviteUsuarioDialog } from "@/components/admin/invite-usuario-dialog";
+import { SyncUsuariosButton } from "@/components/admin/sync-usuarios-button";
 
 export default async function UsuariosPage() {
   const supabase = await createClient();
@@ -53,7 +54,12 @@ export default async function UsuariosPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Topbar title="Usuarios" actions={<InviteUsuarioDialog areas={areas ?? []} />} />
+      <Topbar title="Usuarios" actions={
+        <div className="flex items-center gap-2">
+          <SyncUsuariosButton />
+          <InviteUsuarioDialog areas={areas ?? []} />
+        </div>
+      } />
       <div className="flex-1 p-6">
         <Card>
           <CardContent className="p-0">
