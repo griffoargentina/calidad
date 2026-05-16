@@ -55,12 +55,15 @@ export default async function ClausulasPage() {
     s.total++;
 
     if (!itemsConDoc.has(item.id)) {
-      // Sin archivo → cuenta como rojo
       s.sinArchivo++;
-    } else if (item.estado === "vencido") {
-      s.vencidos++;
-    } else if (item.estado === "por_vencer") {
-      s.porVencer++;
+    } else {
+      const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+      const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
+      if (!fv || fv < hoy) {
+        s.vencidos++;
+      } else if (fv <= new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000)) {
+        s.porVencer++;
+      }
     }
   }
 

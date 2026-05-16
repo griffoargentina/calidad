@@ -11,6 +11,7 @@ import {
   FileText, ChevronRight, Clock, BookOpen, Calendar,
 } from "lucide-react";
 import Link from "next/link";
+import { EliminarClausulaButton } from "@/components/admin/eliminar-clausula-button";
 
 export default async function ClausulaDetallePage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
@@ -71,12 +72,15 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
       <Topbar
         title={`${clausula.id} — ${clausula.titulo}`}
         actions={
-          <Button asChild size="sm" variant="outline">
-            <Link href="/admin/clausulas">
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Volver
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <EliminarClausulaButton clausulaId={clausula.id} />
+            <Button asChild size="sm" variant="outline">
+              <Link href="/admin/clausulas">
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Volver
+              </Link>
+            </Button>
+          </div>
         }
       />
 
