@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Pencil, Check, X } from "lucide-react";
 
 const FRECUENCIAS = [
@@ -21,17 +22,20 @@ interface Props {
   responsableId: string | null;
   responsableNombre: string | null;
   frecuenciaDias: number | null;
+  fechaVencimiento: string | null;
   usuarios: Usuario[];
   canEdit: boolean;
 }
 
-export function QuickEditPanel({ itemId, responsableId, responsableNombre, frecuenciaDias, usuarios, canEdit }: Props) {
+export function QuickEditPanel({ itemId, responsableId, responsableNombre, frecuenciaDias, fechaVencimiento, usuarios, canEdit }: Props) {
   const router = useRouter();
   const [editingResp, setEditingResp] = useState(false);
   const [editingFrec, setEditingFrec] = useState(false);
-  const [respVal, setRespVal]   = useState(responsableId ?? "");
-  const [frecVal, setFrecVal]   = useState(frecuenciaDias?.toString() ?? "");
-  const [saving, setSaving]     = useState(false);
+  const [editingVenc, setEditingVenc] = useState(false);
+  const [respVal, setRespVal] = useState(responsableId ?? "");
+  const [frecVal, setFrecVal] = useState(frecuenciaDias?.toString() ?? "");
+  const [vencVal, setVencVal] = useState(fechaVencimiento ?? "");
+  const [saving, setSaving]   = useState(false);
 
   async function save(patch: Record<string, unknown>) {
     setSaving(true);
@@ -43,12 +47,17 @@ export function QuickEditPanel({ itemId, responsableId, responsableNombre, frecu
     setSaving(false);
     setEditingResp(false);
     setEditingFrec(false);
+    setEditingVenc(false);
     router.refresh();
   }
 
   const frecLabel = frecuenciaDias
     ? (FRECUENCIAS.find(f => f.dias === frecuenciaDias)?.label ?? `Cada ${frecuenciaDias} días`)
     : "Sin frecuencia definida";
+
+  const vencLabel = fechaVencimiento
+    ? new Date(fechaVencimiento + "T00:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : "Sin fecha";
 
   return (
     <div className="space-y-4">
@@ -119,6 +128,39 @@ export function QuickEditPanel({ itemId, responsableId, responsableNombre, frecu
             {canEdit && (
               <Button size="icon" variant="ghost" className="h-6 w-6 opacity-40 hover:opacity-100"
                 onClick={() => setEditingFrec(true)}>
+                <Pencil className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Vencimiento */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-1">Vencimiento</p>
+        {editingVenc ? (
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={vencVal}
+              onChange={e => setVencVal(e.target.value)}
+              className="h-8 text-sm"
+            />
+            <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+              onClick={() => save({ fecha_vencimiento: vencVal || null })}>
+              <Check className="h-3.5 w-3.5 text-green-600" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7"
+              onClick={() => { setEditingVenc(false); setVencVal(fechaVencimiento ?? ""); }}>
+              <X className="h-3.5 w-3.5 text-red-500" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium">{vencLabel}</p>
+            {canEdit && (
+              <Button size="icon" variant="ghost" className="h-6 w-6 opacity-40 hover:opacity-100"
+                onClick={() => setEditingVenc(true)}>
                 <Pencil className="h-3 w-3" />
               </Button>
             )}
