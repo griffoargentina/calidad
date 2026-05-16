@@ -15,7 +15,7 @@ import { formatFecha, formatBytes } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import {
   FileText, Download, Tag, Calendar, Hash, ArrowLeft,
-  BookOpen, CheckCircle2, XCircle, Building2, Layers, User,
+  BookOpen, CheckCircle2, XCircle, Building2, Layers, User, RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -60,7 +60,6 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
       (usuario.tipos_habilitados as string[]).includes(item.tipo)
     )
   );
-  const isAdmin = usuario?.rol === "admin";
 
   const clausula   = item.clausulas_iso as { id: string; titulo: string } | null;
   const area       = item.areas as { nombre: string } | null;
@@ -70,6 +69,8 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
   const meta = (item.metadata ?? {}) as Record<string, unknown>;
   const tieneDoc  = documentos.length > 0;
   const tieneProc = procedimientos.length > 0 || meta.procedimiento_na === true;
+  const tieneResponsable = !!responsable;
+  const tieneFrecuencia  = !!item.frecuencia_dias;
   // Calcular vencimiento directo desde la fecha, no desde el campo estado (puede estar desactualizado)
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const fechaVenc = item.fecha_vencimiento ? new Date(item.fecha_vencimiento) : null;
@@ -123,23 +124,23 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
           </div>
         )}
 
-        {/* Aprobación pendiente */}
-        {isAdmin && item.estado === "pendiente_aprobacion" && (
-          <div className="flex gap-2 items-center p-3 border border-yellow-200 bg-yellow-50 rounded-lg">
-            <span className="text-sm text-yellow-700 font-medium flex-1">Pendiente de aprobación</span>
-            <form action={`/api/items/${params.id}/aprobar`} method="POST">
-              <input type="hidden" name="aprobar" value="true" />
-              <Button type="submit" size="sm" className="bg-green-600 hover:bg-green-700">Aprobar</Button>
-            </form>
-            <form action={`/api/items/${params.id}/aprobar`} method="POST">
-              <input type="hidden" name="aprobar" value="false" />
-              <Button type="submit" size="sm" variant="destructive">Rechazar</Button>
-            </form>
-          </div>
-        )}
 
         {/* ── SEMÁFOROS ── */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <SemaforoCard
+            label="Responsable"
+            ok={tieneResponsable}
+            okText={responsable?.nombre ?? ""}
+            failText="Sin asignar"
+            icon={User}
+          />
+          <SemaforoCard
+            label="Periodicidad"
+            ok={tieneFrecuencia}
+            okText={item.frecuencia_dias ? `Cada ${item.frecuencia_dias} días` : ""}
+            failText="Sin definir"
+            icon={RefreshCw}
+          />
           <SemaforoCard
             label="Procedimiento"
             ok={tieneProc}
@@ -251,6 +252,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                     responsableId={responsable?.id ?? null}
                     responsableNombre={responsable?.nombre ?? null}
                     frecuenciaDias={item.frecuencia_dias ?? null}
+                    fechaVencimiento={item.fecha_vencimiento ?? null}
                     usuarios={todosUsuarios ?? []}
                     canEdit={canEdit}
                   />

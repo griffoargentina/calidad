@@ -8,17 +8,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const body = await req.json();
-  const { responsable_id, frecuencia_dias, procedimiento_na } = body as {
+  const { responsable_id, frecuencia_dias, procedimiento_na, fecha_vencimiento } = body as {
     responsable_id?: string | null;
     frecuencia_dias?: number | null;
     procedimiento_na?: boolean;
+    fecha_vencimiento?: string | null;
   };
 
   const admin = createAdminClient();
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  if ("responsable_id"  in body) patch.responsable_id  = responsable_id;
-  if ("frecuencia_dias" in body) patch.frecuencia_dias = frecuencia_dias;
+  if ("responsable_id"    in body) patch.responsable_id    = responsable_id;
+  if ("frecuencia_dias"   in body) patch.frecuencia_dias   = frecuencia_dias;
+  if ("fecha_vencimiento" in body) patch.fecha_vencimiento = fecha_vencimiento;
 
   if ("procedimiento_na" in body) {
     // Guardar en metadata JSONB — no requiere migración
