@@ -42,13 +42,8 @@ export default async function ItemsPage({ searchParams }: PageProps) {
     `)
     .order("updated_at", { ascending: false });
 
-  // Filtros
-  const mostrarBorradores = searchParams.borrador === "1";
-  if (!mostrarBorradores) {
-    query = query.eq("es_borrador", false);
-  } else {
-    query = query.eq("es_borrador", true);
-  }
+  // Mostrar todos los items activos (nunca ocultamos por es_borrador — ese flujo fue eliminado)
+  query = query.neq("estado", "obsoleto");
 
   if (searchParams.estado) query = query.eq("estado", searchParams.estado);
   if (searchParams.tipo) query = query.eq("tipo", searchParams.tipo);
@@ -63,12 +58,24 @@ export default async function ItemsPage({ searchParams }: PageProps) {
 
   const { data: items } = await query.limit(200);
 
-  // Qué items tienen al menos un archivo (documento principal)
+  // Archivos: nombre del más reciente por item + qué categorías tiene cada item
   const { data: archivosExistentes } = await supabase
     .from("archivos")
-    .select("item_id")
-    .eq("categoria", "documento");
-  const itemsConArchivo = new Set(archivosExistentes?.map((a) => a.item_id) ?? []);
+    .select("item_id, nombre_archivo, categoria")
+    .order("subido_at", { ascending: false });
+
+  const itemsConArchivo = new Set<string>();
+  const archivoNombre: Record<string, string> = {};       // nombre del doc más reciente
+  const itemCategorias: Record<string, Set<string>> = {}; // categorías que tiene cada item
+
+  for (const a of archivosExistentes ?? []) {
+    if (a.categoria !== "procedimiento") {
+      itemsConArchivo.add(a.item_id);
+      if (!archivoNombre[a.item_id]) archivoNombre[a.item_id] = a.nombre_archivo;
+    }
+    if (!itemCategorias[a.item_id]) itemCategorias[a.item_id] = new Set();
+    itemCategorias[a.item_id].add(a.categoria ?? "documento");
+  }
 
   const sortClausulas = (list: { id: string; titulo: string }[]) =>
     list.sort((a, b) => {
@@ -86,7 +93,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
   return (
     <div className="flex flex-col h-full">
       <Topbar
-        title={mostrarBorradores ? "Mis borradores" : "Documentos del SGC"}
+        title="Documentos del SGC"
         actions={
           canEdit && (
             <Button asChild size="sm">
@@ -105,7 +112,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
           clausulas={sortClausulas(clausulas ?? [])}
           searchParams={searchParams}
         />
-        <ItemsTable items={items ?? []} itemsConArchivo={itemsConArchivo} />
+        <ItemsTable items={items ?? []} itemsConArchivo={itemsConArchivo} archivoNombre={archivoNombre} itemCategorias={itemCategorias} />
       </div>
     </div>
   );
