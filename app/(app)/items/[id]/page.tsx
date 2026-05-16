@@ -70,7 +70,13 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
   const meta = (item.metadata ?? {}) as Record<string, unknown>;
   const tieneDoc  = documentos.length > 0;
   const tieneProc = procedimientos.length > 0 || meta.procedimiento_na === true;
-  const vencimientoOk = item.estado === "vigente" || item.estado === "por_vencer";
+  // Calcular vencimiento directo desde la fecha, no desde el campo estado (puede estar desactualizado)
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const fechaVenc = item.fecha_vencimiento ? new Date(item.fecha_vencimiento) : null;
+  const vencimientoOk = fechaVenc ? fechaVenc >= hoy : false;
+  const vencimientoPorVencer = fechaVenc
+    ? fechaVenc >= hoy && fechaVenc <= new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000)
+    : false;
 
   return (
     <div className="flex flex-col h-full">
@@ -150,7 +156,8 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
           />
           <SemaforoCard
             label="Vencimiento"
-            ok={vencimientoOk && !!item.fecha_vencimiento}
+            ok={vencimientoOk}
+            warn={vencimientoPorVencer}
             okText={formatFecha(item.fecha_vencimiento) ?? ""}
             failText={item.fecha_vencimiento ? `Venció ${formatFecha(item.fecha_vencimiento)}` : "Sin fecha"}
             icon={Calendar}
@@ -354,24 +361,28 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
   );
 }
 
-function SemaforoCard({ label, ok, okText, failText, icon: Icon }: {
+function SemaforoCard({ label, ok, warn, okText, failText, icon: Icon }: {
   label: string;
   ok: boolean;
+  warn?: boolean;
   okText: string;
   failText: string;
   icon: React.ElementType;
 }) {
+  const color = !ok ? "red" : warn ? "yellow" : "green";
+  const bg   = color === "green" ? "bg-green-50 border-green-200" : color === "yellow" ? "bg-yellow-50 border-yellow-200" : "bg-red-50 border-red-200";
+  const ico  = color === "green" ? "text-green-500" : color === "yellow" ? "text-yellow-500" : "text-red-500";
+  const txt  = color === "green" ? "text-green-700" : color === "yellow" ? "text-yellow-700" : "text-red-700";
   return (
-    <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${ok ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
-      <Icon className={`h-5 w-5 shrink-0 ${ok ? "text-green-500" : "text-red-500"}`} />
+    <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${bg}`}>
+      <Icon className={`h-5 w-5 shrink-0 ${ico}`} />
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
         <div className="flex items-center gap-1.5">
-          {ok
-            ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-            : <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-          }
-          <p className={`text-sm font-medium truncate ${ok ? "text-green-700" : "text-red-700"}`}>
+          {ok && !warn && <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />}
+          {ok && warn  && <CheckCircle2 className="h-3.5 w-3.5 text-yellow-500 shrink-0" />}
+          {!ok         && <XCircle      className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+          <p className={`text-sm font-medium truncate ${txt}`}>
             {ok ? okText : failText}
           </p>
         </div>
