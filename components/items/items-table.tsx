@@ -130,7 +130,16 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
       accessorKey: "estado",
       header: "Estado",
       size: 110,
-      cell: ({ getValue }) => <EstadoBadge estado={getValue() as EstadoItem} />,
+      cell: ({ row }) => {
+        const hasDoc = (archivosDetalle?.[row.original.id]?.length ?? 0) > 0;
+        const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+        const fv = row.original.fecha_vencimiento
+          ? new Date(row.original.fecha_vencimiento + "T00:00:00")
+          : null;
+        const isExpired = fv ? fv < hoy : false;
+        const estado: EstadoItem = (!hasDoc || isExpired) ? "vencido" : row.original.estado as EstadoItem;
+        return <EstadoBadge estado={estado} />;
+      },
     },
     {
       accessorKey: "version_actual",
