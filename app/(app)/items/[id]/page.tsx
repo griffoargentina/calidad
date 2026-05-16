@@ -78,12 +78,9 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
         title={item.titulo}
         actions={
           canEdit ? (
-            <div className="flex gap-2">
-              <RenovarModal item={item} />
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/items/${params.id}/editar`}>Editar</Link>
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/items/${params.id}/editar`}>Editar</Link>
+            </Button>
           ) : null
         }
       />
@@ -270,7 +267,12 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
             <TabsTrigger value="comentarios">Comentarios</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="documento" className="mt-4">
+          <TabsContent value="documento" className="mt-4 space-y-3">
+            {canEdit && (
+              <div className="flex justify-end">
+                <RenovarModal item={item} />
+              </div>
+            )}
             <Card>
               <CardContent className="p-0">
                 {!documentos.length ? (
@@ -300,7 +302,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                         </div>
                         <Badge variant="outline" className="shrink-0">v{archivo.version}</Badge>
                         <Button variant="ghost" size="icon" asChild>
-                          <a href={archivo.archivo_url} target="_blank" rel="noopener noreferrer" download>
+                          <a href={`/api/download?url=${encodeURIComponent(archivo.archivo_url)}`} download={archivo.nombre_archivo}>
                             <Download className="h-4 w-4" />
                           </a>
                         </Button>
