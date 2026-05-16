@@ -23,7 +23,7 @@ export function SyncUsuariosButton() {
         <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
         {loading ? "Sincronizando…" : "Sincronizar usuarios"}
       </Button>
-      {msg && <pre className="text-xs text-muted-foreground whitespace-pre-wrap text-right max-w-xs">{msg}</pre>}
+      {msg && <p className="text-xs text-red-600">{msg}</p>}
     </div>
   );
 }
