@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -63,11 +62,11 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [clausulaIso, setClausulaIso] = useState(itemInicial?.clausula_iso ?? clausulaInicial ?? (tipoInicial ? (TIPO_ITEM_CLAUSULA_PRINCIPAL[tipoInicial as TipoItem] ?? "") : ""));
   const [areaId, setAreaId] = useState(itemInicial?.area_id ?? usuarioActual.area_id ?? "__none__");
   const [responsableId, setResponsableId] = useState(itemInicial?.responsable_id ?? "__none__");
-  const [fechaEmision, setFechaEmision] = useState(itemInicial?.fecha_emision ?? new Date().toISOString().split("T")[0]);
+  const [fechaEmision] = useState(itemInicial?.fecha_emision ?? new Date().toISOString().split("T")[0]);
   const [fechaVencimiento, setFechaVencimiento] = useState(itemInicial?.fecha_vencimiento ?? "");
   const [frecuenciaDias, setFrecuenciaDias] = useState<string>(itemInicial?.frecuencia_dias?.toString() ?? "__none__");
   const [requiereAprobacion, setRequiereAprobacion] = useState(itemInicial?.requiere_aprobacion ?? false);
-  const [esBorrador, setEsBorrador] = useState(itemInicial?.es_borrador ?? false);
+  const [esBorrador] = useState(itemInicial?.es_borrador ?? false);
   const [etiquetas, setEtiquetas] = useState<string[]>(itemInicial?.etiquetas ?? []);
   const [etiquetaInput, setEtiquetaInput] = useState("");
   const [codigoFormal, setCodigoFormal] = useState(itemInicial?.codigo_formal ?? "");
@@ -320,45 +319,31 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
         </CardContent>
       </Card>
 
-      {/* Fechas y frecuencia */}
+      {/* Frecuencia */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Fechas y vencimiento</CardTitle>
+          <CardTitle className="text-sm font-medium">Frecuencia de revisión</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Fecha de emisión</Label>
-              <Input type="date" value={fechaEmision} onChange={(e) => setFechaEmision(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Frecuencia de revisión</Label>
-              <Select
-                value={frecuenciaDias}
-                onValueChange={(v) => {
-                  setFrecuenciaDias(v);
-                  calcularVencimiento(v);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Elegir..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sin frecuencia</SelectItem>
-                  {FRECUENCIAS_COMUNES.map((f) => (
-                    <SelectItem key={f.dias} value={f.dias.toString()}>{f.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Fecha de vencimiento</Label>
-              <Input
-                type="date"
-                value={fechaVencimiento}
-                onChange={(e) => setFechaVencimiento(e.target.value)}
-              />
-            </div>
+        <CardContent>
+          <div className="max-w-xs space-y-2">
+            <Select
+              value={frecuenciaDias}
+              onValueChange={(v) => {
+                setFrecuenciaDias(v);
+                calcularVencimiento(v);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Elegir frecuencia..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sin frecuencia</SelectItem>
+                {FRECUENCIAS_COMUNES.map((f) => (
+                  <SelectItem key={f.dias} value={f.dias.toString()}>{f.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Cada cuánto debe revisarse este documento.</p>
           </div>
         </CardContent>
       </Card>
@@ -393,35 +378,6 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Opciones */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Opciones</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="requiere_aprobacion"
-              checked={requiereAprobacion}
-              onCheckedChange={(v) => setRequiereAprobacion(!!v)}
-            />
-            <Label htmlFor="requiere_aprobacion" className="font-normal cursor-pointer">
-              Requiere aprobación del administrador al renovar
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="es_borrador"
-              checked={esBorrador}
-              onCheckedChange={(v) => setEsBorrador(!!v)}
-            />
-            <Label htmlFor="es_borrador" className="font-normal cursor-pointer">
-              Guardar como borrador (no visible en el SGC hasta publicar)
-            </Label>
-          </div>
         </CardContent>
       </Card>
 
