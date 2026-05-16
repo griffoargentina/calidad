@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { Topbar } from "@/components/layout/topbar";
 import { Badge } from "@/components/ui/badge";
@@ -16,16 +17,17 @@ export default async function UsuariosPage() {
   const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
   if (usuario?.rol !== "admin") redirect("/dashboard");
 
+  const admin = createAdminClient();
+
   const [{ data: usuarios }, { data: areas }] = await Promise.all([
-    supabase.from("usuarios").select("*, areas(nombre)").order("nombre"),
-    supabase.from("areas").select("id, nombre").eq("activa", true).order("nombre"),
+    admin.from("usuarios").select("*, areas(nombre)").order("nombre"),
+    admin.from("areas").select("id, nombre").eq("activa", true).order("nombre"),
   ]);
 
   // Contar items por responsable y sus estados
-  const { data: itemsStats } = await supabase
+  const { data: itemsStats } = await admin
     .from("items")
-    .select("responsable_id, estado")
-    .eq("es_borrador", false);
+    .select("responsable_id, estado");
 
   const statsMap: Record<string, { total: number; vencidos: number; porVencer: number }> = {};
   for (const item of itemsStats ?? []) {
