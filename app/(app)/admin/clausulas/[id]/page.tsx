@@ -25,7 +25,7 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
   const [{ data: clausula }, { data: items }] = await Promise.all([
     admin.from("clausulas_iso").select("*").eq("id", params.id).single(),
     admin.from("items")
-      .select("id, codigo, codigo_formal, titulo, tipo, estado, fecha_vencimiento")
+      .select("id, codigo, codigo_formal, titulo, tipo, estado, fecha_vencimiento, metadata")
       .eq("clausula_iso", params.id)
       .neq("estado", "obsoleto")
       .order("updated_at", { ascending: false }),
@@ -108,7 +108,8 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
             <div className="rounded-lg border divide-y">
               {items!.map((item) => {
                 const doc  = tieneDoc[item.id]  ?? false;
-                const proc = tieneProc[item.id] ?? false;
+                const itemMeta = (item.metadata ?? {}) as Record<string, unknown>;
+                const proc = (tieneProc[item.id] ?? false) || itemMeta.procedimiento_na === true;
                 const vencColor =
                   item.estado === "vigente"    ? "ok" :
                   item.estado === "por_vencer" ? "warn" :

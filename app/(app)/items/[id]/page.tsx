@@ -67,8 +67,9 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
   const responsable = item.usuarios as { id: string; nombre: string; email: string } | null;
 
   // Semáforos
+  const meta = (item.metadata ?? {}) as Record<string, unknown>;
   const tieneDoc  = documentos.length > 0;
-  const tieneProc = procedimientos.length > 0 || !!item.procedimiento_na;
+  const tieneProc = procedimientos.length > 0 || meta.procedimiento_na === true;
   const vencimientoOk = item.estado === "vigente" || item.estado === "por_vencer";
 
   return (
@@ -177,7 +178,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                   {canEdit && (
                     <div className="w-full space-y-2 px-2">
                       <SubirProcedimientoModal item={item} />
-                      <ProcNaToggle itemId={params.id} value={!!item.procedimiento_na} />
+                      <ProcNaToggle itemId={params.id} value={meta.procedimiento_na === true} />
                     </div>
                   )}
                 </div>
