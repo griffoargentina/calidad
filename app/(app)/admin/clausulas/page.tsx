@@ -27,32 +27,49 @@ export default async function ClausulasPage() {
     return 0;
   });
 
-  // Traer todos los items sin distinguir borradores
-  const { data: todosItems } = await supabase
-    .from("items")
-    .select("clausula_iso, estado")
-    .neq("estado", "obsoleto");
+  const [{ data: todosItems }, { data: todosArchivos }] = await Promise.all([
+    supabase
+      .from("items")
+      .select("id, clausula_iso, estado, fecha_vencimiento")
+      .neq("estado", "obsoleto"),
+    supabase
+      .from("archivos")
+      .select("item_id, categoria"),
+  ]);
+
+  // Qué items tienen al menos un documento (categoria != procedimiento)
+  const itemsConDoc = new Set(
+    (todosArchivos ?? [])
+      .filter((a) => a.categoria !== "procedimiento")
+      .map((a) => a.item_id)
+  );
 
   const clausulaStats: Record<string, {
-    total: number; vencidos: number; porVencer: number; vigentes: number;
+    total: number; sinArchivo: number; vencidos: number; porVencer: number;
   }> = {};
 
   for (const item of todosItems ?? []) {
-    if (!clausulaStats[item.clausula_iso]) {
-      clausulaStats[item.clausula_iso] = { total: 0, vencidos: 0, porVencer: 0, vigentes: 0 };
-    }
-    const s = clausulaStats[item.clausula_iso];
+    const cid = item.clausula_iso;
+    if (!clausulaStats[cid]) clausulaStats[cid] = { total: 0, sinArchivo: 0, vencidos: 0, porVencer: 0 };
+    const s = clausulaStats[cid];
     s.total++;
-    if (item.estado === "vencido") s.vencidos++;
-    else if (item.estado === "por_vencer") s.porVencer++;
-    else if (item.estado === "vigente") s.vigentes++;
+
+    if (!itemsConDoc.has(item.id)) {
+      // Sin archivo → cuenta como rojo
+      s.sinArchivo++;
+    } else if (item.estado === "vencido") {
+      s.vencidos++;
+    } else if (item.estado === "por_vencer") {
+      s.porVencer++;
+    }
   }
 
   function getSemaforo(clausulaId: string) {
     const s = clausulaStats[clausulaId];
-    if (!s || s.total === 0) return "rojo";
-    if (s.vencidos > 0) return "rojo";
-    if (s.porVencer > 0) return "amarillo";
+    if (!s || s.total === 0)      return "rojo";
+    if (s.sinArchivo > 0)         return "rojo";
+    if (s.vencidos > 0)           return "rojo";
+    if (s.porVencer > 0)          return "amarillo";
     return "verde";
   }
 
@@ -66,13 +83,14 @@ export default async function ClausulasPage() {
         <div className="flex gap-4 text-sm flex-wrap">
           <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-500" /> Todo vigente</span>
           <span className="flex items-center gap-1.5"><AlertTriangle className="h-4 w-4 text-yellow-500" /> Por vencer</span>
-          <span className="flex items-center gap-1.5"><XCircle className="h-4 w-4 text-red-500" /> Vencido o sin evidencia</span>
+          <span className="flex items-center gap-1.5"><XCircle className="h-4 w-4 text-red-500" /> Vencido o sin archivo</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {clausulas?.map((c) => {
             const semaforo = getSemaforo(c.id);
             const stats = clausulaStats[c.id];
+            const problemas = (stats?.sinArchivo ?? 0) + (stats?.vencidos ?? 0);
 
             return (
               <Link key={c.id} href={`/admin/clausulas/${c.id}`}>
@@ -91,16 +109,20 @@ export default async function ClausulasPage() {
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
                     <p className="text-xs font-medium leading-snug mb-3">{c.titulo}</p>
-                    {stats?.total > 0 ? (
+                    {!stats || stats.total === 0 ? (
+                      <p className="text-xs text-red-500 font-medium">Sin documentos</p>
+                    ) : (
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <FileText className="h-3 w-3" /> {stats.total}
                         </span>
-                        {stats.vencidos > 0 && <span className="text-red-600 font-medium">{stats.vencidos} vencidos</span>}
-                        {stats.porVencer > 0 && <span className="text-yellow-600">{stats.porVencer} por vencer</span>}
+                        {problemas > 0 && (
+                          <span className="text-red-600 font-medium">{problemas} con problema</span>
+                        )}
+                        {stats.porVencer > 0 && (
+                          <span className="text-yellow-600">{stats.porVencer} por vencer</span>
+                        )}
                       </div>
-                    ) : (
-                      <p className="text-xs text-red-500 font-medium">Sin evidencia</p>
                     )}
                   </CardContent>
                 </Card>
