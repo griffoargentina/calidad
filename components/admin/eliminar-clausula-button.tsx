@@ -11,16 +11,28 @@ export function EliminarClausulaButton({ clausulaId }: { clausulaId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   async function handleDelete() {
+    // Primer intento
     if (!confirm(`¿Eliminar la cláusula ${clausulaId}? Esta acción no se puede deshacer.`)) return;
     setLoading(true);
     setError(null);
+
     const res = await fetch(`/api/admin/clausulas/${clausulaId}`, { method: "DELETE" });
     const data = await res.json();
-    if (!res.ok) {
+
+    if (res.status === 409) {
+      // Tiene documentos — preguntar si forzar
+      setLoading(false);
+      if (!confirm(`${data.error}\n\n¿Eliminar igual junto con todos sus documentos?`)) return;
+      setLoading(true);
+      const res2 = await fetch(`/api/admin/clausulas/${clausulaId}?force=true`, { method: "DELETE" });
+      const data2 = await res2.json();
+      if (!res2.ok) { setError(data2.error ?? "Error al eliminar"); setLoading(false); return; }
+    } else if (!res.ok) {
       setError(data.error ?? "Error al eliminar");
       setLoading(false);
       return;
     }
+
     router.push("/admin/clausulas");
     router.refresh();
   }
