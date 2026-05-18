@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,6 +22,12 @@ const ALL = "_all_";
 export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const [searchValue, setSearchValue] = useState(searchParams.q ?? "");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSearchValue(searchParams.q ?? "");
+  }, [searchParams.q]);
 
   const setFilter = useCallback((key: string, value: string | null) => {
     const params = new URLSearchParams(
@@ -48,11 +54,12 @@ export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
         {/* Búsqueda por texto */}
         <Input
           placeholder="Buscar por título o código..."
-          defaultValue={searchParams.q}
+          value={searchValue}
           onChange={(e) => {
             const v = e.target.value;
-            clearTimeout((window as unknown as Record<string, ReturnType<typeof setTimeout>>).__searchTimer);
-            (window as unknown as Record<string, ReturnType<typeof setTimeout>>).__searchTimer = setTimeout(() => setFilter("q", v || null), 300);
+            setSearchValue(v);
+            if (timerRef.current) clearTimeout(timerRef.current);
+            timerRef.current = setTimeout(() => setFilter("q", v || null), 300);
           }}
           className="w-56 h-9"
         />
