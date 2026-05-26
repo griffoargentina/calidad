@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useCallback, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +22,7 @@ const ALL = "_all_";
 export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const urlParams = useSearchParams();
-  const [searchValue, setSearchValue] = useState(() => urlParams.get("q") ?? "");
+  const [searchValue, setSearchValue] = useState(searchParams.q ?? "");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setFilter = useCallback((key: string, value: string | null) => {
