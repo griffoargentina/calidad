@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
-import { useCallback, useState, useEffect, useRef } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,12 +22,9 @@ const ALL = "_all_";
 export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [searchValue, setSearchValue] = useState(searchParams.q ?? "");
+  const urlParams = useSearchParams();
+  const [searchValue, setSearchValue] = useState(() => urlParams.get("q") ?? "");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    setSearchValue(searchParams.q ?? "");
-  }, [searchParams.q]);
 
   const setFilter = useCallback((key: string, value: string | null) => {
     const params = new URLSearchParams(
@@ -41,7 +38,7 @@ export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
     router.push(`${pathname}?${params.toString()}`);
   }, [router, pathname, searchParams]);
 
-  const clearAll = () => router.push(pathname);
+  const clearAll = () => { setSearchValue(""); router.push(pathname); };
 
   const hasFilters = Object.values(searchParams).some(Boolean);
   const activeCount = Object.values(searchParams).filter(Boolean).length;
