@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   useReactTable, getCoreRowModel, getSortedRowModel,
@@ -28,6 +29,7 @@ interface ItemRow {
   version_actual: number;
   etiquetas: string[];
   es_borrador: boolean;
+  metadata?: { documento_na?: boolean; procedimiento_na?: boolean } | null;
   usuarios?: { nombre: string } | { nombre: string }[] | null;
   areas?: { nombre: string } | { nombre: string }[] | null;
 }
@@ -52,6 +54,20 @@ function getAreaNombre(a: ItemRow["areas"]) {
 export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const columnResizeMode: ColumnResizeMode = "onChange";
+  const router = useRouter();
+  // Optimistic overrides for documento_na while API call is in flight
+  const [naOverrides, setNaOverrides] = useState<Record<string, boolean>>({});
+
+  async function toggleDocumentoNa(itemId: string, current: boolean) {
+    const next = !current;
+    setNaOverrides((prev) => ({ ...prev, [itemId]: next }));
+    await fetch(`/api/items/${itemId}/quick-edit`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documento_na: next }),
+    });
+    router.refresh();
+  }
 
   const columns: ColumnDef<ItemRow>[] = [
     {
@@ -131,13 +147,18 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
       header: "Estado",
       size: 110,
       cell: ({ row }) => {
-        const hasDoc = (archivosDetalle?.[row.original.id]?.length ?? 0) > 0;
+        const id = row.original.id;
+        const docNa = naOverrides[id] !== undefined ? naOverrides[id] : (row.original.metadata?.documento_na ?? false);
+        const files = archivosDetalle?.[id];
+        const hasProc = files?.some((f) => f.categoria === "procedimiento") ?? false;
+        const hasAnyFile = (files?.length ?? 0) > 0;
         const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
         const fv = row.original.fecha_vencimiento
           ? new Date(row.original.fecha_vencimiento + "T00:00:00")
           : null;
         const isExpired = fv ? fv < hoy : false;
-        const estado: EstadoItem = (!hasDoc || isExpired) ? "vencido" : row.original.estado as EstadoItem;
+        const compliant = docNa ? hasProc : hasAnyFile;
+        const estado: EstadoItem = (!compliant || isExpired) ? "vencido" : row.original.estado as EstadoItem;
         return <EstadoBadge estado={estado} />;
       },
     },
@@ -154,11 +175,13 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
       enableSorting: false,
       enableResizing: false,
       cell: ({ row }) => {
-        const files = archivosDetalle?.[row.original.id];
-        if (!files?.length) return <span className="text-[10px] text-muted-foreground">—</span>;
+        const id = row.original.id;
+        const docNa = naOverrides[id] !== undefined ? naOverrides[id] : (row.original.metadata?.documento_na ?? false);
+        const files = archivosDetalle?.[id];
+        const hasDocFile = files?.some((f) => f.categoria !== "procedimiento") ?? false;
         return (
           <div className="flex flex-col gap-1">
-            {files.map(({ categoria }) => (
+            {files?.map(({ categoria }) => (
               <span key={categoria} className={`text-[10px] border rounded px-1.5 py-0.5 ${
                 categoria === "procedimiento"
                   ? "bg-purple-50 text-purple-700 border-purple-200"
@@ -167,6 +190,19 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
                 {categoria === "procedimiento" ? "Proc" : "Doc"}
               </span>
             ))}
+            {!hasDocFile && (
+              <button
+                onClick={() => toggleDocumentoNa(id, docNa)}
+                className={`text-[10px] border rounded px-1.5 py-0.5 text-left transition-colors ${
+                  docNa
+                    ? "bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200"
+                    : "bg-white text-gray-400 border-dashed border-gray-300 hover:border-gray-400 hover:text-gray-500"
+                }`}
+                title={docNa ? "Quitar N/A" : "Marcar como No Corresponde Documento"}
+              >
+                {docNa ? "N/A Doc ✕" : "+ N/A Doc"}
+              </button>
+            )}
           </div>
         );
       },

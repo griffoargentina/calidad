@@ -36,7 +36,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
     .select(`
       id, codigo, codigo_completo, codigo_formal, tipo, clausula_iso, titulo, estado,
       fecha_vencimiento, version_actual, etiquetas, es_borrador, responsable_id,
-      area_id, created_at, updated_at,
+      area_id, created_at, updated_at, metadata,
       usuarios!responsable_id(nombre),
       areas(nombre)
     `)
