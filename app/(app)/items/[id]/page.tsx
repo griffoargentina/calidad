@@ -10,6 +10,7 @@ import { RenovarModal } from "@/components/items/renovar-modal";
 import { SubirProcedimientoModal } from "@/components/items/subir-procedimiento-modal";
 import { QuickEditPanel } from "@/components/items/quick-edit-panel";
 import { ProcNaToggle } from "@/components/items/proc-na-toggle";
+import { DocNaToggle } from "@/components/items/doc-na-toggle";
 import { ComentariosSection } from "@/components/items/comentarios-section";
 import { formatFecha, formatBytes } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
@@ -67,7 +68,8 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
 
   // Semáforos
   const meta = (item.metadata ?? {}) as Record<string, unknown>;
-  const tieneDoc  = documentos.length > 0;
+  const docNa     = meta.documento_na === true;
+  const tieneDoc  = documentos.length > 0 || docNa;
   const tieneProc = procedimientos.length > 0 || meta.procedimiento_na === true;
   const tieneResponsable = !!responsable;
   const tieneFrecuencia  = !!item.frecuencia_dias;
@@ -285,10 +287,19 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
             <Card>
               <CardContent className="p-0">
                 {!documentos.length ? (
-                  <div className="px-6 py-10 text-center text-sm text-muted-foreground">
-                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                    Sin documento cargado.{" "}
-                    {canEdit && <span>Usá el botón <strong>Renovar</strong> para subir el primer archivo.</span>}
+                  <div className="px-6 py-10 text-center text-sm text-muted-foreground space-y-3">
+                    <div>
+                      <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                      {!docNa && (
+                        <>Sin documento cargado.{" "}
+                        {canEdit && <span>Usá el botón <strong>Renovar</strong> para subir el primer archivo.</span>}</>
+                      )}
+                    </div>
+                    {canEdit && (
+                      <div className="max-w-xs mx-auto">
+                        <DocNaToggle itemId={params.id} value={docNa} />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <ul className="divide-y">
