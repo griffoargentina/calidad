@@ -30,7 +30,7 @@ export default async function ClausulasPage() {
   const [{ data: todosItems }, { data: todosArchivos }] = await Promise.all([
     supabase
       .from("items")
-      .select("id, clausula_iso, estado, fecha_vencimiento")
+      .select("id, clausula_iso, estado, fecha_vencimiento, metadata")
       .neq("estado", "obsoleto"),
     supabase
       .from("archivos")
@@ -54,7 +54,9 @@ export default async function ClausulasPage() {
     const s = clausulaStats[cid];
     s.total++;
 
-    if (!itemsConDoc.has(item.id)) {
+    const iMeta = (item.metadata ?? {}) as Record<string, unknown>;
+    const docOk = itemsConDoc.has(item.id) || iMeta.documento_na === true;
+    if (!docOk) {
       s.sinArchivo++;
     } else {
       const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
