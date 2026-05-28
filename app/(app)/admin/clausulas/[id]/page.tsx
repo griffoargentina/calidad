@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { EliminarClausulaButton } from "@/components/admin/eliminar-clausula-button";
 import { ClausulasRelacionadasEditor } from "@/components/admin/clausulas-relacionadas-editor";
+import { EditClausulaButton } from "@/components/admin/edit-clausula-button";
 
 export default async function ClausulaDetallePage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
@@ -77,6 +78,11 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
         actions={
           <div className="flex items-center gap-2">
             <EliminarClausulaButton clausulaId={clausula.id} />
+            <EditClausulaButton
+              clausulaId={clausula.id}
+              titulo={clausula.titulo}
+              descripcion={clausula.descripcion ?? null}
+            />
             <Button asChild size="sm" variant="outline">
               <Link href="/admin/clausulas">
                 <ArrowLeft className="h-4 w-4 mr-1" />
