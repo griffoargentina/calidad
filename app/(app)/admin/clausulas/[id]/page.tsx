@@ -55,7 +55,9 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
   if ((items?.length ?? 0) > 0) {
     const allItems = items ?? [];
     const anyVencido = allItems.some((i) => {
-      if (!tieneDoc[i.id]) return true;
+      const iMeta = (i.metadata ?? {}) as Record<string, unknown>;
+      const iDocOk = tieneDoc[i.id] || iMeta.documento_na === true;
+      if (!iDocOk) return true;
       const fv = i.fecha_vencimiento ? new Date(i.fecha_vencimiento + "T00:00:00") : null;
       return fv ? fv < hoyClausula : true;
     });
@@ -130,8 +132,8 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
             </p>
             <div className="rounded-lg border divide-y">
               {items!.map((item) => {
-                const doc  = tieneDoc[item.id]  ?? false;
                 const itemMeta = (item.metadata ?? {}) as Record<string, unknown>;
+                const doc  = (tieneDoc[item.id]  ?? false) || itemMeta.documento_na  === true;
                 const proc = (tieneProc[item.id] ?? false) || itemMeta.procedimiento_na === true;
                 const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
                 const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
