@@ -8,12 +8,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const body = await req.json();
-  const { responsable_id, frecuencia_dias, procedimiento_na, documento_na, fecha_vencimiento } = body as {
+  const { responsable_id, frecuencia_dias, procedimiento_na, documento_na, fecha_vencimiento, descripcion } = body as {
     responsable_id?: string | null;
     frecuencia_dias?: number | null;
     procedimiento_na?: boolean;
     documento_na?: boolean;
     fecha_vencimiento?: string | null;
+    descripcion?: string | null;
   };
 
   const admin = createAdminClient();
@@ -22,6 +23,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if ("responsable_id"    in body) patch.responsable_id    = responsable_id;
   if ("frecuencia_dias"   in body) patch.frecuencia_dias   = frecuencia_dias;
   if ("fecha_vencimiento" in body) patch.fecha_vencimiento = fecha_vencimiento;
+  if ("descripcion"       in body) patch.descripcion       = descripcion;
 
   if ("procedimiento_na" in body || "documento_na" in body) {
     const { data: current } = await admin.from("items").select("metadata").eq("id", params.id).single();

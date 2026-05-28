@@ -251,6 +251,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                 <div className="flex-1">
                   <QuickEditPanel
                     itemId={params.id}
+                    descripcion={item.descripcion ?? null}
                     responsableId={responsable?.id ?? null}
                     responsableNombre={responsable?.nombre ?? null}
                     frecuenciaDias={item.frecuencia_dias ?? null}
