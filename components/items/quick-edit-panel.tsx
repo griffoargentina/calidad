@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Pencil, Check, X } from "lucide-react";
 
 const FRECUENCIAS = [
@@ -19,6 +20,7 @@ interface Usuario { id: string; nombre: string }
 
 interface Props {
   itemId: string;
+  descripcion: string | null;
   responsableId: string | null;
   responsableNombre: string | null;
   frecuenciaDias: number | null;
@@ -27,11 +29,13 @@ interface Props {
   canEdit: boolean;
 }
 
-export function QuickEditPanel({ itemId, responsableId, responsableNombre, frecuenciaDias, fechaVencimiento, usuarios, canEdit }: Props) {
+export function QuickEditPanel({ itemId, descripcion, responsableId, responsableNombre, frecuenciaDias, fechaVencimiento, usuarios, canEdit }: Props) {
   const router = useRouter();
+  const [editingDesc, setEditingDesc] = useState(false);
   const [editingResp, setEditingResp] = useState(false);
   const [editingFrec, setEditingFrec] = useState(false);
   const [editingVenc, setEditingVenc] = useState(false);
+  const [descVal, setDescVal] = useState(descripcion ?? "");
   const [respVal, setRespVal] = useState(responsableId ?? "");
   const [frecVal, setFrecVal] = useState(frecuenciaDias?.toString() ?? "");
   const [vencVal, setVencVal] = useState(fechaVencimiento ?? "");
@@ -45,6 +49,7 @@ export function QuickEditPanel({ itemId, responsableId, responsableNombre, frecu
       body: JSON.stringify(patch),
     });
     setSaving(false);
+    setEditingDesc(false);
     setEditingResp(false);
     setEditingFrec(false);
     setEditingVenc(false);
@@ -61,6 +66,44 @@ export function QuickEditPanel({ itemId, responsableId, responsableNombre, frecu
 
   return (
     <div className="space-y-4">
+      {/* Descripción */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-1">Descripción</p>
+        {editingDesc ? (
+          <div className="space-y-1.5">
+            <Textarea
+              value={descVal}
+              onChange={e => setDescVal(e.target.value)}
+              placeholder="Describí qué es este documento y para qué sirve..."
+              className="text-sm min-h-[72px] resize-none"
+              rows={3}
+            />
+            <div className="flex gap-1">
+              <Button size="sm" variant="ghost" className="h-7 text-xs px-2" disabled={saving}
+                onClick={() => save({ descripcion: descVal.trim() || null })}>
+                <Check className="h-3.5 w-3.5 mr-1 text-green-600" /> Guardar
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs px-2"
+                onClick={() => { setEditingDesc(false); setDescVal(descripcion ?? ""); }}>
+                <X className="h-3.5 w-3.5 mr-1 text-red-500" /> Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2">
+            <p className="text-sm flex-1 text-muted-foreground italic">
+              {descripcion || <span className="not-italic text-muted-foreground/50">Sin descripción</span>}
+            </p>
+            {canEdit && (
+              <Button size="icon" variant="ghost" className="h-6 w-6 opacity-40 hover:opacity-100 shrink-0"
+                onClick={() => setEditingDesc(true)}>
+                <Pencil className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Responsable */}
       <div>
         <p className="text-xs text-muted-foreground mb-1">Responsable</p>
