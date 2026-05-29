@@ -36,6 +36,9 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
 
   if (!clausula) redirect("/admin/clausulas");
 
+  // Para 7.1.5: semáforo basado en calibraciones
+  if (params.id === "7.1.5") redirect("/calibracion");
+
   // Fetch archivos for all items in this clause to build semáforos
   const itemIds = items?.map((i) => i.id) ?? [];
   const { data: archivos } = itemIds.length > 0

@@ -27,7 +27,7 @@ export default async function ClausulasPage() {
     return 0;
   });
 
-  const [{ data: todosItems }, { data: todosArchivos }] = await Promise.all([
+  const [{ data: todosItems }, { data: todosArchivos }, { data: ultimasCalibraciones }] = await Promise.all([
     supabase
       .from("items")
       .select("id, clausula_iso, estado, fecha_vencimiento, metadata")
@@ -35,7 +35,22 @@ export default async function ClausulasPage() {
     supabase
       .from("archivos")
       .select("item_id, categoria"),
+    supabase
+      .from("calibraciones")
+      .select("equipo_id, fecha_vencimiento")
+      .order("fecha_calibracion", { ascending: false }),
   ]);
+
+  // Semáforo de calibración para 7.1.5
+  const hoyCalib = new Date(); hoyCalib.setHours(0, 0, 0, 0);
+  const seenEquipos = new Set<string>();
+  let calibVencidos = 0;
+  for (const c of ultimasCalibraciones ?? []) {
+    if (seenEquipos.has(c.equipo_id)) continue;
+    seenEquipos.add(c.equipo_id);
+    const fv = c.fecha_vencimiento ? new Date(c.fecha_vencimiento + "T00:00:00") : null;
+    if (!fv || fv < hoyCalib) calibVencidos++;
+  }
 
   // Qué items tienen al menos un documento (categoria != procedimiento)
   const itemsConDoc = new Set(
@@ -70,6 +85,7 @@ export default async function ClausulasPage() {
   }
 
   function getSemaforo(clausulaId: string) {
+    if (clausulaId === "7.1.5") return calibVencidos > 0 ? "rojo" : "verde";
     const s = clausulaStats[clausulaId];
     if (!s || s.total === 0)      return "rojo";
     if (s.sinArchivo > 0)         return "rojo";
@@ -97,8 +113,9 @@ export default async function ClausulasPage() {
             const stats = clausulaStats[c.id];
             const problemas = (stats?.sinArchivo ?? 0) + (stats?.vencidos ?? 0);
 
+            const href = c.id === "7.1.5" ? "/calibracion" : `/admin/clausulas/${c.id}`;
             return (
-              <Link key={c.id} href={`/admin/clausulas/${c.id}`}>
+              <Link key={c.id} href={href}>
                 <Card className={`h-full transition-all hover:shadow-md cursor-pointer ${
                   semaforo === "rojo"     ? "border-red-200 bg-red-50/40" :
                   semaforo === "amarillo" ? "border-yellow-200 bg-yellow-50/40" :
@@ -119,7 +136,14 @@ export default async function ClausulasPage() {
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
                     <p className="text-xs font-medium leading-snug mb-3">{c.titulo}</p>
-                    {!stats || stats.total === 0 ? (
+                    {c.id === "7.1.5" ? (
+                      <p className="text-xs text-muted-foreground">
+                        {calibVencidos > 0
+                          ? <span className="text-red-600 font-medium">{calibVencidos} equipo{calibVencidos !== 1 ? "s" : ""} vencido{calibVencidos !== 1 ? "s" : ""}</span>
+                          : <span className="text-green-600 font-medium">Todos los equipos al día</span>
+                        }
+                      </p>
+                    ) : !stats || stats.total === 0 ? (
                       <p className="text-xs text-red-500 font-medium">Sin documentos</p>
                     ) : (
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
