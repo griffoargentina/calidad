@@ -11,14 +11,10 @@ import { Item } from "@/types/database";
 import { TIPO_ITEM_LABELS, ESTADO_COLORS, ESTADO_LABELS } from "@/lib/constants/items";
 import { cn } from "@/lib/utils";
 
-interface GlobalSearchProps {
-  open: boolean;
-  onClose: () => void;
-}
-
-export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
+export function GlobalSearch() {
   const router = useRouter();
   const supabase = createClient();
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,9 +22,28 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setOpen(true);
+      }
+    }
+    function handleOpen() { setOpen(true); }
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("open-global-search", handleOpen);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("open-global-search", handleOpen);
+    };
+  }, []);
+
+  useEffect(() => {
     if (open) {
       const t = setTimeout(() => inputRef.current?.focus(), 80);
       return () => clearTimeout(t);
+    } else {
+      setQuery("");
+      setResults([]);
     }
   }, [open]);
 
@@ -56,16 +71,9 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
     return () => clearTimeout(timer);
   }, [query, search]);
 
-  useEffect(() => {
-    if (!open) {
-      setQuery("");
-      setResults([]);
-    }
-  }, [open]);
-
   function handleSelect(item: Item) {
     router.push(`/items/${item.id}`);
-    onClose();
+    setOpen(false);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -81,7 +89,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
         className="p-0 max-w-xl gap-0 overflow-hidden"
         onOpenAutoFocus={(e) => e.preventDefault()}
