@@ -2,21 +2,15 @@
 
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSearch } from "./search-context";
 
 interface TopbarProps {
   title: string;
   actions?: React.ReactNode;
-  onSearchOpen?: () => void;
 }
 
-export function Topbar({ title, actions, onSearchOpen }: TopbarProps) {
-  function handleSearch() {
-    if (onSearchOpen) {
-      onSearchOpen();
-    } else {
-      window.dispatchEvent(new CustomEvent("open-global-search"));
-    }
-  }
+export function Topbar({ title, actions }: TopbarProps) {
+  const { setOpen } = useSearch();
 
   return (
     <header className="h-14 border-b bg-white flex items-center px-6 gap-4 shrink-0">
@@ -25,7 +19,7 @@ export function Topbar({ title, actions, onSearchOpen }: TopbarProps) {
       <Button
         variant="outline"
         size="sm"
-        onClick={handleSearch}
+        onClick={() => setOpen(true)}
         className="hidden sm:flex items-center gap-2 text-muted-foreground"
       >
         <Search className="h-4 w-4" />

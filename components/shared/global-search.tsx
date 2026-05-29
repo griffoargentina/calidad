@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -10,11 +10,12 @@ import { Search, FileText, Loader2 } from "lucide-react";
 import { Item } from "@/types/database";
 import { TIPO_ITEM_LABELS, ESTADO_COLORS, ESTADO_LABELS } from "@/lib/constants/items";
 import { cn } from "@/lib/utils";
+import { useSearch } from "@/components/layout/search-context";
 
 export function GlobalSearch() {
   const router = useRouter();
   const supabase = createClient();
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useSearch();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,14 +29,9 @@ export function GlobalSearch() {
         setOpen(true);
       }
     }
-    function handleOpen() { setOpen(true); }
     document.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("open-global-search", handleOpen);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("open-global-search", handleOpen);
-    };
-  }, []);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [setOpen]);
 
   useEffect(() => {
     if (open) {
