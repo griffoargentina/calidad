@@ -16,6 +16,7 @@ import {
   Upload,
   LayoutTemplate,
   BarChart3,
+  BarChart2,
   CalendarClock,
   ChevronRight,
   Gauge,
@@ -34,6 +35,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/items", label: "Documentos", icon: FileText },
   { href: "/vencimientos", label: "Vencimientos", icon: CalendarClock },
   { href: "/calibracion", label: "Calibración", icon: Gauge },
+  { href: "/indicadores", label: "Indicadores", icon: BarChart2 },
   { href: "/items/importar", label: "Importar Excel", icon: Upload },
 ];
 
