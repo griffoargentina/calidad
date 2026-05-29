@@ -17,6 +17,7 @@ interface Calibracion {
   archivo_url: string | null;
   archivo_nombre: string | null;
   observaciones: string | null;
+  vigente: boolean | null;
   created_at: string;
 }
 
@@ -194,6 +195,22 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
     setUploadingCalId(null);
   }
 
+  async function toggleVigente(cal: Calibracion) {
+    const newVal = cal.vigente === false ? true : false;
+    await fetch(`/api/calibracion/calibraciones/${cal.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vigente: newVal }),
+    });
+    if (!selectedEquipo) return;
+    setCalibacionesMap((prev) => ({
+      ...prev,
+      [selectedEquipo.id]: (prev[selectedEquipo.id] ?? []).map((c) =>
+        c.id === cal.id ? { ...c, vigente: newVal } : c
+      ),
+    }));
+  }
+
   async function handleSaveCal() {
     if (!selectedEquipo || !calForm.fecha_calibracion || !calForm.fecha_vencimiento) return;
     setSavingCal(true);
@@ -368,9 +385,29 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
               const sem = semaforo(c.fecha_vencimiento);
               return (
                 <div key={c.id} className="px-4 py-3 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className={cn("w-2 h-2 rounded-full shrink-0", SEMAFORO_COLORS[sem])} />
-                    <span className="text-xs font-medium">Calibrado: {c.fecha_calibracion}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("w-2 h-2 rounded-full shrink-0", SEMAFORO_COLORS[sem])} />
+                      <span className="text-xs font-medium">Calibrado: {c.fecha_calibracion}</span>
+                    </div>
+                    {canEdit ? (
+                      <button
+                        onClick={() => toggleVigente(c)}
+                        className={cn("text-xs px-2 py-0.5 rounded-full font-medium border transition-colors",
+                          c.vigente !== false
+                            ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                            : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
+                        )}
+                      >
+                        {c.vigente !== false ? "Vigente" : "No vigente"}
+                      </button>
+                    ) : (
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium border",
+                        c.vigente !== false ? "bg-green-50 text-green-700 border-green-200" : "bg-slate-50 text-slate-500 border-slate-200"
+                      )}>
+                        {c.vigente !== false ? "Vigente" : "No vigente"}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">Vence: {c.fecha_vencimiento}</p>
                   {c.observaciones && <p className="text-xs text-muted-foreground">{c.observaciones}</p>}
