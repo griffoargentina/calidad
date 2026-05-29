@@ -8,10 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Plus, Check, X, Minus } from "lucide-react";
+import { Plus, Check, X, Minus, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
 import { Usuario } from "@/types/database";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Registro {
   id: string;
@@ -46,8 +44,6 @@ interface Props {
   usuario: Usuario;
 }
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
 const MESES_CORTOS = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
 
 interface ModalState {
@@ -66,136 +62,105 @@ function getRegistro(registros: Registro[], mes: number | null, anio: number): R
   return registros.find((r) => r.anio === anio && r.mes === mes);
 }
 
-// ── Vencimiento logic ─────────────────────────────────────────────────────────
-
-type EstadoVenc = "ok" | "pendiente" | "vencido" | "na";
+type EstadoVenc = "ok" | "pendiente" | "vencido";
 
 function calcularEstado(ind: Indicador, hoy: Date): EstadoVenc {
   const anio = hoy.getFullYear();
   const mes = hoy.getMonth() + 1;
   const dia = hoy.getDate();
-
   if (ind.frecuencia === "anual") {
     const tiene = ind.registros.some((r) => r.anio === anio && r.mes === null);
     if (tiene) return "ok";
-    if (mes === 1) return "pendiente";
-    return "vencido";
+    return mes === 1 ? "pendiente" : "vencido";
   }
-
-  // Mensual: el dato requerido es el mes anterior
   const mesPrevio = mes === 1 ? 12 : mes - 1;
   const anioPrevio = mes === 1 ? anio - 1 : anio;
   const tienePrevio = ind.registros.some((r) => r.anio === anioPrevio && r.mes === mesPrevio);
   if (tienePrevio) return "ok";
-  if (dia <= 10) return "pendiente"; // Dentro del período de gracia (hasta el 10)
-  return "vencido";
+  return dia <= 10 ? "pendiente" : "vencido";
 }
 
-function EstadoBadge({ estado, frecuencia }: { estado: EstadoVenc; frecuencia: string }) {
-  if (estado === "na") return null;
-
-  const label =
-    estado === "ok"       ? "Al día"    :
-    estado === "pendiente"? "Pendiente" :
-    "Vencido";
-
-  const cls =
-    estado === "ok"        ? "bg-green-50 text-green-700 border-green-200"  :
-    estado === "pendiente" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
-    "bg-red-50 text-red-700 border-red-200";
-
-  const dot =
-    estado === "ok"        ? "bg-green-400"  :
-    estado === "pendiente" ? "bg-yellow-400" :
-    "bg-red-400";
-
-  const venc =
-    frecuencia === "anual"
-      ? "vence enero"
-      : estado === "vencido" ? "día 10" : "hasta día 10";
-
+function EstadoBadge({ estado }: { estado: EstadoVenc }) {
+  const cfg = {
+    ok:        { label: "Al día",    cls: "bg-green-50 text-green-700 border-green-200",    dot: "bg-green-400" },
+    pendiente: { label: "Pendiente", cls: "bg-yellow-50 text-yellow-700 border-yellow-200", dot: "bg-yellow-400" },
+    vencido:   { label: "Vencido",   cls: "bg-red-50 text-red-700 border-red-200",          dot: "bg-red-400" },
+  }[estado];
   return (
-    <div className={cn("inline-flex items-center gap-1 border rounded px-1.5 py-0.5 text-[10px] font-medium", cls)}
-      title={`${label} · ${venc}`}>
-      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dot)} />
-      {label}
+    <div className={cn("inline-flex items-center gap-1 border rounded px-1.5 py-0.5 text-[10px] font-medium", cfg.cls)}>
+      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", cfg.dot)} />
+      {cfg.label}
     </div>
   );
 }
 
-// ── DataCell ──────────────────────────────────────────────────────────────────
-
-function DataCell({
-  registro, isCurrentPeriod, canInput, onAdd, metaUnidad,
-}: {
+function DataCell({ registro, isCurrentPeriod, canInput, onAdd }: {
   registro: Registro | undefined;
   isCurrentPeriod: boolean;
   canInput: boolean;
   onAdd: () => void;
-  metaUnidad: string | null;
 }) {
   if (registro) {
     const bgClass =
       registro.cumple === true  ? "bg-green-50 text-green-800" :
       registro.cumple === false ? "bg-red-50 text-red-800"     :
       "bg-slate-50 text-slate-600";
-
     const displayVal = registro.valor.length > 8 ? registro.valor.slice(0, 8) + "…" : registro.valor;
-    const suffix = metaUnidad && !["texto", "color", "puntaje"].includes(metaUnidad) ? "" : "";
-
     return (
-      <div
-        className={cn("text-center text-xs font-medium px-1 py-1 rounded min-h-[28px] flex items-center justify-center", bgClass)}
-        title={`${registro.valor}${suffix}${registro.comentario ? ` · ${registro.comentario}` : ""}`}
-      >
+      <div className={cn("text-center text-xs font-medium px-1 py-1 rounded min-h-[28px] flex items-center justify-center", bgClass)}
+        title={`${registro.valor}${registro.comentario ? ` · ${registro.comentario}` : ""}`}>
         {displayVal}
       </div>
     );
   }
-
   if (isCurrentPeriod && canInput) {
     return (
-      <button
-        onClick={(e) => { e.stopPropagation(); onAdd(); }}
+      <button onClick={(e) => { e.stopPropagation(); onAdd(); }}
         className="w-full text-center text-xs text-primary hover:bg-primary/10 rounded py-1 min-h-[28px] flex items-center justify-center transition-colors"
-        title="Cargar dato"
-      >
+        title="Cargar dato">
         <Plus className="h-3 w-3" />
       </button>
     );
   }
-
   return <div className="text-center text-xs text-slate-300 min-h-[28px] flex items-center justify-center">—</div>;
 }
-
-// ── Main ──────────────────────────────────────────────────────────────────────
 
 export function IndicadoresDashboard({ indicadores, usuario }: Props) {
   const router = useRouter();
   const hoy = new Date();
   const currentYear = hoy.getFullYear();
   const currentMonth = hoy.getMonth() + 1;
+  const isAdmin = usuario.rol === "admin";
 
-  // ── Filters ──────────────────────────────────────────────────────────────────
-  const sectors = ["Todos", ...Array.from(new Set(indicadores.map((i) => i.sector))).sort()];
-  const [activeSector, setActiveSector] = useState("Todos");
+  const [activeResp, setActiveResp] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc" | null>(null);
+
+  const vencidosPorResp: Record<string, number> = {};
+  let vencidosTodos = 0;
+  for (const ind of indicadores) {
+    if (calcularEstado(ind, hoy) === "vencido") {
+      if (ind.responsable_id) vencidosPorResp[ind.responsable_id] = (vencidosPorResp[ind.responsable_id] ?? 0) + 1;
+      vencidosTodos++;
+    }
+  }
 
   const responsables = Array.from(
-    new Map(
-      indicadores
-        .filter((i) => i.responsable)
-        .map((i) => [i.responsable!.id, i.responsable!])
-    ).values()
+    new Map(indicadores.filter((i) => i.responsable).map((i) => [i.responsable!.id, i.responsable!])).values()
   ).sort((a, b) => a.nombre.localeCompare(b.nombre));
-  const [activeResp, setActiveResp] = useState<string | null>(null);
 
-  const filtered = indicadores.filter((i) => {
-    const sectorOk = activeSector === "Todos" || i.sector === activeSector;
+  let filtered = indicadores.filter((i) => {
     const respOk = !activeResp || i.responsable_id === activeResp;
-    return sectorOk && respOk;
+    const searchOk = !search || i.nombre.toLowerCase().includes(search.toLowerCase());
+    return respOk && searchOk;
   });
 
-  // ── Modal ─────────────────────────────────────────────────────────────────────
+  if (sortDir) {
+    filtered = [...filtered].sort((a, b) =>
+      sortDir === "asc" ? a.nombre.localeCompare(b.nombre) : b.nombre.localeCompare(a.nombre)
+    );
+  }
+
   const [modal, setModal] = useState<ModalState>({
     open: false, indicadorId: "", indicadorNombre: "", metaCondicion: null,
     metaValor: null, anio: currentYear, mes: null, frecuencia: "mensual",
@@ -205,8 +170,6 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
   const [cumpleManual, setCumpleManual] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  const isAdmin = usuario.rol === "admin";
 
   const openModal = useCallback((ind: Indicador, anio: number, mes: number | null) => {
     setModal({ open: true, indicadorId: ind.id, indicadorNombre: ind.nombre,
@@ -236,62 +199,70 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
   return (
     <div className="flex flex-col h-full">
 
-      {/* ── Sector filter ── */}
-      <div className="flex items-center gap-2 px-6 pt-4 pb-1 flex-wrap border-b">
-        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Sector</span>
-        {sectors.map((s) => (
-          <button key={s} onClick={() => setActiveSector(s)}
-            className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors border",
-              activeSector === s ? "bg-primary text-white border-primary" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-            )}>
-            {s}
+      {/* Toolbar */}
+      <div className="flex flex-col gap-2 px-6 pt-4 pb-3 border-b">
+        <div className="relative max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <Input placeholder="Filtrar por título..." value={search}
+            onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-xs" />
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Responsable</span>
+          <button onClick={() => setActiveResp(null)}
+            className={cn("relative px-3 py-1 rounded-full text-xs font-medium transition-colors border",
+              !activeResp ? "bg-slate-700 text-white border-slate-700" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>
+            Todos
+            {vencidosTodos > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                {vencidosTodos}
+              </span>
+            )}
           </button>
-        ))}
+          {responsables.map((r) => {
+            const count = vencidosPorResp[r.id] ?? 0;
+            return (
+              <button key={r.id} onClick={() => setActiveResp(activeResp === r.id ? null : r.id)}
+                className={cn("relative px-3 py-1 rounded-full text-xs font-medium transition-colors border",
+                  activeResp === r.id ? "bg-slate-700 text-white border-slate-700" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>
+                {r.nombre.split(" ").slice(0, 2).join(" ")}
+                {count > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* ── Responsable filter ── */}
-      <div className="flex items-center gap-2 px-6 py-2 flex-wrap border-b bg-slate-50/50">
-        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Responsable</span>
-        <button onClick={() => setActiveResp(null)}
-          className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors border",
-            !activeResp ? "bg-slate-700 text-white border-slate-700" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-          )}>
-          Todos
-        </button>
-        {responsables.map((r) => (
-          <button key={r.id} onClick={() => setActiveResp(activeResp === r.id ? null : r.id)}
-            className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors border",
-              activeResp === r.id ? "bg-slate-700 text-white border-slate-700" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-            )}>
-            {r.nombre.split(" ")[0]} {r.nombre.split(" ")[1] ?? ""}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Table ── */}
+      {/* Table */}
       <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
         <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b bg-slate-50 text-slate-500 uppercase tracking-wide">
-                <th className="text-left px-4 py-3 font-semibold w-[130px]">Sector</th>
-                <th className="text-left px-4 py-3 font-semibold min-w-[200px]">Indicador</th>
+                <th className="text-left px-4 py-3 font-semibold min-w-[220px]">
+                  <button onClick={() => setSortDir((d) => d === null ? "asc" : d === "asc" ? "desc" : null)}
+                    className="flex items-center gap-1 hover:text-slate-700 transition-colors">
+                    Indicador
+                    {sortDir === null   && <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                    {sortDir === "asc"  && <ArrowUp className="h-3 w-3" />}
+                    {sortDir === "desc" && <ArrowDown className="h-3 w-3" />}
+                  </button>
+                </th>
+                <th className="text-left px-4 py-3 font-semibold w-[80px]">Periodo</th>
                 <th className="text-left px-4 py-3 font-semibold w-[115px]">Responsable</th>
                 <th className="text-left px-4 py-3 font-semibold w-[90px]">Meta</th>
                 <th className="text-left px-4 py-3 font-semibold w-[90px]">Estado</th>
                 {visibleMonths.map((m) => (
-                  <th key={m} className="text-center px-2 py-3 font-semibold w-[52px]">
-                    {MESES_CORTOS[m - 1]}
-                  </th>
+                  <th key={m} className="text-center px-2 py-3 font-semibold w-[52px]">{MESES_CORTOS[m - 1]}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((ind, idx) => {
-                const isResponsable = ind.responsable_id === usuario.id;
-                const canInput = isAdmin || isResponsable;
                 const estado = calcularEstado(ind, hoy);
-
                 const metaDisplay = ind.meta_valor
                   ? `${ind.meta_condicion === "mayor" ? ">" : ind.meta_condicion === "menor" ? "<" : ind.meta_condicion === "mayor_igual" ? "≥" : ind.meta_condicion === "menor_igual" ? "≤" : "="} ${ind.meta_valor} ${ind.meta_unidad ?? ""}`
                   : `— ${ind.meta_unidad ?? ""}`;
@@ -299,24 +270,18 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
                 return (
                   <tr key={ind.id} onClick={() => router.push(`/indicadores/${ind.id}`)}
                     className={cn("border-b last:border-0 cursor-pointer hover:bg-slate-50 transition-colors",
-                      idx % 2 === 0 ? "bg-white" : "bg-slate-50/30"
-                    )}>
+                      idx % 2 === 0 ? "bg-white" : "bg-slate-50/30")}>
 
                     <td className="px-4 py-2.5 align-middle">
-                      <span className="inline-block text-[10px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full truncate max-w-[120px]" title={ind.sector}>
-                        {ind.sector}
-                      </span>
+                      <p className={cn("font-medium text-xs leading-snug", estado === "vencido" ? "text-red-600" : "text-slate-800")}>
+                        {ind.nombre}
+                      </p>
                     </td>
 
                     <td className="px-4 py-2.5 align-middle">
-                      <p className="font-medium text-slate-800 text-xs leading-snug">{ind.nombre}</p>
-                      <span className={cn(
-                        "text-[10px] px-1.5 py-0 rounded font-medium",
-                        ind.frecuencia === "anual"
-                          ? "text-violet-600 bg-violet-50"
-                          : "text-blue-600 bg-blue-50"
-                      )}>
-                        {ind.frecuencia === "anual" ? "Anual · vence enero" : "Mensual · vence día 10"}
+                      <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium",
+                        ind.frecuencia === "anual" ? "text-violet-600 bg-violet-50" : "text-blue-600 bg-blue-50")}>
+                        {ind.frecuencia === "anual" ? "Anual" : "Mensual"}
                       </span>
                     </td>
 
@@ -331,10 +296,9 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
                     </td>
 
                     <td className="px-4 py-2.5 align-middle">
-                      <EstadoBadge estado={estado} frecuencia={ind.frecuencia} />
+                      <EstadoBadge estado={estado} />
                     </td>
 
-                    {/* Annual */}
                     {ind.frecuencia === "anual" ? (
                       <td colSpan={visibleMonths.length} className="px-2 py-2 align-middle" onClick={(e) => e.stopPropagation()}>
                         {(() => {
@@ -351,7 +315,7 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
                               </div>
                             );
                           }
-                          if (canInput) {
+                          if (isAdmin) {
                             return (
                               <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null); }}
                                 className="w-full text-center text-xs text-primary hover:bg-primary/10 rounded py-1 flex items-center justify-center gap-1 transition-colors">
@@ -365,15 +329,13 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
                     ) : (
                       visibleMonths.map((mes) => {
                         const reg = getRegistro(ind.registros, mes, currentYear);
-                        const isCurrentPeriod = mes === currentMonth;
                         return (
                           <td key={mes} className="px-1 py-2 align-middle" onClick={(e) => e.stopPropagation()}>
                             <DataCell
                               registro={reg}
-                              isCurrentPeriod={isCurrentPeriod}
-                              canInput={canInput}
+                              isCurrentPeriod={mes === currentMonth}
+                              canInput={isAdmin}
                               onAdd={() => openModal(ind, currentYear, mes)}
-                              metaUnidad={ind.meta_unidad}
                             />
                           </td>
                         );
@@ -384,16 +346,13 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
               })}
             </tbody>
           </table>
-
           {filtered.length === 0 && (
-            <div className="py-16 text-center text-sm text-slate-400">
-              No hay indicadores para este filtro
-            </div>
+            <div className="py-16 text-center text-sm text-slate-400">No hay indicadores para este filtro</div>
           )}
         </div>
       </div>
 
-      {/* ── Modal ── */}
+      {/* Modal */}
       <Dialog open={modal.open} onOpenChange={(o) => setModal((m) => ({ ...m, open: o }))}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -408,7 +367,6 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
               )}
             </DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="valor-input">Valor</Label>
@@ -421,13 +379,11 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
                 </p>
               )}
             </div>
-
             <div className="space-y-1.5">
               <Label htmlFor="comentario-input">Comentario <span className="text-slate-400">(opcional)</span></Label>
               <Textarea id="comentario-input" placeholder="Observaciones sobre este dato..." value={comentarioInput}
                 onChange={(e) => setComentarioInput(e.target.value)} rows={2} />
             </div>
-
             {needsManualCumple && valorInput && (
               <div className="space-y-1.5">
                 <Label>¿Cumple la meta?</Label>
@@ -444,10 +400,8 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
                 </div>
               </div>
             )}
-
             {saveError && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{saveError}</p>}
           </div>
-
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setModal((m) => ({ ...m, open: false }))}>Cancelar</Button>
             <Button size="sm" onClick={handleSave} disabled={saving || !valorInput.trim()}>
