@@ -62,29 +62,25 @@ function getRegistro(registros: Registro[], mes: number | null, anio: number): R
   return registros.find((r) => r.anio === anio && r.mes === mes);
 }
 
-type EstadoVenc = "ok" | "pendiente" | "vencido";
+type EstadoVenc = "ok" | "vencido";
 
 function calcularEstado(ind: Indicador, hoy: Date): EstadoVenc {
   const anio = hoy.getFullYear();
   const mes = hoy.getMonth() + 1;
-  const dia = hoy.getDate();
   if (ind.frecuencia === "anual") {
     const tiene = ind.registros.some((r) => r.anio === anio && r.mes === null);
-    if (tiene) return "ok";
-    return mes === 1 ? "pendiente" : "vencido";
+    return tiene ? "ok" : "vencido";
   }
   const mesPrevio = mes === 1 ? 12 : mes - 1;
   const anioPrevio = mes === 1 ? anio - 1 : anio;
   const tienePrevio = ind.registros.some((r) => r.anio === anioPrevio && r.mes === mesPrevio);
-  if (tienePrevio) return "ok";
-  return dia <= 10 ? "pendiente" : "vencido";
+  return tienePrevio ? "ok" : "vencido";
 }
 
 function EstadoBadge({ estado }: { estado: EstadoVenc }) {
   const cfg = {
-    ok:        { label: "Al día",    cls: "bg-green-50 text-green-700 border-green-200",    dot: "bg-green-400" },
-    pendiente: { label: "Pendiente", cls: "bg-yellow-50 text-yellow-700 border-yellow-200", dot: "bg-yellow-400" },
-    vencido:   { label: "Vencido",   cls: "bg-red-50 text-red-700 border-red-200",          dot: "bg-red-400" },
+    ok:      { label: "Al día",  cls: "bg-green-50 text-green-700 border-green-200", dot: "bg-green-400" },
+    vencido: { label: "Vencido", cls: "bg-red-50 text-red-700 border-red-200",     dot: "bg-red-400" },
   }[estado];
   return (
     <div className={cn("inline-flex items-center gap-1 border rounded px-1.5 py-0.5 text-[10px] font-medium", cfg.cls)}>
@@ -108,7 +104,7 @@ function DataCell({ registro, isCurrentPeriod, canInput, onAdd }: {
     const displayVal = registro.valor.length > 8 ? registro.valor.slice(0, 8) + "…" : registro.valor;
     return (
       <div className={cn("text-center text-xs font-medium px-1 py-1 rounded min-h-[28px] flex items-center justify-center", bgClass)}
-        title={`${registro.valor}${registro.comentario ? ` · ${registro.comentario}` : ""}` }>
+        title={`${registro.valor}${registro.comentario ? ` · ${registro.comentario}` : ""`}``}>
         {displayVal}
       </div>
     );

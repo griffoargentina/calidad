@@ -28,6 +28,7 @@ export default async function DashboardPage() {
     { data: archivosDoc },
     { data: archivosProc },
     { data: calibraciones },
+    { data: equiposCalib },
     { data: indicadores },
     { data: indRegistros },
   ] = await Promise.all([
@@ -52,9 +53,12 @@ export default async function DashboardPage() {
     supabase.from("calibraciones")
       .select("equipo_id, fecha_vencimiento")
       .order("fecha_calibracion", { ascending: false }),
+    supabase.from("equipos_calibracion").select("id"),
     supabase.from("indicadores").select("id, frecuencia, activo").eq("activo", true),
     supabase.from("indicador_registros").select("indicador_id, anio, mes"),
   ]);
+
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
 
   const conDocSet  = new Set(archivosDoc?.map((a) => a.item_id) ?? []);
   const conProcSet = new Set(archivosProc?.map((a) => a.item_id) ?? []);
@@ -85,36 +89,35 @@ export default async function DashboardPage() {
     : 0;
 
   // --- Calibraciones ---
-  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-  const seenEquipos = new Set<string>();
+  // Equipo vencido = sin calibración registrada, o con fecha_vencimiento nula/vencida
+  const calibMap = new Map<string, string | null>();
+  for (const c of calibraciones ?? []) {
+    if (!calibMap.has(c.equipo_id)) calibMap.set(c.equipo_id, c.fecha_vencimiento);
+  }
   let calibVencidos = 0;
   let calibPrimerVencido: Date | null = null;
-  for (const c of calibraciones ?? []) {
-    if (seenEquipos.has(c.equipo_id)) continue;
-    seenEquipos.add(c.equipo_id);
-    const fv = c.fecha_vencimiento ? new Date(c.fecha_vencimiento + "T00:00:00") : null;
-    if (!fv || fv < hoy) {
+  for (const eq of equiposCalib ?? []) {
+    const fvStr = calibMap.has(eq.id) ? calibMap.get(eq.id) : undefined;
+    const fv = fvStr ? new Date(fvStr + "T00:00:00") : null;
+    if (fvStr === undefined || !fv || fv < hoy) {
       calibVencidos++;
       if (fv && (!calibPrimerVencido || fv < calibPrimerVencido)) calibPrimerVencido = fv;
     }
   }
 
-  // --- Indicadores ---
+  // --- Indicadores: sin dato = vencido siempre ---
   const anio = hoy.getFullYear();
   const mes = hoy.getMonth() + 1;
-  const dia = hoy.getDate();
-  const registroSet = new Set((indRegistros ?? []).map((r) => `${r.indicador_id}-${r.anio}-${r.mes ?? "null"}`));
+  const registroSet = new Set((indRegistros ?? []).map((r) => `${r.indicador_id}-${r.anio}-${r.mes ?? "null"}``));
 
   let indVencidos = 0;
   for (const ind of indicadores ?? []) {
     if (ind.frecuencia === "anual") {
-      const tiene = registroSet.has(`${ind.id}-${anio}-null`);
-      if (!tiene && mes > 1) indVencidos++;
+      if (!registroSet.has(`${ind.id}-${anio}-null`)) indVencidos++;
     } else {
       const mesPrevio = mes === 1 ? 12 : mes - 1;
       const anioPrevio = mes === 1 ? anio - 1 : anio;
-      const tiene = registroSet.has(`${ind.id}-${anioPrevio}-${mesPrevio}`);
-      if (!tiene && dia > 10) indVencidos++;
+      if (!registroSet.has(`${ind.id}-${anioPrevio}-${mesPrevio}`)) indVencidos++;
     }
   }
 
@@ -190,6 +193,8 @@ export default async function DashboardPage() {
                     <p className="text-xs text-red-500 font-medium mt-0.5">
                       Primer vencido: {formatFechaCorta(calibPrimerVencido)}
                     </p>
+                  ) : calibVencidos > 0 ? (
+                    <p className="text-xs text-red-500 font-medium mt-0.5">Sin registro de calibración</p>
                   ) : (
                     <p className="text-xs text-green-600 mt-0.5">Todos al día</p>
                   )}
