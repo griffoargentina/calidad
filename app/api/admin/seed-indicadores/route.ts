@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Helper to calculate cumple
 function calcularCumple(
   valor: string,
   metaValor: string | null,
@@ -14,12 +13,14 @@ function calcularCumple(
     return valor.trim().toLowerCase() === metaValor.trim().toLowerCase();
   }
 
-  const num = parseFloat(valor.replace(",", "."));
-  const meta = parseFloat(metaValor.replace(",", "."));
+  const num = parseFloat(valor.replace(",", ".").replace("%", ""));
+  const meta = parseFloat(metaValor.replace(",", ".").replace("%", ""));
   if (isNaN(num) || isNaN(meta)) return null;
 
-  if (metaCondicion === "mayor") return num > meta;
-  if (metaCondicion === "menor") return num < meta;
+  if (metaCondicion === "mayor")       return num > meta;
+  if (metaCondicion === "mayor_igual") return num >= meta;
+  if (metaCondicion === "menor")       return num < meta;
+  if (metaCondicion === "menor_igual") return num <= meta;
   return null;
 }
 
@@ -27,15 +28,33 @@ export async function GET() {
   const admin = createAdminClient();
   const results: string[] = [];
 
-  // ─── STEP 1: Create 7 missing users ───────────────────────────────────────
+  // ─── STEP 0: Clean up stale indicadores ───────────────────────────────────
+  // Delete indicators that were removed or renamed in the new PDF
+  const staleNames = [
+    "Cantidad devoluciones de Clientes",
+    "Cantidad de devoluciones no válidas",
+    "Índice de reclamos (ML)",
+    "Crecimiento de Ventas industriales",
+    "Crecimiento de Ventas de fuelles",
+  ];
+  for (const nombre of staleNames) {
+    const { data: stale } = await admin.from("indicadores").select("id").eq("nombre", nombre).single();
+    if (stale) {
+      await admin.from("indicador_registros").delete().eq("indicador_id", stale.id);
+      await admin.from("indicadores").delete().eq("id", stale.id);
+      results.push(`CLEANED: ${nombre}`);
+    }
+  }
+
+  // ─── STEP 1: Create missing users ─────────────────────────────────────────
   const usersToCreate = [
-    { nombre: "Johanna Remonda", email: "ventas@griffo.com.ar" },
-    { nombre: "Camila Santacruz", email: "csantacruz@griffo.com.ar" },
-    { nombre: "Constanza Cendon", email: "ml@griffo.com.ar" },
-    { nombre: "Pablo Pirillo", email: "sistemas@griffo.com.ar" },
-    { nombre: "Sofia Baldi", email: "cobranzas@griffo.com.ar" },
-    { nombre: "Gustavo Benguardato", email: "gbenguardato@griffo.com.ar" },
-    { nombre: "Julian Garcia", email: "comercial@griffo.com.ar" },
+    { nombre: "Johanna Remonda",      email: "ventas@griffo.com.ar" },
+    { nombre: "Camila Santacruz",     email: "csantacruz@griffo.com.ar" },
+    { nombre: "Constanza Cendon",     email: "ml@griffo.com.ar" },
+    { nombre: "Pablo Pirillo",        email: "sistemas@griffo.com.ar" },
+    { nombre: "Sofia Baldi",          email: "cobranzas@griffo.com.ar" },
+    { nombre: "Gustavo Benguardato",  email: "gbenguardato@griffo.com.ar" },
+    { nombre: "Julian Garcia",        email: "comercial@griffo.com.ar" },
   ];
 
   for (const u of usersToCreate) {
@@ -76,14 +95,11 @@ export async function GET() {
   const { data: allUsuarios } = await admin.from("usuarios").select("id, nombre, email");
   const usuarios = allUsuarios ?? [];
 
-  function findUser(
-    conditions: Array<{ field: "email" | "nombre"; pattern: string }>
-  ): string | null {
+  function findUser(conditions: Array<{ field: "email" | "nombre"; pattern: string }>): string | null {
     for (const cond of conditions) {
       const found = usuarios.find((u) => {
         const val: string = (u[cond.field] ?? "").toLowerCase();
-        const pat = cond.pattern.toLowerCase();
-        return val.includes(pat);
+        return val.includes(cond.pattern.toLowerCase());
       });
       if (found) return found.id;
     }
@@ -91,20 +107,20 @@ export async function GET() {
   }
 
   const userMap: Record<string, string | null> = {
-    "Diego Griffo": findUser([{ field: "email", pattern: "dgriffo" }, { field: "nombre", pattern: "diego" }, { field: "nombre", pattern: "griffo" }]),
-    "Walter Riccelli": findUser([{ field: "nombre", pattern: "walter" }]),
-    "Sergio Rodriguez": findUser([{ field: "nombre", pattern: "sergio" }]),
-    "Javier Griffo": findUser([{ field: "nombre", pattern: "javier" }]),
-    "Analia Coronatto": findUser([{ field: "nombre", pattern: "analia" }]),
-    "Gustavo Nardi": findUser([{ field: "nombre", pattern: "nardi" }]),
-    "Jose Machado": findUser([{ field: "nombre", pattern: "machado" }]),
-    "Johanna Remonda": findUser([{ field: "nombre", pattern: "johanna" }, { field: "email", pattern: "ventas@griffo" }]),
-    "Camila Santacruz": findUser([{ field: "nombre", pattern: "camila" }, { field: "email", pattern: "csantacruz" }]),
-    "Constanza Cendon": findUser([{ field: "nombre", pattern: "constanza" }, { field: "email", pattern: "ml@griffo" }]),
-    "Pablo Pirillo": findUser([{ field: "nombre", pattern: "pablo" }, { field: "email", pattern: "sistemas@griffo" }]),
-    "Sofia Baldi": findUser([{ field: "nombre", pattern: "sofia" }, { field: "email", pattern: "cobranzas@griffo" }]),
+    "Diego Griffo":        findUser([{ field: "email", pattern: "dgriffo" }, { field: "nombre", pattern: "diego" }]),
+    "Walter Riccelli":     findUser([{ field: "nombre", pattern: "walter" }]),
+    "Johanna Remonda":     findUser([{ field: "nombre", pattern: "johanna" }, { field: "email", pattern: "ventas@griffo" }]),
+    "Sergio Rodriguez":    findUser([{ field: "nombre", pattern: "sergio" }]),
+    "Javier Griffo":       findUser([{ field: "nombre", pattern: "javier" }]),
+    "Analia Coronatto":    findUser([{ field: "nombre", pattern: "analia" }]),
+    "Gustavo Nardi":       findUser([{ field: "nombre", pattern: "nardi" }]),
+    "Camila Santacruz":    findUser([{ field: "nombre", pattern: "camila" }, { field: "email", pattern: "csantacruz" }]),
     "Gustavo Benguardato": findUser([{ field: "nombre", pattern: "benguardato" }, { field: "email", pattern: "gbenguardato" }]),
-    "Julian Garcia": findUser([{ field: "nombre", pattern: "julian" }, { field: "email", pattern: "comercial@griffo" }]),
+    "Julian Garcia":       findUser([{ field: "nombre", pattern: "julian" }, { field: "email", pattern: "comercial@griffo" }]),
+    "Constanza Cendon":    findUser([{ field: "nombre", pattern: "constanza" }, { field: "email", pattern: "ml@griffo" }]),
+    "Jose Machado":        findUser([{ field: "nombre", pattern: "machado" }]),
+    "Pablo Pirillo":       findUser([{ field: "nombre", pattern: "pablo" }, { field: "email", pattern: "sistemas@griffo" }]),
+    "Sofia Baldi":         findUser([{ field: "nombre", pattern: "sofia" }, { field: "email", pattern: "cobranzas@griffo" }]),
   };
 
   results.push("\n--- User ID Lookup ---");
@@ -114,39 +130,47 @@ export async function GET() {
 
   // ─── STEP 3: Insert indicadores ───────────────────────────────────────────
   const indicadoresData = [
-    { orden: 1,  sector: "Dirección",                    nombre: "Cumplimiento de Certificación",                    objetivo_estrategico: "Mantener la Certificación de ISO",                   formula: "N/A",                                            responsable: "Diego Griffo",           frecuencia: "anual",   meta_valor: "Cumplir",  meta_condicion: "igual", meta_unidad: "texto" },
-    { orden: 2,  sector: "Dirección",                    nombre: "Indicador RG",                                     objetivo_estrategico: "Mantenimiento de rentabilidad",                       formula: "",                                               responsable: "Diego Griffo",           frecuencia: "mensual", meta_valor: "0.06",     meta_condicion: "mayor", meta_unidad: "%" },
-    { orden: 3,  sector: "Calidad",                      nombre: "Cantidad devoluciones de Clientes",                objetivo_estrategico: "Satisfaccion del Cliente",                            formula: "Cantidad devoluciones de Clientes totales",      responsable: "Walter Riccelli",        frecuencia: "mensual", meta_valor: "6",        meta_condicion: "menor", meta_unidad: "unidades" },
-    { orden: 4,  sector: "Calidad",                      nombre: "Cantidad de devoluciones válidas",                 objetivo_estrategico: "Satisfaccion del Cliente",                            formula: "Cantidad de devoluciones validas",               responsable: "Walter Riccelli",        frecuencia: "mensual", meta_valor: "6",        meta_condicion: "menor", meta_unidad: "unidades" },
-    { orden: 5,  sector: "Calidad",                      nombre: "Cantidad de devoluciones no válidas",              objetivo_estrategico: "Satisfaccion del Cliente",                            formula: "Cantidad de devoluciones no validas",            responsable: "Walter Riccelli",        frecuencia: "mensual", meta_valor: "0",        meta_condicion: "menor", meta_unidad: "unidades" },
-    { orden: 6,  sector: "Calidad",                      nombre: "Cantidad de devoluciones por problemas Administrativos", objetivo_estrategico: "Satisfaccion del Cliente",                   formula: "Cantidad de devoluciones por problemas Administrativos", responsable: "Johanna Remonda",    frecuencia: "mensual", meta_valor: "0",        meta_condicion: "menor", meta_unidad: "unidades" },
-    { orden: 7,  sector: "Calidad",                      nombre: "Índice de reclamos (ML)",                          objetivo_estrategico: "Satisfaccion del Cliente",                            formula: "Cantidad de reclamos (ML)",                      responsable: "Walter Riccelli",        frecuencia: "mensual", meta_valor: "7",        meta_condicion: "menor", meta_unidad: "unidades" },
-    { orden: 8,  sector: "Calidad",                      nombre: "Índice de NC de proveedores",                      objetivo_estrategico: "Reducir NC Proveedores",                              formula: "NC Proveedores / Cant recep de proveedores",     responsable: "Walter Riccelli",        frecuencia: "mensual", meta_valor: "0.5",      meta_condicion: "menor", meta_unidad: "%" },
-    { orden: 9,  sector: "Calidad",                      nombre: "Índice de NC internas",                            objetivo_estrategico: "Reducir NC Internas",                                 formula: "Cantidad NC interna / Cantidad de empleados",    responsable: "Walter Riccelli",        frecuencia: "mensual", meta_valor: "0.25",     meta_condicion: "menor", meta_unidad: "%" },
-    { orden: 10, sector: "Producción",                   nombre: "Índice de Productividad de Fuelles",               objetivo_estrategico: "Aumentar la productividad de fuelles",                formula: "Total producido / total ST actual",              responsable: "Sergio Rodriguez",       frecuencia: "mensual", meta_valor: "90",       meta_condicion: "mayor", meta_unidad: "%" },
-    { orden: 11, sector: "Producción",                   nombre: "Índice de Scrap de fuelles",                       objetivo_estrategico: "Reducir el scrap en fuelles",                         formula: "Scrap de fuelles / Total producido",             responsable: "Sergio Rodriguez",       frecuencia: "mensual", meta_valor: "0.93",     meta_condicion: "menor", meta_unidad: "%" },
-    { orden: 12, sector: "Planificación de la producción", nombre: "Índice de cumplimiento de entrega de pedidos",   objetivo_estrategico: "Cumplir con los pedidos",                             formula: "Unid no entregadas/Unid entregadas",             responsable: "Javier Griffo",          frecuencia: "mensual", meta_valor: "0.5",      meta_condicion: "menor", meta_unidad: "%" },
-    { orden: 13, sector: "RRHH",                         nombre: "Índice de ausentismo",                             objetivo_estrategico: "Disminuir el ausentismo",                             formula: "Dias de ausentismo/dias teorico",                responsable: "Analia Coronatto",       frecuencia: "mensual", meta_valor: "1.5",      meta_condicion: "menor", meta_unidad: "%" },
-    { orden: 14, sector: "Compras",                      nombre: "Índice de Cumplimiento de Pedidos de Producción Nacional", objetivo_estrategico: "Cumplir con los pedidos Prod Origen Nacional", formula: "Unid no entregadas/Unid vendidas",             responsable: "Gustavo Nardi",          frecuencia: "mensual", meta_valor: "0.25",     meta_condicion: "menor", meta_unidad: "%" },
-    { orden: 15, sector: "Compras",                      nombre: "Índice de Cumplimiento de Pedidos de Producción importada", objetivo_estrategico: "Cumplir con los pedidos Prod Importados",  formula: "Unid no entregadas/Unid vendidas",             responsable: "Gustavo Nardi",          frecuencia: "mensual", meta_valor: "0.85",     meta_condicion: "menor", meta_unidad: "%" },
-    { orden: 16, sector: "Comercial",                    nombre: "Encuesta del Cliente",                             objetivo_estrategico: "Satisfacción del cliente",                            formula: "N/A",                                            responsable: "Camila Santacruz",       frecuencia: "anual",   meta_valor: "3",        meta_condicion: "mayor", meta_unidad: "puntaje" },
-    { orden: 17, sector: "Comercial",                    nombre: "Crecimiento de Ventas industriales",               objetivo_estrategico: "Aumentar las ventas de piezas industriales",          formula: "Unidades vendidas/unidades objetivo",           responsable: "Gustavo Benguardato",    frecuencia: "mensual", meta_valor: "95",       meta_condicion: "mayor", meta_unidad: "%" },
-    { orden: 18, sector: "Comercial",                    nombre: "Crecimiento de Ventas de fuelles",                 objetivo_estrategico: "Aumentar las ventas de fuelles After market",         formula: "Unidades vendidas/unidades objetivo",           responsable: "Julian Garcia",          frecuencia: "mensual", meta_valor: null,       meta_condicion: "mayor", meta_unidad: "%" },
-    { orden: 19, sector: "Comercial",                    nombre: "Satisfacción del Cliente – Canal Mercado Libre",   objetivo_estrategico: "Satisfacción del cliente Mercado libre",              formula: "Semaforo Reputacion Mercado libre",              responsable: "Constanza Cendon",       frecuencia: "mensual", meta_valor: "verde",    meta_condicion: "igual", meta_unidad: "color" },
-    { orden: 20, sector: "Mantenimiento",                nombre: "Grado de Cumplimiento del Plan Preventivo",        objetivo_estrategico: "cumplimiento plan preventivo",                        formula: "se baja de sistema",                             responsable: "Jose Machado",           frecuencia: "mensual", meta_valor: "90",       meta_condicion: "mayor", meta_unidad: "%" },
-    { orden: 21, sector: "Sistemas IT",                  nombre: "Grado de Cumplimiento del Respaldo de Información", objetivo_estrategico: "Cumplimiento efectivo de backups",                   formula: "",                                               responsable: "Pablo Pirillo",          frecuencia: "mensual", meta_valor: "95",       meta_condicion: "mayor", meta_unidad: "%" },
-    { orden: 22, sector: "Diseño",                       nombre: "Grado de Cumplimiento del Proceso de Diseño",      objetivo_estrategico: "Cumplir en tiempo y forma con los Diseños",           formula: "",                                               responsable: "Diego Griffo",           frecuencia: "anual",   meta_valor: "90",       meta_condicion: "mayor", meta_unidad: "%" },
-    { orden: 23, sector: "Ventas",                       nombre: "Tiempos de Entrega (Distribuidores)",              objetivo_estrategico: "Reducir los tiempos de Entrega",                      formula: "Medido en Dias",                                 responsable: "Johanna Remonda",        frecuencia: "mensual", meta_valor: "8",        meta_condicion: "menor", meta_unidad: "dias" },
-    { orden: 24, sector: "Ventas",                       nombre: "Tiempos de Entrega (GPDV y PDV)",                  objetivo_estrategico: "Reducir los tiempos de Entrega",                      formula: "Medido en Dias",                                 responsable: "Johanna Remonda",        frecuencia: "mensual", meta_valor: "5",        meta_condicion: "menor", meta_unidad: "dias" },
-    { orden: 25, sector: "Cobranzas",                    nombre: "Dias de Cobranza",                                 objetivo_estrategico: "Reducir dias de Cobranza",                            formula: "Medido en Dias",                                 responsable: "Sofia Baldi",            frecuencia: "mensual", meta_valor: "30",       meta_condicion: "menor", meta_unidad: "dias" },
-    { orden: 26, sector: "Cobranzas",                    nombre: "Porcentaje Cobranzas Vencidas",                    objetivo_estrategico: "Reducir Porcentaje de Vencidas",                      formula: "%",                                              responsable: "Sofia Baldi",            frecuencia: "mensual", meta_valor: null,       meta_condicion: "menor", meta_unidad: "%" },
+    // Dirección
+    { orden: 1,  sector: "Dirección",                      nombre: "Cumplimiento de Certificación",                         objetivo_estrategico: "Mantener la Certificación de ISO",                    formula: "N/A",                                             responsable: "Diego Griffo",           frecuencia: "anual",   meta_valor: null,    meta_condicion: null,    meta_unidad: "texto" },
+    { orden: 2,  sector: "Dirección",                      nombre: "Indicador RG",                                          objetivo_estrategico: "Mantenimiento de rentabilidad",                        formula: "",                                                responsable: "Diego Griffo",           frecuencia: "mensual", meta_valor: "0.06",  meta_condicion: "mayor", meta_unidad: "%" },
+    // Calidad
+    { orden: 3,  sector: "Calidad",                        nombre: "Cantidad de devoluciones válidas",                      objetivo_estrategico: "Satisfaccion del Cliente",                             formula: "Cantidad de devoluciones validas",                responsable: "Walter Riccelli",        frecuencia: "mensual", meta_valor: "6",     meta_condicion: "menor", meta_unidad: "unidades" },
+    { orden: 4,  sector: "Calidad",                        nombre: "Cantidad de devoluciones por problemas Administrativos", objetivo_estrategico: "Satisfaccion del Cliente",                            formula: "Cantidad de devoluciones por problemas Administrativos", responsable: "Johanna Remonda",   frecuencia: "mensual", meta_valor: "0",     meta_condicion: "menor_igual", meta_unidad: "unidades" },
+    { orden: 5,  sector: "Calidad",                        nombre: "Índice de NC de proveedores",                           objetivo_estrategico: "Reducir NC Proveedores",                               formula: "NC Proveedores / Cant recep de proveedores",      responsable: "Walter Riccelli",        frecuencia: "mensual", meta_valor: "0.5",   meta_condicion: "menor", meta_unidad: "%" },
+    { orden: 6,  sector: "Calidad",                        nombre: "Índice de NC internas",                                 objetivo_estrategico: "Reducir NC Internas",                                  formula: "Cantidad NC interna / Cantidad de empleados",     responsable: "Walter Riccelli",        frecuencia: "mensual", meta_valor: "0.25",  meta_condicion: "menor", meta_unidad: "%" },
+    // Producción
+    { orden: 7,  sector: "Producción",                     nombre: "Índice de Productividad de Fuelles",                    objetivo_estrategico: "Aumentar la productividad de fuelles",                 formula: "Total producido / total ST actual",               responsable: "Sergio Rodriguez",       frecuencia: "mensual", meta_valor: "90",    meta_condicion: "mayor", meta_unidad: "%" },
+    { orden: 8,  sector: "Producción",                     nombre: "Índice de Scrap de fuelles",                            objetivo_estrategico: "Reducir el scrap en fuelles",                          formula: "Scrap de fuelles / Total producido",              responsable: "Sergio Rodriguez",       frecuencia: "mensual", meta_valor: "0.93",  meta_condicion: "menor", meta_unidad: "%" },
+    // Planificación
+    { orden: 9,  sector: "Planificación de la producción", nombre: "Índice de cumplimiento de entrega de pedidos",          objetivo_estrategico: "Cumplir con los pedidos",                              formula: "Unid no entregadas/Unid entregadas",              responsable: "Javier Griffo",          frecuencia: "mensual", meta_valor: "0.5",   meta_condicion: "menor", meta_unidad: "%" },
+    // RRHH
+    { orden: 10, sector: "RRHH",                           nombre: "Índice de ausentismo",                                  objetivo_estrategico: "Disminuir el ausentismo",                              formula: "Dias de ausentismo/dias teorico",                 responsable: "Analia Coronatto",       frecuencia: "mensual", meta_valor: "1.5",   meta_condicion: "menor", meta_unidad: "%" },
+    // Compras
+    { orden: 11, sector: "Compras",                        nombre: "Índice de Cumplimiento de Pedidos de Producción Nacional",   objetivo_estrategico: "Cumplir con los pedidos Prod Origen Nacional",   formula: "Unid no entregadas/Unid vendidas",                responsable: "Gustavo Nardi",          frecuencia: "mensual", meta_valor: "0.25",  meta_condicion: "menor", meta_unidad: "%" },
+    { orden: 12, sector: "Compras",                        nombre: "Índice de Cumplimiento de Pedidos de Producción importada", objetivo_estrategico: "Cumplir con los pedidos Prod Importados",        formula: "Unid no entregadas/Unid vendidas",                responsable: "Gustavo Nardi",          frecuencia: "mensual", meta_valor: "0.85",  meta_condicion: "menor", meta_unidad: "%" },
+    // Comercial
+    { orden: 13, sector: "Comercial",                      nombre: "Encuesta del Cliente",                                  objetivo_estrategico: "Satisfacción del cliente",                             formula: "N/A",                                             responsable: "Camila Santacruz",       frecuencia: "anual",   meta_valor: "3",     meta_condicion: "mayor", meta_unidad: "puntaje" },
+    { orden: 14, sector: "Comercial",                      nombre: "Ventas Industriales",                                   objetivo_estrategico: "Cumplimiento de objetivo de ventas industriales",      formula: "% de cumplimiento",                               responsable: "Gustavo Benguardato",    frecuencia: "mensual", meta_valor: "90",    meta_condicion: "mayor", meta_unidad: "%" },
+    { orden: 15, sector: "Comercial",                      nombre: "Ventas AFMKT",                                          objetivo_estrategico: "Cumplimiento de objetivo de ventas afmkt",             formula: "% de cumplimiento",                               responsable: "Julian Garcia",          frecuencia: "mensual", meta_valor: "90",    meta_condicion: "mayor", meta_unidad: "%" },
+    { orden: 16, sector: "Comercial",                      nombre: "Satisfacción del Cliente – Canal Mercado Libre",        objetivo_estrategico: "Satisfacción del cliente Mercado libre",               formula: "Semaforo Reputacion Mercado libre",               responsable: "Constanza Cendon",       frecuencia: "mensual", meta_valor: "verde", meta_condicion: "igual", meta_unidad: "color" },
+    // Mantenimiento
+    { orden: 17, sector: "Mantenimiento",                  nombre: "Grado de Cumplimiento del Plan Preventivo",             objetivo_estrategico: "cumplimiento plan preventivo",                         formula: "se baja de sistema",                              responsable: "Jose Machado",           frecuencia: "mensual", meta_valor: "90",    meta_condicion: "mayor", meta_unidad: "%" },
+    // Sistemas IT
+    { orden: 18, sector: "Sistemas IT",                    nombre: "Grado de Cumplimiento del Respaldo de Información",     objetivo_estrategico: "Cumplimiento efectivo de backups para resguardo de información", formula: "",                           responsable: "Pablo Pirillo",          frecuencia: "mensual", meta_valor: "ok",    meta_condicion: "igual", meta_unidad: "%" },
+    // Diseño
+    { orden: 19, sector: "Diseño",                         nombre: "Grado de Cumplimiento del Proceso de Diseño",           objetivo_estrategico: "Cumplir en tiempo y forma con los Diseños",            formula: "",                                                responsable: "Diego Griffo",           frecuencia: "anual",   meta_valor: "90",    meta_condicion: "mayor", meta_unidad: "%" },
+    // Ventas
+    { orden: 20, sector: "Ventas",                         nombre: "Tiempos de Entrega (Distribuidores)",                   objetivo_estrategico: "Reducir los tiempos de Entrega",                       formula: "Medido en Dias",                                  responsable: "Johanna Remonda",        frecuencia: "mensual", meta_valor: "8",     meta_condicion: "menor", meta_unidad: "dias" },
+    { orden: 21, sector: "Ventas",                         nombre: "Tiempos de Entrega (GPDV y PDV)",                       objetivo_estrategico: "Reducir los tiempos de Entrega",                       formula: "Medido en Dias",                                  responsable: "Johanna Remonda",        frecuencia: "mensual", meta_valor: "5",     meta_condicion: "menor", meta_unidad: "dias" },
+    // Cobranzas
+    { orden: 22, sector: "Cobranzas",                      nombre: "Dias de Cobranza",                                      objetivo_estrategico: "Reducir dias de Cobranza",                             formula: "Medido en Dias",                                  responsable: "Sofia Baldi",            frecuencia: "mensual", meta_valor: "30",    meta_condicion: "menor", meta_unidad: "dias" },
+    { orden: 23, sector: "Cobranzas",                      nombre: "Porcentaje Cobranzas Vencidas",                         objetivo_estrategico: "Reducir Porcentaje de Vencidas",                       formula: "%",                                               responsable: "Sofia Baldi",            frecuencia: "mensual", meta_valor: null,    meta_condicion: "menor", meta_unidad: "%" },
   ];
 
   results.push("\n--- Inserting Indicadores ---");
-  const insertedIndicadores: Record<string, string> = {}; // nombre → id
+  const insertedIndicadores: Record<string, string> = {};
 
   for (const ind of indicadoresData) {
-    // Check if exists
     const { data: existing } = await admin
       .from("indicadores")
       .select("id")
@@ -159,9 +183,9 @@ export async function GET() {
       continue;
     }
 
-    const responsableId = userMap[ind.responsable] ?? null;
-    if (!responsableId) {
-      results.push(`WARN: No user found for "${ind.responsable}" — inserting indicador without responsable`);
+    const responsableId = ind.responsable ? (userMap[ind.responsable] ?? null) : null;
+    if (ind.responsable && !responsableId) {
+      results.push(`WARN: No user found for "${ind.responsable}"`);
     }
 
     const { data: newInd, error: indError } = await admin
@@ -193,7 +217,6 @@ export async function GET() {
   // ─── STEP 4: Insert historical data ───────────────────────────────────────
   results.push("\n--- Inserting Historical Registros ---");
 
-  // Build a lookup from nombre → { meta_valor, meta_condicion }
   const { data: allIndicadores } = await admin
     .from("indicadores")
     .select("id, nombre, meta_valor, meta_condicion");
@@ -202,38 +225,22 @@ export async function GET() {
     (allIndicadores ?? []).map((i) => [i.nombre, i])
   );
 
-  // Historical data: [nombre_partial, anio, mes, valor]
+  // [nombre, anio, mes, valor]
   const historicalData: Array<[string, number, number, string]> = [
-    // Indicador RG
+    // Indicador RG (ABR sin dato)
     ["Indicador RG", 2026, 1, "0.15"],
     ["Indicador RG", 2026, 2, "-0.35"],
     ["Indicador RG", 2026, 3, "0.08"],
-    ["Indicador RG", 2026, 4, "-0.04"],
-    // Devoluciones Clientes
-    ["Cantidad devoluciones de Clientes", 2026, 1, "23"],
-    ["Cantidad devoluciones de Clientes", 2026, 2, "9"],
-    ["Cantidad devoluciones de Clientes", 2026, 3, "23"],
-    ["Cantidad devoluciones de Clientes", 2026, 4, "18"],
     // Devoluciones válidas
     ["Cantidad de devoluciones válidas", 2026, 1, "4"],
     ["Cantidad de devoluciones válidas", 2026, 2, "2"],
     ["Cantidad de devoluciones válidas", 2026, 3, "2"],
     ["Cantidad de devoluciones válidas", 2026, 4, "9"],
-    // Devoluciones no válidas
-    ["Cantidad de devoluciones no válidas", 2026, 1, "10"],
-    ["Cantidad de devoluciones no válidas", 2026, 2, "0"],
-    ["Cantidad de devoluciones no válidas", 2026, 3, "2"],
-    ["Cantidad de devoluciones no válidas", 2026, 4, "9"],
     // Devoluciones Adm
     ["Cantidad de devoluciones por problemas Administrativos", 2026, 1, "2"],
     ["Cantidad de devoluciones por problemas Administrativos", 2026, 2, "1"],
     ["Cantidad de devoluciones por problemas Administrativos", 2026, 3, "3"],
     ["Cantidad de devoluciones por problemas Administrativos", 2026, 4, "4"],
-    // Reclamos ML
-    ["Índice de reclamos (ML)", 2026, 1, "17"],
-    ["Índice de reclamos (ML)", 2026, 2, "7"],
-    ["Índice de reclamos (ML)", 2026, 3, "18"],
-    ["Índice de reclamos (ML)", 2026, 4, "11"],
     // NC proveedores
     ["Índice de NC de proveedores", 2026, 1, "0.02"],
     ["Índice de NC de proveedores", 2026, 2, "0"],
@@ -270,8 +277,15 @@ export async function GET() {
     ["Índice de Cumplimiento de Pedidos de Producción Nacional", 2026, 3, "0.223"],
     ["Índice de Cumplimiento de Pedidos de Producción Nacional", 2026, 4, "0"],
     // Cumpl Ped Imp
+    ["Índice de Cumplimiento de Pedidos de Producción importada", 2026, 1, "0"],
+    ["Índice de Cumplimiento de Pedidos de Producción importada", 2026, 2, "0"],
     ["Índice de Cumplimiento de Pedidos de Producción importada", 2026, 3, "0.113"],
     ["Índice de Cumplimiento de Pedidos de Producción importada", 2026, 4, "0.653"],
+    // Ventas AFMKT
+    ["Ventas AFMKT", 2026, 1, "115"],
+    ["Ventas AFMKT", 2026, 2, "44"],
+    ["Ventas AFMKT", 2026, 3, "95"],
+    ["Ventas AFMKT", 2026, 4, "101"],
     // ML satisfacción
     ["Satisfacción del Cliente – Canal Mercado Libre", 2026, 1, "verde"],
     ["Satisfacción del Cliente – Canal Mercado Libre", 2026, 2, "verde"],
@@ -321,22 +335,14 @@ export async function GET() {
     const { error: regError } = await admin
       .from("indicador_registros")
       .upsert(
-        {
-          indicador_id: ind.id,
-          anio,
-          mes,
-          valor,
-          cumple,
-          comentario: null,
-          cargado_por: null,
-        },
+        { indicador_id: ind.id, anio, mes, valor, cumple, comentario: null, cargado_por: null },
         { onConflict: "indicador_id,anio,mes", ignoreDuplicates: true }
       );
 
     if (regError) {
       results.push(`ERROR registro ${nombre} ${anio}/${mes}: ${regError.message}`);
     } else {
-      results.push(`OK registro: ${nombre} ${anio}/${mes} = ${valor} (cumple: ${cumple})`);
+      results.push(`OK: ${nombre} ${anio}/${mes} = ${valor} (cumple: ${cumple})`);
     }
   }
 
