@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -11,31 +11,49 @@ import { Item } from "@/types/database";
 import { TIPO_ITEM_LABELS, ESTADO_COLORS, ESTADO_LABELS } from "@/lib/constants/items";
 import { cn } from "@/lib/utils";
 
-interface GlobalSearchProps {
-  open: boolean;
-  onClose: () => void;
-}
-
-export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
+export function GlobalSearch() {
   const router = useRouter();
   const supabase = createClient();
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setOpen(true);
+      }
+    }
+    function handleOpen() { setOpen(true); }
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("open-global-search", handleOpen);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("open-global-search", handleOpen);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => inputRef.current?.focus(), 80);
+      return () => clearTimeout(t);
+    } else {
+      setQuery("");
+      setResults([]);
+    }
+  }, [open]);
 
   const search = useCallback(async (q: string) => {
-    if (!q.trim()) {
-      setResults([]);
-      return;
-    }
+    if (!q.trim()) { setResults([]); return; }
     setLoading(true);
     const { data } = await supabase
       .from("items")
       .select("*")
-      .or(
-        `titulo.ilike.%${q}%,codigo.ilike.%${q}%,codigo_completo.ilike.%${q}%,codigo_formal.ilike.%${q}%,descripcion.ilike.%${q}%`
-      )
+      .or(`titulo.ilike.%${q}%,codigo.ilike.%${q}%,codigo_completo.ilike.%${q}%,codigo_formal.ilike.%${q}%,descripcion.ilike.%${q}%`)
       .eq("es_borrador", false)
       .limit(8);
     setResults(data || []);
@@ -48,19 +66,12 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
     return () => clearTimeout(timer);
   }, [query, search]);
 
-  useEffect(() => {
-    if (!open) {
-      setQuery("");
-      setResults([]);
-    }
-  }, [open]);
-
   function handleSelect(item: Item) {
     router.push(`/items/${item.id}`);
-    onClose();
+    setOpen(false);
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function handleKeyDownInput(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
@@ -73,17 +84,20 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="p-0 max-w-xl gap-0 overflow-hidden">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent
+        className="p-0 max-w-xl gap-0 overflow-hidden"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <div className="flex items-center border-b px-4">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
           <Input
+            ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onKeyDown={handleKeyDownInput}
             placeholder="Buscar por código, título, descripción..."
             className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-            autoFocus
           />
           {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />}
         </div>
