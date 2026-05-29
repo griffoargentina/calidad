@@ -22,6 +22,7 @@ interface Calibracion {
   archivo_url: string | null;
   archivo_nombre: string | null;
   observaciones: string | null;
+  vigente: boolean | null;
   created_at: string;
 }
 
