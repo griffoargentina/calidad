@@ -23,6 +23,7 @@ interface Calibracion {
 interface Procedimiento {
   id: string;
   titulo: string;
+  archivo_url: string | null;
 }
 
 interface Equipo {
@@ -284,7 +285,13 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
                     <td className="px-3 py-2">
                       <Badge variant="outline" className="text-xs capitalize">{eq.tipo ?? "—"}</Badge>
                     </td>
-                    <td className="px-3 py-2 text-xs">{eq.procedimiento?.titulo ?? "—"}</td>
+                    <td className="px-3 py-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                      {eq.procedimiento?.titulo
+                        ? eq.procedimiento.archivo_url
+                          ? <a href={eq.procedimiento.archivo_url} target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">{eq.procedimiento.titulo}</a>
+                          : <span className="text-muted-foreground">{eq.procedimiento.titulo}</span>
+                        : "—"}
+                    </td>
                     <td className="px-3 py-2">{eq.lugar_uso ?? "—"}</td>
                     <td className="px-3 py-2 capitalize">{eq.frecuencia ? FRECUENCIA_LABELS[eq.frecuencia] : "—"}</td>
                     <td className="px-3 py-2">
@@ -332,7 +339,14 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
             {selectedEquipo.identificacion_serie && <p><span className="text-muted-foreground">Serie:</span> {selectedEquipo.identificacion_serie}</p>}
             {selectedEquipo.lugar_uso && <p><span className="text-muted-foreground">Lugar:</span> {selectedEquipo.lugar_uso}</p>}
             {selectedEquipo.frecuencia && <p><span className="text-muted-foreground">Frecuencia:</span> {FRECUENCIA_LABELS[selectedEquipo.frecuencia]}</p>}
-            {selectedEquipo.procedimiento && <p><span className="text-muted-foreground">Procedimiento:</span> {selectedEquipo.procedimiento.titulo}</p>}
+            {selectedEquipo.procedimiento && (
+              <p>
+                <span className="text-muted-foreground">Procedimiento: </span>
+                {selectedEquipo.procedimiento.archivo_url
+                  ? <a href={selectedEquipo.procedimiento.archivo_url} target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">{selectedEquipo.procedimiento.titulo}</a>
+                  : <span>{selectedEquipo.procedimiento.titulo}</span>}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center justify-between px-4 py-3 border-b">

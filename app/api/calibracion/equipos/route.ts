@@ -13,7 +13,7 @@ export async function GET() {
     .from("equipos_calibracion")
     .select(`
       *,
-      procedimiento:procedimientos_calibracion(id, titulo)
+      procedimiento:procedimientos_calibracion(id, titulo, archivo_url)
     `)
     .order("nombre");
 

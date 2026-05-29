@@ -37,7 +37,7 @@ interface Equipo {
   frecuencia: string | null;
   activo: boolean;
   created_at: string;
-  procedimiento: { id: string; titulo: string } | null;
+  procedimiento: { id: string; titulo: string; archivo_url: string | null } | null;
   ultima_calibracion: Calibracion | null;
 }
 
