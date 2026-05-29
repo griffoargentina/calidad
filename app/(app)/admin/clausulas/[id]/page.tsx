@@ -130,6 +130,22 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
           </div>
         </div>
 
+        {/* Sección especial para 7.1.5 — Calibración */}
+        {clausula.id === "7.1.5" && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-blue-800">Equipos de medición y calibración</p>
+              <p className="text-xs text-blue-600 mt-0.5">Gestión de equipos, certificados y procedimientos de calibración</p>
+            </div>
+            <Button asChild size="sm" variant="outline" className="shrink-0 border-blue-300 text-blue-700 hover:bg-blue-100">
+              <Link href="/calibracion">
+                <ChevronRight className="h-4 w-4 mr-1" />
+                Ir a Calibración
+              </Link>
+            </Button>
+          </div>
+        )}
+
         {/* Lista de documentos */}
         {(items?.length ?? 0) > 0 ? (
           <div className="space-y-2">

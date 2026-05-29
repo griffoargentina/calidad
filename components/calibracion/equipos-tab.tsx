@@ -73,6 +73,9 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
   const [selectedEquipo, setSelectedEquipo] = useState<Equipo | null>(null);
   const [calibraciones, setCalibacionesMap] = useState<Record<string, Calibracion[]>>({});
   const [loadingCal, setLoadingCal] = useState(false);
+  const [uploadingCalId, setUploadingCalId] = useState<string | null>(null);
+  const calCertRef = useRef<HTMLInputElement>(null);
+  const uploadForCalId = useRef<string | null>(null);
 
   // Calibracion dialog
   const [calDialog, setCalDialog] = useState(false);
@@ -160,6 +163,36 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
     setCalDialog(true);
   }
 
+  function triggerCalUpload(calId: string) {
+    uploadForCalId.current = calId;
+    calCertRef.current?.click();
+  }
+
+  async function handleCalCertUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const calId = uploadForCalId.current;
+    if (!file || !calId || !selectedEquipo) return;
+    e.target.value = "";
+    setUploadingCalId(calId);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("folder", `calibraciones/${selectedEquipo.id}`);
+    const uploadRes = await fetch("/api/calibracion/upload", { method: "POST", body: fd });
+    const { url, nombre } = await uploadRes.json();
+    await fetch(`/api/calibracion/calibraciones/${calId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archivo_url: url, archivo_nombre: nombre }),
+    });
+    setCalibacionesMap((prev) => ({
+      ...prev,
+      [selectedEquipo.id]: (prev[selectedEquipo.id] ?? []).map((c) =>
+        c.id === calId ? { ...c, archivo_url: url, archivo_nombre: nombre } : c
+      ),
+    }));
+    setUploadingCalId(null);
+  }
+
   async function handleSaveCal() {
     if (!selectedEquipo || !calForm.fecha_calibracion || !calForm.fecha_vencimiento) return;
     setSavingCal(true);
@@ -203,6 +236,7 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
 
   return (
     <div className="flex gap-4 h-full">
+      <input ref={calCertRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleCalCertUpload} />
       {/* Table */}
       <div className={cn("flex-1 min-w-0", selectedEquipo ? "hidden lg:block" : "")}>
         <div className="flex justify-between items-center mb-4">
@@ -326,11 +360,16 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
                   </div>
                   <p className="text-xs text-muted-foreground">Vence: {c.fecha_vencimiento}</p>
                   {c.observaciones && <p className="text-xs text-muted-foreground">{c.observaciones}</p>}
-                  {c.archivo_url && (
+                  {c.archivo_url ? (
                     <a href={c.archivo_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
                       <Download className="h-3 w-3" />
                       {c.archivo_nombre ?? "Certificado"}
                     </a>
+                  ) : canEdit && (
+                    <Button variant="outline" size="sm" className="h-6 text-xs" onClick={() => triggerCalUpload(c.id)} disabled={uploadingCalId === c.id}>
+                      {uploadingCalId === c.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                      Subir certificado
+                    </Button>
                   )}
                 </div>
               );
