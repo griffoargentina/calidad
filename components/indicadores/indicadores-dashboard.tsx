@@ -180,6 +180,16 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
   const sectors = ["Todos", ...Array.from(new Set(indicadores.map((i) => i.sector))).sort()];
   const [activeSector, setActiveSector] = useState("Todos");
 
+  // Count vencidos per sector
+  const vencidosPorSector: Record<string, number> = {};
+  let vencidosTodos = 0;
+  for (const ind of indicadores) {
+    if (calcularEstado(ind, hoy) === "vencido") {
+      vencidosPorSector[ind.sector] = (vencidosPorSector[ind.sector] ?? 0) + 1;
+      vencidosTodos++;
+    }
+  }
+
   const responsables = Array.from(
     new Map(
       indicadores
@@ -239,14 +249,22 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
       {/* ── Sector filter ── */}
       <div className="flex items-center gap-2 px-6 pt-4 pb-1 flex-wrap border-b">
         <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Sector</span>
-        {sectors.map((s) => (
-          <button key={s} onClick={() => setActiveSector(s)}
-            className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors border",
-              activeSector === s ? "bg-primary text-white border-primary" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-            )}>
-            {s}
-          </button>
-        ))}
+        {sectors.map((s) => {
+          const count = s === "Todos" ? vencidosTodos : (vencidosPorSector[s] ?? 0);
+          return (
+            <button key={s} onClick={() => setActiveSector(s)}
+              className={cn("relative px-3 py-1 rounded-full text-xs font-medium transition-colors border",
+                activeSector === s ? "bg-primary text-white border-primary" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+              )}>
+              {s}
+              {count > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Responsable filter ── */}
