@@ -71,11 +71,6 @@ function formatPeriodo(anio: number, mes: number | null): string {
   return `${MESES_NOMBRES[mes - 1]} ${anio}`;
 }
 
-function formatPeriodoCorto(anio: number, mes: number | null): string {
-  if (mes === null) return `${anio}`;
-  return `${MESES_CORTOS[mes - 1]} ${anio}`;
-}
-
 // ── Mini bar chart ────────────────────────────────────────────────────────────
 
 function MiniBarChart({ registros, metaValor }: { registros: Registro[]; metaValor: string | null }) {
