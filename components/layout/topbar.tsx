@@ -11,8 +11,11 @@ interface TopbarProps {
 
 export function Topbar({ title, actions, onSearchOpen }: TopbarProps) {
   function handleSearch() {
-    if (onSearchOpen) onSearchOpen();
-    else window.dispatchEvent(new CustomEvent("open-global-search"));
+    if (onSearchOpen) {
+      onSearchOpen();
+    } else {
+      window.dispatchEvent(new CustomEvent("open-global-search"));
+    }
   }
 
   return (

@@ -12,7 +12,6 @@ import { QuickEditPanel } from "@/components/items/quick-edit-panel";
 import { ProcNaToggle } from "@/components/items/proc-na-toggle";
 import { DocNaToggle } from "@/components/items/doc-na-toggle";
 import { ComentariosSection } from "@/components/items/comentarios-section";
-import { EliminarItemButton } from "@/components/items/eliminar-item-button";
 import { formatFecha, formatBytes } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import {
@@ -88,14 +87,9 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
         title={item.titulo}
         actions={
           canEdit ? (
-            <div className="flex items-center gap-2">
-              {usuario?.rol === "admin" && (
-                <EliminarItemButton itemId={params.id} titulo={item.titulo} />
-              )}
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/items/${params.id}/editar`}>Editar</Link>
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/items/${params.id}/editar`}>Editar</Link>
+            </Button>
           ) : null
         }
       />

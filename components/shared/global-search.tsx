@@ -71,7 +71,7 @@ export function GlobalSearch() {
     setOpen(false);
   }
 
-  function handleKeyDownInput(e: React.KeyboardEvent) {
+  function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
@@ -95,7 +95,7 @@ export function GlobalSearch() {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDownInput}
+            onKeyDown={handleKeyDown}
             placeholder="Buscar por código, título, descripción..."
             className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
           />
