@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -23,6 +23,14 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
   const [results, setResults] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => inputRef.current?.focus(), 80);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
 
   const search = useCallback(async (q: string) => {
     if (!q.trim()) {
@@ -74,16 +82,19 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="p-0 max-w-xl gap-0 overflow-hidden">
+      <DialogContent
+        className="p-0 max-w-xl gap-0 overflow-hidden"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <div className="flex items-center border-b px-4">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
           <Input
+            ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Buscar por código, título, descripción..."
             className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-            autoFocus
           />
           {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />}
         </div>
