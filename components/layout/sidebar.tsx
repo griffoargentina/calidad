@@ -18,6 +18,7 @@ import {
   BarChart3,
   CalendarClock,
   ChevronRight,
+  Gauge,
 } from "lucide-react";
 import { Usuario } from "@/types/database";
 
@@ -32,6 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/items", label: "Documentos", icon: FileText },
   { href: "/vencimientos", label: "Vencimientos", icon: CalendarClock },
+  { href: "/calibracion", label: "Calibración", icon: Gauge },
   { href: "/items/importar", label: "Importar Excel", icon: Upload },
 ];
 
