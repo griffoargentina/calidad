@@ -20,8 +20,13 @@ export function AppShell({ usuario, children }: AppShellProps) {
         setSearchOpen(true);
       }
     }
+    function handleCustom() { setSearchOpen(true); }
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("open-global-search", handleCustom);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("open-global-search", handleCustom);
+    };
   }, []);
 
   return (

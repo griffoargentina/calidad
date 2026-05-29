@@ -10,6 +10,14 @@ interface TopbarProps {
 }
 
 export function Topbar({ title, actions, onSearchOpen }: TopbarProps) {
+  function handleSearch() {
+    if (onSearchOpen) {
+      onSearchOpen();
+    } else {
+      window.dispatchEvent(new CustomEvent("open-global-search"));
+    }
+  }
+
   return (
     <header className="h-14 border-b bg-white flex items-center px-6 gap-4 shrink-0">
       <h1 className="text-lg font-semibold flex-1">{title}</h1>
@@ -17,7 +25,7 @@ export function Topbar({ title, actions, onSearchOpen }: TopbarProps) {
       <Button
         variant="outline"
         size="sm"
-        onClick={onSearchOpen}
+        onClick={handleSearch}
         className="hidden sm:flex items-center gap-2 text-muted-foreground"
       >
         <Search className="h-4 w-4" />
