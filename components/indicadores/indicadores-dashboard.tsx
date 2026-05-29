@@ -80,7 +80,7 @@ function calcularEstado(ind: Indicador, hoy: Date): EstadoVenc {
 function EstadoBadge({ estado }: { estado: EstadoVenc }) {
   const cfg = {
     ok:      { label: "Al día",  cls: "bg-green-50 text-green-700 border-green-200", dot: "bg-green-400" },
-    vencido: { label: "Vencido", cls: "bg-red-50 text-red-700 border-red-200",     dot: "bg-red-400" },
+    vencido: { label: "Vencido", cls: "bg-red-50 text-red-700 border-red-200",           dot: "bg-red-400" },
   }[estado];
   return (
     <div className={cn("inline-flex items-center gap-1 border rounded px-1.5 py-0.5 text-[10px] font-medium", cfg.cls)}>
@@ -102,9 +102,10 @@ function DataCell({ registro, isCurrentPeriod, canInput, onAdd }: {
       registro.cumple === false ? "bg-red-50 text-red-800"     :
       "bg-slate-50 text-slate-600";
     const displayVal = registro.valor.length > 8 ? registro.valor.slice(0, 8) + "…" : registro.valor;
+    const titleStr = registro.valor + (registro.comentario ? " · " + registro.comentario : "");
     return (
       <div className={cn("text-center text-xs font-medium px-1 py-1 rounded min-h-[28px] flex items-center justify-center", bgClass)}
-        title={`${registro.valor}${registro.comentario ? ` · ${registro.comentario}` : ""`}``}>
+        title={titleStr}>
         {displayVal}
       </div>
     );
@@ -177,7 +178,7 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
     if (!valorInput.trim()) return;
     setSaving(true); setSaveError(null);
     try {
-      const res = await fetch(`/api/indicadores/${modal.indicadorId}/registros`, {
+      const res = await fetch("/api/indicadores/" + modal.indicadorId + "/registros", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ anio: modal.anio, mes: modal.mes, valor: valorInput.trim(), comentario: comentarioInput.trim() || null }),
@@ -194,8 +195,6 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-
-      {/* Toolbar */}
       <div className="flex flex-col gap-2 px-6 pt-4 pb-3 border-b">
         <div className="relative max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -232,7 +231,6 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
         </div>
       </div>
 
-      {/* Table */}
       <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
         <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
           <table className="w-full text-xs">
@@ -259,42 +257,36 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
             <tbody>
               {filtered.map((ind, idx) => {
                 const estado = calcularEstado(ind, hoy);
-                const metaDisplay = ind.meta_valor
-                  ? `${ind.meta_condicion === "mayor" ? ">" : ind.meta_condicion === "menor" ? "<" : ind.meta_condicion === "mayor_igual" ? "≥" : ind.meta_condicion === "menor_igual" ? "≤" : "="} ${ind.meta_valor} ${ind.meta_unidad ?? ""}`
-                  : `— ${ind.meta_unidad ?? ""}`;
+                const metaCond = ind.meta_condicion;
+                const metaSym = metaCond === "mayor" ? ">" : metaCond === "menor" ? "<" : metaCond === "mayor_igual" ? "≥" : metaCond === "menor_igual" ? "≤" : "=";
+                const metaDisplay = ind.meta_valor ? metaSym + " " + ind.meta_valor + " " + (ind.meta_unidad ?? "") : "— " + (ind.meta_unidad ?? "");
 
                 return (
-                  <tr key={ind.id} onClick={() => router.push(`/indicadores/${ind.id}`)}
+                  <tr key={ind.id} onClick={() => router.push("/indicadores/" + ind.id)}
                     className={cn("border-b last:border-0 cursor-pointer hover:bg-slate-50 transition-colors",
                       idx % 2 === 0 ? "bg-white" : "bg-slate-50/30")}>
-
                     <td className="px-4 py-2.5 align-middle">
                       <p className={cn("font-medium text-xs leading-snug", estado === "vencido" ? "text-red-600" : "text-slate-800")}>
                         {ind.nombre}
                       </p>
                     </td>
-
                     <td className="px-4 py-2.5 align-middle">
                       <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium",
                         ind.frecuencia === "anual" ? "text-violet-600 bg-violet-50" : "text-blue-600 bg-blue-50")}>
                         {ind.frecuencia === "anual" ? "Anual" : "Mensual"}
                       </span>
                     </td>
-
                     <td className="px-4 py-2.5 align-middle">
                       <span className="text-slate-600 truncate block max-w-[110px]" title={ind.responsable?.nombre ?? ""}>
                         {ind.responsable?.nombre ?? "—"}
                       </span>
                     </td>
-
                     <td className="px-4 py-2.5 align-middle text-slate-500 text-[10px] leading-tight">
                       {metaDisplay}
                     </td>
-
                     <td className="px-4 py-2.5 align-middle">
                       <EstadoBadge estado={estado} />
                     </td>
-
                     {ind.frecuencia === "anual" ? (
                       <td colSpan={visibleMonths.length} className="px-2 py-2 align-middle" onClick={(e) => e.stopPropagation()}>
                         {(() => {
@@ -327,12 +319,8 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
                         const reg = getRegistro(ind.registros, mes, currentYear);
                         return (
                           <td key={mes} className="px-1 py-2 align-middle" onClick={(e) => e.stopPropagation()}>
-                            <DataCell
-                              registro={reg}
-                              isCurrentPeriod={mes === currentMonth}
-                              canInput={isAdmin}
-                              onAdd={() => openModal(ind, currentYear, mes)}
-                            />
+                            <DataCell registro={reg} isCurrentPeriod={mes === currentMonth}
+                              canInput={isAdmin} onAdd={() => openModal(ind, currentYear, mes)} />
                           </td>
                         );
                       })
@@ -348,7 +336,6 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
         </div>
       </div>
 
-      {/* Modal */}
       <Dialog open={modal.open} onOpenChange={(o) => setModal((m) => ({ ...m, open: o }))}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -366,7 +353,7 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="valor-input">Valor</Label>
-              <Input id="valor-input" placeholder={`Ej: ${modal.metaValor ?? "0"}`} value={valorInput}
+              <Input id="valor-input" placeholder={"Ej: " + (modal.metaValor ?? "0")} value={valorInput}
                 onChange={(e) => { setValorInput(e.target.value); setCumpleManual(null); }}
                 autoFocus onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }} />
               {modal.metaValor && (

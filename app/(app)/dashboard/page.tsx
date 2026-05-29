@@ -63,7 +63,6 @@ export default async function DashboardPage() {
   const conDocSet  = new Set(archivosDoc?.map((a) => a.item_id) ?? []);
   const conProcSet = new Set(archivosProc?.map((a) => a.item_id) ?? []);
 
-  // Excluir items con documento_na === true
   const itemsSinArchivo = (todosItems ?? []).filter((i) => {
     if (conDocSet.has(i.id)) return false;
     const meta = (i.metadata ?? {}) as Record<string, unknown>;
@@ -72,7 +71,6 @@ export default async function DashboardPage() {
   });
   const sinArchivo = itemsSinArchivo.length;
 
-  // Excluir items con procedimiento_na === true
   const itemsSinProcedimiento = (todosItems ?? []).filter((i) => {
     if (conProcSet.has(i.id)) return false;
     const meta = (i.metadata ?? {}) as Record<string, unknown>;
@@ -88,8 +86,7 @@ export default async function DashboardPage() {
     ? Math.max(0, Math.round(((totalConBorradores - vencidosTotal) / totalConBorradores) * 100))
     : 0;
 
-  // --- Calibraciones ---
-  // Equipo vencido = sin calibración registrada, o con fecha_vencimiento nula/vencida
+  // Calibraciones: equipo vencido = sin registro, o con fv nula/vencida
   const calibMap = new Map<string, string | null>();
   for (const c of calibraciones ?? []) {
     if (!calibMap.has(c.equipo_id)) calibMap.set(c.equipo_id, c.fecha_vencimiento);
@@ -105,19 +102,21 @@ export default async function DashboardPage() {
     }
   }
 
-  // --- Indicadores: sin dato = vencido siempre ---
+  // Indicadores: sin dato = vencido siempre
   const anio = hoy.getFullYear();
   const mes = hoy.getMonth() + 1;
-  const registroSet = new Set((indRegistros ?? []).map((r) => `${r.indicador_id}-${r.anio}-${r.mes ?? "null"}``));
+  const registroSet = new Set(
+    (indRegistros ?? []).map((r) => r.indicador_id + "-" + r.anio + "-" + (r.mes ?? "null"))
+  );
 
   let indVencidos = 0;
   for (const ind of indicadores ?? []) {
     if (ind.frecuencia === "anual") {
-      if (!registroSet.has(`${ind.id}-${anio}-null`)) indVencidos++;
+      if (!registroSet.has(ind.id + "-" + anio + "-null")) indVencidos++;
     } else {
       const mesPrevio = mes === 1 ? 12 : mes - 1;
       const anioPrevio = mes === 1 ? anio - 1 : anio;
-      if (!registroSet.has(`${ind.id}-${anioPrevio}-${mesPrevio}`)) indVencidos++;
+      if (!registroSet.has(ind.id + "-" + anioPrevio + "-" + mesPrevio)) indVencidos++;
     }
   }
 
@@ -130,79 +129,52 @@ export default async function DashboardPage() {
       <Topbar title="Dashboard" />
 
       <div className="flex-1 p-6 space-y-6">
-        {/* Fila 1: métricas principales */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <MetricCard
-            title="Total documentos"
-            value={total}
-            icon={FileText}
-            iconColor="text-blue-500"
-            bgColor="bg-blue-50"
-            href="/items"
-          />
-          <MetricCard
-            title="Vencidos"
-            value={vencidosTotal}
-            icon={AlertTriangle}
-            iconColor="text-red-500"
-            bgColor="bg-red-50"
-            subtitle={sinArchivo > 0 ? `${vencidosReales ?? 0} reales + ${sinArchivo} sin archivo` : `${vencidosReales ?? 0} vencidos`}
-            alert={vencidosTotal > 0}
-            href="#vencidos-detalle"
-          />
-          <MetricCard
-            title="% cumplimiento"
-            value={`${cumplimiento}%`}
+          <MetricCard title="Total documentos" value={total} icon={FileText}
+            iconColor="text-blue-500" bgColor="bg-blue-50" href="/items" />
+          <MetricCard title="Vencidos" value={vencidosTotal} icon={AlertTriangle}
+            iconColor="text-red-500" bgColor="bg-red-50"
+            subtitle={sinArchivo > 0 ? (vencidosReales ?? 0) + " reales + " + sinArchivo + " sin archivo" : (vencidosReales ?? 0) + " vencidos"}
+            alert={vencidosTotal > 0} href="#vencidos-detalle" />
+          <MetricCard title="% cumplimiento" value={cumplimiento + "%"}
             icon={cumplimiento >= 80 ? CheckCircle2 : cumplimiento >= 50 ? AlertTriangle : XCircle}
             iconColor={cumplimiento >= 80 ? "text-green-500" : cumplimiento >= 50 ? "text-yellow-500" : "text-red-500"}
             bgColor={cumplimiento >= 80 ? "bg-green-50" : cumplimiento >= 50 ? "bg-yellow-50" : "bg-red-50"}
-            subtitle={totalConBorradores === 0 ? "Sin documentos cargados" : `${vigentes ?? 0} vigentes`}
-            alert={cumplimiento < 50}
-          />
-          <MetricCard
-            title="Sin procedimiento"
-            value={sinProcedimiento}
-            icon={BookOpen}
+            subtitle={totalConBorradores === 0 ? "Sin documentos cargados" : (vigentes ?? 0) + " vigentes"}
+            alert={cumplimiento < 50} />
+          <MetricCard title="Sin procedimiento" value={sinProcedimiento} icon={BookOpen}
             iconColor={sinProcedimiento > 0 ? "text-orange-500" : "text-green-500"}
             bgColor={sinProcedimiento > 0 ? "bg-orange-50" : "bg-green-50"}
-            subtitle={`De ${todosItems?.length ?? 0} items en total`}
-            alert={sinProcedimiento > 0}
-            href="#sin-procedimiento"
-          />
+            subtitle={"De " + (todosItems?.length ?? 0) + " items en total"}
+            alert={sinProcedimiento > 0} href="#sin-procedimiento" />
         </div>
 
-        {/* Fila 2: calibraciones + indicadores */}
+        {/* Calibraciones + Indicadores */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link href="/calibracion" className="block hover:opacity-90 transition-opacity">
             <Card className={calibVencidos > 0 ? "border-red-200 bg-red-50/30" : "border-green-200 bg-green-50/20"}>
               <CardContent className="p-5 flex items-center gap-4">
-                <div className={`flex items-center justify-center w-12 h-12 rounded-xl shrink-0 ${calibVencidos > 0 ? "bg-red-100" : "bg-green-100"}`}>
-                  <Wrench className={`w-6 h-6 ${calibVencidos > 0 ? "text-red-500" : "text-green-500"}`} />
+                <div className={"flex items-center justify-center w-12 h-12 rounded-xl shrink-0 " + (calibVencidos > 0 ? "bg-red-100" : "bg-green-100")}>
+                  <Wrench className={"w-6 h-6 " + (calibVencidos > 0 ? "text-red-500" : "text-green-500")} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-muted-foreground">Calibraciones</p>
                   <div className="flex items-baseline gap-2">
-                    <p className={`text-3xl font-bold ${calibVencidos > 0 ? "text-red-600" : "text-green-600"}`}>
+                    <p className={"text-3xl font-bold " + (calibVencidos > 0 ? "text-red-600" : "text-green-600")}>
                       {calibVencidos > 0 ? calibVencidos : "OK"}
                     </p>
-                    {calibVencidos > 0 && (
-                      <span className="text-xs text-muted-foreground">vencida{calibVencidos !== 1 ? "s" : ""}</span>
-                    )}
+                    {calibVencidos > 0 && <span className="text-xs text-muted-foreground">{calibVencidos !== 1 ? "vencidas" : "vencida"}</span>}
                   </div>
-                  {calibVencidos > 0 && calibPrimerVencido ? (
-                    <p className="text-xs text-red-500 font-medium mt-0.5">
-                      Primer vencido: {formatFechaCorta(calibPrimerVencido)}
-                    </p>
-                  ) : calibVencidos > 0 ? (
-                    <p className="text-xs text-red-500 font-medium mt-0.5">Sin registro de calibración</p>
-                  ) : (
-                    <p className="text-xs text-green-600 mt-0.5">Todos al día</p>
-                  )}
+                  {calibVencidos > 0 && calibPrimerVencido
+                    ? <p className="text-xs text-red-500 font-medium mt-0.5">Primer vencido: {formatFechaCorta(calibPrimerVencido)}</p>
+                    : calibVencidos > 0
+                    ? <p className="text-xs text-red-500 font-medium mt-0.5">Sin registro de calibraci&oacute;n</p>
+                    : <p className="text-xs text-green-600 mt-0.5">Todos al d&iacute;a</p>
+                  }
                 </div>
                 {calibVencidos > 0
                   ? <XCircle className="h-5 w-5 text-red-400 shrink-0" />
-                  : <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
-                }
+                  : <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />}
               </CardContent>
             </Card>
           </Link>
@@ -210,37 +182,30 @@ export default async function DashboardPage() {
           <Link href="/indicadores" className="block hover:opacity-90 transition-opacity">
             <Card className={indVencidos > 0 ? "border-red-200 bg-red-50/30" : "border-green-200 bg-green-50/20"}>
               <CardContent className="p-5 flex items-center gap-4">
-                <div className={`flex items-center justify-center w-12 h-12 rounded-xl shrink-0 ${indVencidos > 0 ? "bg-red-100" : "bg-green-100"}`}>
-                  <BarChart2 className={`w-6 h-6 ${indVencidos > 0 ? "text-red-500" : "text-green-500"}`} />
+                <div className={"flex items-center justify-center w-12 h-12 rounded-xl shrink-0 " + (indVencidos > 0 ? "bg-red-100" : "bg-green-100")}>
+                  <BarChart2 className={"w-6 h-6 " + (indVencidos > 0 ? "text-red-500" : "text-green-500")} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-muted-foreground">Indicadores</p>
                   <div className="flex items-baseline gap-2">
-                    <p className={`text-3xl font-bold ${indVencidos > 0 ? "text-red-600" : "text-green-600"}`}>
+                    <p className={"text-3xl font-bold " + (indVencidos > 0 ? "text-red-600" : "text-green-600")}>
                       {indVencidos > 0 ? indVencidos : "OK"}
                     </p>
-                    {indVencidos > 0 && (
-                      <span className="text-xs text-muted-foreground">sin cargar</span>
-                    )}
+                    {indVencidos > 0 && <span className="text-xs text-muted-foreground">sin cargar</span>}
                   </div>
-                  {indVencidos > 0 ? (
-                    <p className="text-xs text-red-500 font-medium mt-0.5">
-                      {indVencidos} indicador{indVencidos !== 1 ? "es" : ""} con dato vencido
-                    </p>
-                  ) : (
-                    <p className="text-xs text-green-600 mt-0.5">Todos al día</p>
-                  )}
+                  {indVencidos > 0
+                    ? <p className="text-xs text-red-500 font-medium mt-0.5">{indVencidos} indicador{indVencidos !== 1 ? "es" : ""} con dato vencido</p>
+                    : <p className="text-xs text-green-600 mt-0.5">Todos al d&iacute;a</p>
+                  }
                 </div>
                 {indVencidos > 0
                   ? <XCircle className="h-5 w-5 text-red-400 shrink-0" />
-                  : <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
-                }
+                  : <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />}
               </CardContent>
             </Card>
           </Link>
         </div>
 
-        {/* Listas de atención */}
         {(vencidosTotal > 0 || sinProcedimiento > 0) && (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {vencidosTotal > 0 && (
@@ -277,7 +242,6 @@ export default async function DashboardPage() {
                 </CardContent>
               </Card>
             )}
-
             {sinProcedimiento > 0 && (
               <Card id="sin-procedimiento" className="border-orange-200">
                 <CardHeader className="pb-3">
@@ -313,19 +277,17 @@ export default async function DashboardPage() {
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-red-500" />
-                  Items vencidos más urgentes
+                  Items vencidos m&aacute;s urgentes
                 </CardTitle>
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href="/items?estado=vencido">
-                    Ver todos <ArrowRight className="ml-1 h-3 w-3" />
-                  </Link>
+                  <Link href="/items?estado=vencido">Ver todos <ArrowRight className="ml-1 h-3 w-3" /></Link>
                 </Button>
               </CardHeader>
               <CardContent className="p-0">
                 {!itemsUrgentes?.length ? (
                   <div className="px-6 py-10 text-center text-sm text-muted-foreground">
                     <CheckCircle2 className="h-8 w-8 text-green-400 mx-auto mb-2" />
-                    No hay items vencidos. ¡Excelente!
+                    No hay items vencidos. &iexcl;Excelente!
                   </div>
                 ) : (
                   <ul className="divide-y">
@@ -339,12 +301,12 @@ export default async function DashboardPage() {
                             </div>
                             <p className="text-sm font-medium truncate">{item.titulo}</p>
                             <p className="text-xs text-muted-foreground">
-                              {TIPO_ITEM_LABELS[item.tipo as keyof typeof TIPO_ITEM_LABELS]} ·{" "}
+                              {TIPO_ITEM_LABELS[item.tipo as keyof typeof TIPO_ITEM_LABELS]} &middot;{" "}
                               {(Array.isArray(item.usuarios) ? item.usuarios[0]?.nombre : item.usuarios?.nombre) ?? "Sin responsable"}
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-xs text-red-500 font-medium">Venció {formatFecha(item.fecha_vencimiento)}</p>
+                            <p className="text-xs text-red-500 font-medium">Venci&oacute; {formatFecha(item.fecha_vencimiento)}</p>
                           </div>
                         </Link>
                       </li>
@@ -354,7 +316,6 @@ export default async function DashboardPage() {
               </CardContent>
             </Card>
           </div>
-
           <div>
             <Card>
               <CardHeader className="pb-3">
@@ -387,21 +348,13 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Acciones rápidas</CardTitle>
+            <CardTitle className="text-base font-semibold">Acciones r&aacute;pidas</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
-            <Button asChild>
-              <Link href="/items/nuevo">Nuevo documento</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/items?estado=por_vencer">Ver próximos a vencer</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/admin/clausulas">Mapa de cláusulas ISO</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/vencimientos">Calendario de vencimientos</Link>
-            </Button>
+            <Button asChild><Link href="/items/nuevo">Nuevo documento</Link></Button>
+            <Button variant="outline" asChild><Link href="/items?estado=por_vencer">Ver pr&oacute;ximos a vencer</Link></Button>
+            <Button variant="outline" asChild><Link href="/admin/clausulas">Mapa de cl&aacute;usulas ISO</Link></Button>
+            <Button variant="outline" asChild><Link href="/vencimientos">Calendario de vencimientos</Link></Button>
           </CardContent>
         </Card>
       </div>
@@ -435,20 +388,15 @@ function MetricCard({
       </CardContent>
     </Card>
   );
-
   if (href) return <Link href={href} className="block hover:opacity-90 transition-opacity">{content}</Link>;
   return content;
 }
 
 function accionLabel(accion: string): string {
   const labels: Record<string, string> = {
-    alta: "creó",
-    edicion: "editó",
-    descarga: "descargó",
-    renovacion: "renovó",
-    aprobacion: "aprobó",
-    rechazo: "rechazó",
-    importacion_masiva: "importó",
+    alta: "cre&oacute;", edicion: "edit&oacute;", descarga: "descarg&oacute;",
+    renovacion: "renov&oacute;", aprobacion: "aprob&oacute;", rechazo: "rechaz&oacute;",
+    importacion_masiva: "import&oacute;",
   };
   return labels[accion] ?? accion;
 }
