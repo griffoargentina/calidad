@@ -8,7 +8,7 @@ import { formatFecha } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import {
   FileText, AlertTriangle, CheckCircle2, XCircle,
-  ArrowRight, TrendingUp, BookOpen,
+  ArrowRight, TrendingUp, BookOpen, Wrench, BarChart2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -27,6 +27,9 @@ export default async function DashboardPage() {
     { data: todosItems },
     { data: archivosDoc },
     { data: archivosProc },
+    { data: calibraciones },
+    { data: indicadores },
+    { data: indRegistros },
   ] = await Promise.all([
     supabase.from("items").select("*", { count: "exact", head: true }).eq("es_borrador", false),
     supabase.from("items").select("*", { count: "exact", head: true })
@@ -43,37 +46,88 @@ export default async function DashboardPage() {
       .select("id, accion, created_at, detalle, usuarios(nombre), items(codigo, titulo)")
       .order("created_at", { ascending: false })
       .limit(8),
-    // Todos (publicados + borradores) → para sin archivo y sin procedimiento
-    supabase.from("items").select("id, codigo, titulo, tipo, es_borrador").neq("estado", "obsoleto"),
+    supabase.from("items").select("id, codigo, titulo, tipo, es_borrador, metadata").neq("estado", "obsoleto"),
     supabase.from("archivos").select("item_id").eq("categoria", "documento"),
     supabase.from("archivos").select("item_id").eq("categoria", "procedimiento"),
+    supabase.from("calibraciones")
+      .select("equipo_id, fecha_vencimiento")
+      .order("fecha_calibracion", { ascending: false }),
+    supabase.from("indicadores").select("id, frecuencia, activo").eq("activo", true),
+    supabase.from("indicador_registros").select("indicador_id, anio, mes"),
   ]);
 
   const conDocSet  = new Set(archivosDoc?.map((a) => a.item_id) ?? []);
   const conProcSet = new Set(archivosProc?.map((a) => a.item_id) ?? []);
 
-  // Sin archivo = TODOS los items sin documento adjunto → se suman a "vencidos"
-  const itemsSinArchivo = (todosItems ?? []).filter((i) => !conDocSet.has(i.id));
+  // Excluir items con documento_na === true
+  const itemsSinArchivo = (todosItems ?? []).filter((i) => {
+    if (conDocSet.has(i.id)) return false;
+    const meta = (i.metadata ?? {}) as Record<string, unknown>;
+    if (meta.documento_na === true) return false;
+    return true;
+  });
   const sinArchivo = itemsSinArchivo.length;
 
-  // Sin procedimiento = TODOS los items (inc. borradores) sin procedimiento adjunto
-  const itemsSinProcedimiento = (todosItems ?? []).filter((i) => !conProcSet.has(i.id));
+  // Excluir items con procedimiento_na === true
+  const itemsSinProcedimiento = (todosItems ?? []).filter((i) => {
+    if (conProcSet.has(i.id)) return false;
+    const meta = (i.metadata ?? {}) as Record<string, unknown>;
+    if (meta.procedimiento_na === true) return false;
+    return true;
+  });
   const sinProcedimiento = itemsSinProcedimiento.length;
 
   const total = totalItems ?? 0;
   const totalConBorradores = todosItems?.length ?? 0;
-  // Vencidos efectivos = vencidos reales + TODOS los items sin archivo (incluyendo borradores)
   const vencidosTotal = (vencidosReales ?? 0) + sinArchivo;
   const cumplimiento = totalConBorradores > 0
     ? Math.max(0, Math.round(((totalConBorradores - vencidosTotal) / totalConBorradores) * 100))
     : 0;
+
+  // --- Calibraciones ---
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const seenEquipos = new Set<string>();
+  let calibVencidos = 0;
+  let calibPrimerVencido: Date | null = null;
+  for (const c of calibraciones ?? []) {
+    if (seenEquipos.has(c.equipo_id)) continue;
+    seenEquipos.add(c.equipo_id);
+    const fv = c.fecha_vencimiento ? new Date(c.fecha_vencimiento + "T00:00:00") : null;
+    if (!fv || fv < hoy) {
+      calibVencidos++;
+      if (fv && (!calibPrimerVencido || fv < calibPrimerVencido)) calibPrimerVencido = fv;
+    }
+  }
+
+  // --- Indicadores ---
+  const anio = hoy.getFullYear();
+  const mes = hoy.getMonth() + 1;
+  const dia = hoy.getDate();
+  const registroSet = new Set((indRegistros ?? []).map((r) => `${r.indicador_id}-${r.anio}-${r.mes ?? "null"}`));
+
+  let indVencidos = 0;
+  for (const ind of indicadores ?? []) {
+    if (ind.frecuencia === "anual") {
+      const tiene = registroSet.has(`${ind.id}-${anio}-null`);
+      if (!tiene && mes > 1) indVencidos++;
+    } else {
+      const mesPrevio = mes === 1 ? 12 : mes - 1;
+      const anioPrevio = mes === 1 ? anio - 1 : anio;
+      const tiene = registroSet.has(`${ind.id}-${anioPrevio}-${mesPrevio}`);
+      if (!tiene && dia > 10) indVencidos++;
+    }
+  }
+
+  function formatFechaCorta(d: Date) {
+    return d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+  }
 
   return (
     <div className="flex flex-col h-full">
       <Topbar title="Dashboard" />
 
       <div className="flex-1 p-6 space-y-6">
-        {/* Tarjetas de métricas */}
+        {/* Fila 1: métricas principales */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <MetricCard
             title="Total documentos"
@@ -114,11 +168,76 @@ export default async function DashboardPage() {
           />
         </div>
 
+        {/* Fila 2: calibraciones + indicadores */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Link href="/calibracion" className="block hover:opacity-90 transition-opacity">
+            <Card className={calibVencidos > 0 ? "border-red-200 bg-red-50/30" : "border-green-200 bg-green-50/20"}>
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className={`flex items-center justify-center w-12 h-12 rounded-xl shrink-0 ${calibVencidos > 0 ? "bg-red-100" : "bg-green-100"}`}>
+                  <Wrench className={`w-6 h-6 ${calibVencidos > 0 ? "text-red-500" : "text-green-500"}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground">Calibraciones</p>
+                  <div className="flex items-baseline gap-2">
+                    <p className={`text-3xl font-bold ${calibVencidos > 0 ? "text-red-600" : "text-green-600"}`}>
+                      {calibVencidos > 0 ? calibVencidos : "OK"}
+                    </p>
+                    {calibVencidos > 0 && (
+                      <span className="text-xs text-muted-foreground">vencida{calibVencidos !== 1 ? "s" : ""}</span>
+                    )}
+                  </div>
+                  {calibVencidos > 0 && calibPrimerVencido ? (
+                    <p className="text-xs text-red-500 font-medium mt-0.5">
+                      Primer vencido: {formatFechaCorta(calibPrimerVencido)}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-green-600 mt-0.5">Todos al día</p>
+                  )}
+                </div>
+                {calibVencidos > 0
+                  ? <XCircle className="h-5 w-5 text-red-400 shrink-0" />
+                  : <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
+                }
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/indicadores" className="block hover:opacity-90 transition-opacity">
+            <Card className={indVencidos > 0 ? "border-red-200 bg-red-50/30" : "border-green-200 bg-green-50/20"}>
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className={`flex items-center justify-center w-12 h-12 rounded-xl shrink-0 ${indVencidos > 0 ? "bg-red-100" : "bg-green-100"}`}>
+                  <BarChart2 className={`w-6 h-6 ${indVencidos > 0 ? "text-red-500" : "text-green-500"}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground">Indicadores</p>
+                  <div className="flex items-baseline gap-2">
+                    <p className={`text-3xl font-bold ${indVencidos > 0 ? "text-red-600" : "text-green-600"}`}>
+                      {indVencidos > 0 ? indVencidos : "OK"}
+                    </p>
+                    {indVencidos > 0 && (
+                      <span className="text-xs text-muted-foreground">sin cargar</span>
+                    )}
+                  </div>
+                  {indVencidos > 0 ? (
+                    <p className="text-xs text-red-500 font-medium mt-0.5">
+                      {indVencidos} indicador{indVencidos !== 1 ? "es" : ""} con dato vencido
+                    </p>
+                  ) : (
+                    <p className="text-xs text-green-600 mt-0.5">Todos al día</p>
+                  )}
+                </div>
+                {indVencidos > 0
+                  ? <XCircle className="h-5 w-5 text-red-400 shrink-0" />
+                  : <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
+                }
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
         {/* Listas de atención */}
         {(vencidosTotal > 0 || sinProcedimiento > 0) && (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-
-            {/* Vencidos + sin archivo */}
             {vencidosTotal > 0 && (
               <Card id="vencidos-detalle" className="border-red-200">
                 <CardHeader className="pb-3">
@@ -154,7 +273,6 @@ export default async function DashboardPage() {
               </Card>
             )}
 
-            {/* Sin procedimiento — todos los items */}
             {sinProcedimiento > 0 && (
               <Card id="sin-procedimiento" className="border-orange-200">
                 <CardHeader className="pb-3">
@@ -185,7 +303,6 @@ export default async function DashboardPage() {
         )}
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Items más urgentes */}
           <div className="xl:col-span-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -233,7 +350,6 @@ export default async function DashboardPage() {
             </Card>
           </div>
 
-          {/* Actividad reciente */}
           <div>
             <Card>
               <CardHeader className="pb-3">
@@ -264,7 +380,6 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Atajos */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold">Acciones rápidas</CardTitle>
