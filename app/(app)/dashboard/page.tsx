@@ -102,17 +102,17 @@ export default async function DashboardPage() {
     }
   }
 
-  // Indicadores: sin dato = vencido siempre
+  // Indicadores: sin dato = vencido; mes=0 es el centinela para indicadores anuales
   const anio = hoy.getFullYear();
   const mes = hoy.getMonth() + 1;
   const registroSet = new Set(
-    (indRegistros ?? []).map((r) => r.indicador_id + "-" + r.anio + "-" + (r.mes ?? "null"))
+    (indRegistros ?? []).map((r) => r.indicador_id + "-" + r.anio + "-" + r.mes)
   );
 
   let indVencidos = 0;
   for (const ind of indicadores ?? []) {
     if (ind.frecuencia === "anual") {
-      if (!registroSet.has(ind.id + "-" + anio + "-null")) indVencidos++;
+      if (!registroSet.has(ind.id + "-" + anio + "-0")) indVencidos++;
     } else {
       const mesPrevio = mes === 1 ? 12 : mes - 1;
       const anioPrevio = mes === 1 ? anio - 1 : anio;
@@ -168,8 +168,8 @@ export default async function DashboardPage() {
                   {calibVencidos > 0 && calibPrimerVencido
                     ? <p className="text-xs text-red-500 font-medium mt-0.5">Primer vencido: {formatFechaCorta(calibPrimerVencido)}</p>
                     : calibVencidos > 0
-                    ? <p className="text-xs text-red-500 font-medium mt-0.5">Sin registro de calibraci&oacute;n</p>
-                    : <p className="text-xs text-green-600 mt-0.5">Todos al d&iacute;a</p>
+                    ? <p className="text-xs text-red-500 font-medium mt-0.5">Sin registro de calibración</p>
+                    : <p className="text-xs text-green-600 mt-0.5">Todos al día</p>
                   }
                 </div>
                 {calibVencidos > 0
@@ -195,7 +195,7 @@ export default async function DashboardPage() {
                   </div>
                   {indVencidos > 0
                     ? <p className="text-xs text-red-500 font-medium mt-0.5">{indVencidos} indicador{indVencidos !== 1 ? "es" : ""} con dato vencido</p>
-                    : <p className="text-xs text-green-600 mt-0.5">Todos al d&iacute;a</p>
+                    : <p className="text-xs text-green-600 mt-0.5">Todos al día</p>
                   }
                 </div>
                 {indVencidos > 0
@@ -277,7 +277,7 @@ export default async function DashboardPage() {
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-red-500" />
-                  Items vencidos m&aacute;s urgentes
+                  Items vencidos más urgentes
                 </CardTitle>
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/items?estado=vencido">Ver todos <ArrowRight className="ml-1 h-3 w-3" /></Link>
@@ -287,7 +287,7 @@ export default async function DashboardPage() {
                 {!itemsUrgentes?.length ? (
                   <div className="px-6 py-10 text-center text-sm text-muted-foreground">
                     <CheckCircle2 className="h-8 w-8 text-green-400 mx-auto mb-2" />
-                    No hay items vencidos. &iexcl;Excelente!
+                    No hay items vencidos. ¡Excelente!
                   </div>
                 ) : (
                   <ul className="divide-y">
@@ -301,12 +301,12 @@ export default async function DashboardPage() {
                             </div>
                             <p className="text-sm font-medium truncate">{item.titulo}</p>
                             <p className="text-xs text-muted-foreground">
-                              {TIPO_ITEM_LABELS[item.tipo as keyof typeof TIPO_ITEM_LABELS]} &middot;{" "}
+                              {TIPO_ITEM_LABELS[item.tipo as keyof typeof TIPO_ITEM_LABELS]} ·{" "}
                               {(Array.isArray(item.usuarios) ? item.usuarios[0]?.nombre : item.usuarios?.nombre) ?? "Sin responsable"}
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-xs text-red-500 font-medium">Venci&oacute; {formatFecha(item.fecha_vencimiento)}</p>
+                            <p className="text-xs text-red-500 font-medium">Venció {formatFecha(item.fecha_vencimiento)}</p>
                           </div>
                         </Link>
                       </li>
@@ -348,12 +348,12 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Acciones r&aacute;pidas</CardTitle>
+            <CardTitle className="text-base font-semibold">Acciones rápidas</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
             <Button asChild><Link href="/items/nuevo">Nuevo documento</Link></Button>
-            <Button variant="outline" asChild><Link href="/items?estado=por_vencer">Ver pr&oacute;ximos a vencer</Link></Button>
-            <Button variant="outline" asChild><Link href="/admin/clausulas">Mapa de cl&aacute;usulas ISO</Link></Button>
+            <Button variant="outline" asChild><Link href="/items?estado=por_vencer">Ver próximos a vencer</Link></Button>
+            <Button variant="outline" asChild><Link href="/admin/clausulas">Mapa de cláusulas ISO</Link></Button>
             <Button variant="outline" asChild><Link href="/vencimientos">Calendario de vencimientos</Link></Button>
           </CardContent>
         </Card>
@@ -394,9 +394,9 @@ function MetricCard({
 
 function accionLabel(accion: string): string {
   const labels: Record<string, string> = {
-    alta: "cre&oacute;", edicion: "edit&oacute;", descarga: "descarg&oacute;",
-    renovacion: "renov&oacute;", aprobacion: "aprob&oacute;", rechazo: "rechaz&oacute;",
-    importacion_masiva: "import&oacute;",
+    alta: "creó", edicion: "editó", descarga: "descargó",
+    renovacion: "renovó", aprobacion: "aprobó", rechazo: "rechazó",
+    importacion_masiva: "importó",
   };
   return labels[accion] ?? accion;
 }

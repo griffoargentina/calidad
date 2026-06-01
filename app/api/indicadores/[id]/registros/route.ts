@@ -31,13 +31,11 @@ export async function POST(
   const { id } = await params;
   const supabase = await createClient();
 
-  // Auth check
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Get current user profile
   const admin = createAdminClient();
   const { data: usuario } = await admin
     .from("usuarios")
@@ -49,7 +47,6 @@ export async function POST(
     return NextResponse.json({ error: "Usuario not found" }, { status: 401 });
   }
 
-  // Get indicador
   const { data: indicador, error: indError } = await admin
     .from("indicadores")
     .select("id, responsable_id, meta_valor, meta_condicion, frecuencia")
@@ -60,7 +57,6 @@ export async function POST(
     return NextResponse.json({ error: "Indicador not found" }, { status: 404 });
   }
 
-  // Authorization: only responsable or admin
   const isAdmin = usuario.rol === "admin";
   const isResponsable = indicador.responsable_id === user.id;
 
@@ -71,7 +67,6 @@ export async function POST(
     );
   }
 
-  // Parse body
   const body = await request.json();
   const { anio, mes, valor, comentario } = body;
 
@@ -79,17 +74,15 @@ export async function POST(
     return NextResponse.json({ error: "anio y valor son requeridos" }, { status: 400 });
   }
 
-  // For annual indicators, mes should be null
-  const mesFinal = indicador.frecuencia === "anual" ? null : (mes ?? null);
+  // For annual indicators use mes=0 as sentinel (mes column is NOT NULL)
+  const mesFinal = indicador.frecuencia === "anual" ? 0 : (mes ?? null);
 
-  // Calculate cumple
   const cumple = calcularCumple(
     String(valor),
     indicador.meta_valor,
     indicador.meta_condicion
   );
 
-  // Upsert registro
   const { data: registro, error: regError } = await admin
     .from("indicador_registros")
     .upsert(
