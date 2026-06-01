@@ -101,7 +101,6 @@ export async function POST(
         cumple,
         comentario: comentario ?? null,
         cargado_por: user.id,
-        updated_at: new Date().toISOString(),
       },
       { onConflict: "indicador_id,anio,mes" }
     )
