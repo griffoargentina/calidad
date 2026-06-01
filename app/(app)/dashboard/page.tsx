@@ -102,17 +102,17 @@ export default async function DashboardPage() {
     }
   }
 
-  // Indicadores: sin dato = vencido; mes=0 es el centinela para indicadores anuales
+  // Indicadores: sin dato = vencido; mes=null para anuales
   const anio = hoy.getFullYear();
   const mes = hoy.getMonth() + 1;
   const registroSet = new Set(
-    (indRegistros ?? []).map((r) => r.indicador_id + "-" + r.anio + "-" + r.mes)
+    (indRegistros ?? []).map((r) => r.indicador_id + "-" + r.anio + "-" + (r.mes ?? "null"))
   );
 
   let indVencidos = 0;
   for (const ind of indicadores ?? []) {
     if (ind.frecuencia === "anual") {
-      if (!registroSet.has(ind.id + "-" + anio + "-0")) indVencidos++;
+      if (!registroSet.has(ind.id + "-" + anio + "-null")) indVencidos++;
     } else {
       const mesPrevio = mes === 1 ? 12 : mes - 1;
       const anioPrevio = mes === 1 ? anio - 1 : anio;

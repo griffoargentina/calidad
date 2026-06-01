@@ -55,7 +55,6 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const columnResizeMode: ColumnResizeMode = "onChange";
   const router = useRouter();
-  // Optimistic overrides for documento_na while API call is in flight
   const [naOverrides, setNaOverrides] = useState<Record<string, boolean>>({});
 
   async function toggleDocumentoNa(itemId: string, current: boolean) {
@@ -240,19 +239,28 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
   });
 
   function exportToExcel() {
+    const hoyExport = new Date(); hoyExport.setHours(0, 0, 0, 0);
     const rows = table.getSortedRowModel().rows.flatMap((row) => {
-      const files = archivosDetalle?.[row.original.id];
+      const id = row.original.id;
+      const files = archivosDetalle?.[id];
+      const docNa = naOverrides[id] !== undefined ? naOverrides[id] : (row.original.metadata?.documento_na ?? false);
+      const hasAnyFile = (files?.length ?? 0) > 0;
+      const hasProc = files?.some((f) => f.categoria === "procedimiento") ?? false;
+      const compliant = docNa ? hasProc : hasAnyFile;
+      const fv = row.original.fecha_vencimiento ? new Date(row.original.fecha_vencimiento + "T00:00:00") : null;
+      const isExpired = fv ? fv < hoyExport : false;
+      const estadoReal: EstadoItem = (!compliant || isExpired) ? "vencido" : row.original.estado as EstadoItem;
       const base = {
-        Código: row.original.codigo,
+        "Código": row.original.codigo,
         "Código formal": row.original.codigo_formal ?? "",
-        Título: row.original.titulo,
+        "Título": row.original.titulo,
         Tipo: TIPO_ITEM_LABELS[row.original.tipo],
-        Cláusula: row.original.clausula_iso,
-        Área: getAreaNombre(row.original.areas),
+        "Cláusula": row.original.clausula_iso,
+        "Área": getAreaNombre(row.original.areas),
         Responsable: getUsuarioNombre(row.original.usuarios),
         Vencimiento: row.original.fecha_vencimiento ?? "",
-        Estado: row.original.estado,
-        Versión: row.original.version_actual,
+        Estado: estadoReal,
+        "Versión": row.original.version_actual,
       };
       if (!files?.length) return [{ ...base, "Tipo archivo": "", "Nombre archivo": "" }];
       return files.map(({ categoria, nombre }) => ({

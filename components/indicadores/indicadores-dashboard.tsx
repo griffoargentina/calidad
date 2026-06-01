@@ -15,7 +15,7 @@ interface Registro {
   id: string;
   indicador_id: string;
   anio: number;
-  mes: number;
+  mes: number | null;
   valor: string;
   cumple: boolean | null;
   comentario: string | null;
@@ -53,11 +53,12 @@ interface ModalState {
   metaCondicion: string | null;
   metaValor: string | null;
   anio: number;
-  mes: number;
+  mes: number | null;
   frecuencia: string;
 }
 
-function getRegistro(registros: Registro[], mes: number, anio: number): Registro | undefined {
+function getRegistro(registros: Registro[], mes: number | null, anio: number): Registro | undefined {
+  if (mes === null) return registros.find((r) => r.anio === anio && r.mes === null);
   return registros.find((r) => r.anio === anio && r.mes === mes);
 }
 
@@ -67,7 +68,7 @@ function calcularEstado(ind: Indicador, hoy: Date): EstadoVenc {
   const anio = hoy.getFullYear();
   const mes = hoy.getMonth() + 1;
   if (ind.frecuencia === "anual") {
-    const tiene = ind.registros.some((r) => r.anio === anio && r.mes === 0);
+    const tiene = ind.registros.some((r) => r.anio === anio && r.mes === null);
     return tiene ? "ok" : "vencido";
   }
   const mesPrevio = mes === 1 ? 12 : mes - 1;
@@ -159,7 +160,7 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
 
   const [modal, setModal] = useState<ModalState>({
     open: false, indicadorId: "", indicadorNombre: "", metaCondicion: null,
-    metaValor: null, anio: currentYear, mes: 0, frecuencia: "mensual",
+    metaValor: null, anio: currentYear, mes: null, frecuencia: "mensual",
   });
   const [valorInput, setValorInput] = useState("");
   const [comentarioInput, setComentarioInput] = useState("");
@@ -167,7 +168,7 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const openModal = useCallback((ind: Indicador, anio: number, mes: number) => {
+  const openModal = useCallback((ind: Indicador, anio: number, mes: number | null) => {
     setModal({ open: true, indicadorId: ind.id, indicadorNombre: ind.nombre,
       metaCondicion: ind.meta_condicion, metaValor: ind.meta_valor, anio, mes, frecuencia: ind.frecuencia });
     setValorInput(""); setComentarioInput(""); setCumpleManual(null); setSaveError(null);
@@ -289,7 +290,7 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
                     {ind.frecuencia === "anual" ? (
                       <td colSpan={visibleMonths.length} className="px-2 py-2 align-middle" onClick={(e) => e.stopPropagation()}>
                         {(() => {
-                          const reg = getRegistro(ind.registros, 0, currentYear);
+                          const reg = getRegistro(ind.registros, null, currentYear);
                           if (reg) {
                             const bgClass = reg.cumple === true ? "bg-green-50 text-green-700 border-green-200"
                               : reg.cumple === false ? "bg-red-50 text-red-700 border-red-200"
@@ -304,7 +305,7 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
                           }
                           if (isAdmin) {
                             return (
-                              <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, 0); }}
+                              <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null); }}
                                 className="w-full text-center text-xs text-primary hover:bg-primary/10 rounded py-1 flex items-center justify-center gap-1 transition-colors">
                                 <Plus className="h-3 w-3" /> Cargar dato anual
                               </button>
@@ -341,7 +342,7 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
             <DialogTitle className="text-base leading-snug">
               Cargar dato
               <span className="block text-xs font-normal text-slate-500 mt-0.5">{modal.indicadorNombre}</span>
-              {modal.frecuencia === "mensual" && modal.mes > 0 && (
+              {modal.frecuencia === "mensual" && modal.mes && (
                 <span className="block text-xs font-normal text-slate-500">{MESES_CORTOS[modal.mes - 1]} {modal.anio}</span>
               )}
               {modal.frecuencia === "anual" && (

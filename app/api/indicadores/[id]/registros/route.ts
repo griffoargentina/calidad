@@ -74,8 +74,8 @@ export async function POST(
     return NextResponse.json({ error: "anio y valor son requeridos" }, { status: 400 });
   }
 
-  // For annual indicators use mes=0 as sentinel (mes column is NOT NULL)
-  const mesFinal = indicador.frecuencia === "anual" ? 0 : (mes ?? null);
+  // For annual indicators mes is null (requires: ALTER TABLE indicador_registros ALTER COLUMN mes DROP NOT NULL)
+  const mesFinal = indicador.frecuencia === "anual" ? null : (mes ?? null);
 
   const cumple = calcularCumple(
     String(valor),
