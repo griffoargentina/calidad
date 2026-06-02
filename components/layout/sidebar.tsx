@@ -16,8 +16,11 @@ import {
   Upload,
   LayoutTemplate,
   BarChart3,
+  BarChart2,
   CalendarClock,
   ChevronRight,
+  Gauge,
+  ClipboardList,
 } from "lucide-react";
 import { Usuario } from "@/types/database";
 
@@ -31,7 +34,10 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/items", label: "Documentos", icon: FileText },
+  { href: "/procedimientos", label: "Procedimientos", icon: ClipboardList },
   { href: "/vencimientos", label: "Vencimientos", icon: CalendarClock },
+  { href: "/calibracion", label: "Calibración", icon: Gauge },
+  { href: "/indicadores", label: "Indicadores", icon: BarChart2 },
   { href: "/items/importar", label: "Importar Excel", icon: Upload },
 ];
 

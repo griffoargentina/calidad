@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { Topbar } from "@/components/layout/topbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { formatFecha } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import {
   FileText, AlertTriangle, CheckCircle2, XCircle,
-  ArrowRight, TrendingUp, BookOpen,
+  ArrowRight, TrendingUp, BookOpen, ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -17,6 +18,8 @@ export default async function DashboardPage() {
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const admin = createAdminClient();
 
   const [
     { count: totalItems },
@@ -43,7 +46,6 @@ export default async function DashboardPage() {
       .select("id, accion, created_at, detalle, usuarios(nombre), items(codigo, titulo)")
       .order("created_at", { ascending: false })
       .limit(8),
-    // Todos (publicados + borradores) → para sin archivo y sin procedimiento
     supabase.from("items").select("id, codigo, titulo, tipo, es_borrador").neq("estado", "obsoleto"),
     supabase.from("archivos").select("item_id").eq("categoria", "documento"),
     supabase.from("archivos").select("item_id").eq("categoria", "procedimiento"),
@@ -52,21 +54,48 @@ export default async function DashboardPage() {
   const conDocSet  = new Set(archivosDoc?.map((a) => a.item_id) ?? []);
   const conProcSet = new Set(archivosProc?.map((a) => a.item_id) ?? []);
 
-  // Sin archivo = TODOS los items sin documento adjunto → se suman a "vencidos"
   const itemsSinArchivo = (todosItems ?? []).filter((i) => !conDocSet.has(i.id));
   const sinArchivo = itemsSinArchivo.length;
 
-  // Sin procedimiento = TODOS los items (inc. borradores) sin procedimiento adjunto
   const itemsSinProcedimiento = (todosItems ?? []).filter((i) => !conProcSet.has(i.id));
   const sinProcedimiento = itemsSinProcedimiento.length;
 
   const total = totalItems ?? 0;
   const totalConBorradores = todosItems?.length ?? 0;
-  // Vencidos efectivos = vencidos reales + TODOS los items sin archivo (incluyendo borradores)
   const vencidosTotal = (vencidosReales ?? 0) + sinArchivo;
   const cumplimiento = totalConBorradores > 0
     ? Math.max(0, Math.round(((totalConBorradores - vencidosTotal) / totalConBorradores) * 100))
     : 0;
+
+  // Procedimientos del módulo propio (tolerante: si las tablas no existen devuelve 0)
+  let procVencidosCount = 0;
+  try {
+    const { data: allProcs } = await admin
+      .from("proc_procedimientos")
+      .select("id")
+      .eq("activo", true);
+    const pIds = (allProcs ?? []).map((p: { id: string }) => p.id);
+    if (pIds.length > 0) {
+      const { data: revs } = await admin
+        .from("proc_revisiones")
+        .select("procedimiento_id, fecha_vencimiento")
+        .in("procedimiento_id", pIds)
+        .order("fecha_revision", { ascending: false });
+      const latestMap: Record<string, string | null> = {};
+      for (const r of revs ?? []) {
+        const rev = r as { procedimiento_id: string; fecha_vencimiento: string };
+        if (!latestMap[rev.procedimiento_id]) latestMap[rev.procedimiento_id] = rev.fecha_vencimiento;
+      }
+      const hoyP = new Date(); hoyP.setHours(0, 0, 0, 0);
+      for (const p of allProcs ?? []) {
+        const pr = p as { id: string };
+        const fv = latestMap[pr.id] ? new Date(latestMap[pr.id]! + "T00:00:00") : null;
+        if (!fv || fv < hoyP) procVencidosCount++;
+      }
+    }
+  } catch {
+    // tabla no existe aún — se muestra 0
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -74,7 +103,7 @@ export default async function DashboardPage() {
 
       <div className="flex-1 p-6 space-y-6">
         {/* Tarjetas de métricas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
           <MetricCard
             title="Total documentos"
             value={total}
@@ -111,6 +140,16 @@ export default async function DashboardPage() {
             subtitle={`De ${todosItems?.length ?? 0} items en total`}
             alert={sinProcedimiento > 0}
             href="#sin-procedimiento"
+          />
+          <MetricCard
+            title="Procedimientos"
+            value={procVencidosCount}
+            icon={ClipboardList}
+            iconColor={procVencidosCount > 0 ? "text-red-500" : "text-green-500"}
+            bgColor={procVencidosCount > 0 ? "bg-red-50" : "bg-green-50"}
+            subtitle={procVencidosCount > 0 ? "vencidos o sin revisión" : "todos al día"}
+            alert={procVencidosCount > 0}
+            href="/procedimientos"
           />
         </div>
 
@@ -154,7 +193,7 @@ export default async function DashboardPage() {
               </Card>
             )}
 
-            {/* Sin procedimiento — todos los items */}
+            {/* Sin procedimiento */}
             {sinProcedimiento > 0 && (
               <Card id="sin-procedimiento" className="border-orange-200">
                 <CardHeader className="pb-3">
@@ -281,6 +320,9 @@ export default async function DashboardPage() {
             </Button>
             <Button variant="outline" asChild>
               <Link href="/vencimientos">Calendario de vencimientos</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/procedimientos">Procedimientos</Link>
             </Button>
           </CardContent>
         </Card>
