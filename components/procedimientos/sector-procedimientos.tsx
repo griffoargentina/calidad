@@ -287,7 +287,7 @@ export function SectorProcedimientos({ sector, procedimientosIniciales, usuarios
             <FileText className="h-8 w-8 opacity-30" />
             <p className="text-sm">No hay procedimientos en este sector.</p>
             {canEdit && (
-              <p className="text-xs">Hacé clic en "Nuevo procedimiento" para agregar el primero.</p>
+              <p className="text-xs">Hacé clic en &quot;Nuevo procedimiento&quot; para agregar el primero.</p>
             )}
           </div>
         ) : (
