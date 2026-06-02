@@ -53,7 +53,7 @@ export default async function DashboardPage() {
     supabase.from("calibraciones")
       .select("equipo_id, fecha_vencimiento")
       .order("fecha_calibracion", { ascending: false }),
-    supabase.from("equipos_calibracion").select("id"),
+    supabase.from("equipos_calibracion").select("id").eq("activo", true),
     supabase.from("indicadores").select("id, frecuencia, activo").eq("activo", true),
     supabase.from("indicador_registros").select("indicador_id, anio, mes"),
   ]);
@@ -86,9 +86,11 @@ export default async function DashboardPage() {
     ? Math.max(0, Math.round(((totalConBorradores - vencidosTotal) / totalConBorradores) * 100))
     : 0;
 
-  // Calibraciones: equipo vencido = sin registro, o con fv nula/vencida
+  // Calibraciones: solo equipos activos
+  const activeEquipoIds = new Set((equiposCalib ?? []).map((e) => e.id));
   const calibMap = new Map<string, string | null>();
   for (const c of calibraciones ?? []) {
+    if (!activeEquipoIds.has(c.equipo_id)) continue;
     if (!calibMap.has(c.equipo_id)) calibMap.set(c.equipo_id, c.fecha_vencimiento);
   }
   let calibVencidos = 0;
@@ -149,7 +151,6 @@ export default async function DashboardPage() {
             alert={sinProcedimiento > 0} href="#sin-procedimiento" />
         </div>
 
-        {/* Calibraciones + Indicadores */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link href="/calibracion" className="block hover:opacity-90 transition-opacity">
             <Card className={calibVencidos > 0 ? "border-red-200 bg-red-50/30" : "border-green-200 bg-green-50/20"}>

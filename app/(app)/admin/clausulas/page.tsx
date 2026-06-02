@@ -27,7 +27,7 @@ export default async function ClausulasPage() {
     return 0;
   });
 
-  const [{ data: todosItems }, { data: todosArchivos }, { data: ultimasCalibraciones }, { data: equiposCalib }] = await Promise.all([
+  const [{ data: todosItems }, { data: todosArchivos }, { data: ultimasCalibraciones }, { data: activeEquiposData }] = await Promise.all([
     supabase
       .from("items")
       .select("id, clausula_iso, estado, fecha_vencimiento, metadata")
@@ -41,25 +41,27 @@ export default async function ClausulasPage() {
       .order("fecha_calibracion", { ascending: false }),
     supabase
       .from("equipos_calibracion")
-      .select("id"),
+      .select("id")
+      .eq("activo", true),
   ]);
 
-  // Semáforo de calibración para 7.1.5
-  // Cruzar todos los equipos contra sus calibraciones: sin registro = vencido
+  // Semáforo de calibración para 7.1.5 — solo equipos activos
   const hoyCalib = new Date(); hoyCalib.setHours(0, 0, 0, 0);
-  const calibMap = new Map<string, string | null>();
-  for (const c of ultimasCalibraciones ?? []) {
-    if (!calibMap.has(c.equipo_id)) calibMap.set(c.equipo_id, c.fecha_vencimiento);
-  }
+  const activeEquipoIds = new Set((activeEquiposData ?? []).map((e) => e.id));
+  const seenEquipos = new Set<string>();
   let calibVencidos = 0;
-  for (const eq of equiposCalib ?? []) {
-    if (!calibMap.has(eq.id)) { calibVencidos++; continue; }
-    const fvStr = calibMap.get(eq.id);
-    const fv = fvStr ? new Date(fvStr + "T00:00:00") : null;
+  for (const c of ultimasCalibraciones ?? []) {
+    if (!activeEquipoIds.has(c.equipo_id)) continue;
+    if (seenEquipos.has(c.equipo_id)) continue;
+    seenEquipos.add(c.equipo_id);
+    const fv = c.fecha_vencimiento ? new Date(c.fecha_vencimiento + "T00:00:00") : null;
     if (!fv || fv < hoyCalib) calibVencidos++;
   }
+  // Equipos activos sin ninguna calibración también cuentan como vencidos
+  for (const eq of activeEquiposData ?? []) {
+    if (!seenEquipos.has(eq.id)) calibVencidos++;
+  }
 
-  // Qué items tienen al menos un documento (categoria != procedimiento)
   const itemsConDoc = new Set(
     (todosArchivos ?? [])
       .filter((a) => a.categoria !== "procedimiento")

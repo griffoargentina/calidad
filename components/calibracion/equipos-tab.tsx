@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Pencil, Trash2, Download, ChevronRight } from "lucide-react";
+import { Loader2, Plus, Pencil, PowerOff, Download, ChevronRight, RotateCcw, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Calibracion {
@@ -64,6 +64,7 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
   const [equipos, setEquipos] = useState<Equipo[]>(equiposIniciales);
   const [procedimientos, setProcedimientos] = useState<Procedimiento[]>([]);
   const [procLoaded, setProcLoaded] = useState(false);
+  const [showDeshabilitados, setShowDeshabilitados] = useState(false);
 
   // Equipo dialog
   const [equipoDialog, setEquipoDialog] = useState(false);
@@ -85,6 +86,9 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
   const [calFile, setCalFile] = useState<File | null>(null);
   const [savingCal, setSavingCal] = useState(false);
   const calFileRef = useRef<HTMLInputElement>(null);
+
+  const activeEquipos = equipos.filter((e) => e.activo !== false);
+  const inactiveEquipos = equipos.filter((e) => e.activo === false);
 
   async function loadProcedimientos() {
     if (procLoaded) return;
@@ -141,11 +145,20 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
     setEquipoDialog(false);
   }
 
-  async function handleDeleteEquipo(id: string) {
-    if (!confirm("¿Eliminar este equipo y todo su historial?")) return;
+  async function handleDisableEquipo(id: string) {
+    if (!confirm("¿Deshabilitar este equipo? Va a quedar en la sección de deshabilitados y no contará en los indicadores.")) return;
     await fetch(`/api/calibracion/equipos/${id}`, { method: "DELETE" });
-    setEquipos((prev) => prev.filter((e) => e.id !== id));
+    setEquipos((prev) => prev.map((e) => e.id === id ? { ...e, activo: false } : e));
     if (selectedEquipo?.id === id) setSelectedEquipo(null);
+  }
+
+  async function handleReactivarEquipo(id: string) {
+    await fetch(`/api/calibracion/equipos/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activo: true }),
+    });
+    setEquipos((prev) => prev.map((e) => e.id === id ? { ...e, activo: true } : e));
   }
 
   async function openDetail(equipo: Equipo) {
@@ -240,7 +253,6 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
       [selectedEquipo.id]: [created, ...(prev[selectedEquipo.id] ?? [])],
     }));
 
-    // Update ultima_calibracion on equipo
     setEquipos((prev) => prev.map((e) =>
       e.id === selectedEquipo.id ? { ...e, ultima_calibracion: created } : e
     ));
@@ -258,7 +270,7 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
       {/* Table */}
       <div className={cn("flex-1 min-w-0", selectedEquipo ? "hidden lg:block" : "")}>
         <div className="flex justify-between items-center mb-4">
-          <p className="text-sm text-muted-foreground">{equipos.length} equipo{equipos.length !== 1 ? "s" : ""}</p>
+          <p className="text-sm text-muted-foreground">{activeEquipos.length} equipo{activeEquipos.length !== 1 ? "s" : ""}</p>
           {canEdit && (
             <Button size="sm" onClick={openNewEquipo}>
               <Plus className="h-4 w-4 mr-1.5" />
@@ -285,9 +297,9 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {equipos.length === 0 ? (
+              {activeEquipos.length === 0 ? (
                 <tr><td colSpan={11} className="px-3 py-10 text-center text-muted-foreground">No hay equipos cargados.</td></tr>
-              ) : equipos.map((eq, i) => {
+              ) : activeEquipos.map((eq, i) => {
                 const sem = semaforo(eq.ultima_calibracion?.fecha_vencimiento ?? null);
                 return (
                   <tr key={eq.id}
@@ -326,6 +338,47 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
             </tbody>
           </table>
         </div>
+
+        {/* Equipos deshabilitados */}
+        {inactiveEquipos.length > 0 && (
+          <div className="mt-6">
+            <button
+              onClick={() => setShowDeshabilitados((v) => !v)}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
+            >
+              <ChevronDown className={cn("h-4 w-4 transition-transform", showDeshabilitados && "rotate-180")} />
+              Equipos deshabilitados ({inactiveEquipos.length})
+            </button>
+            {showDeshabilitados && (
+              <div className="bg-white rounded-lg border overflow-x-auto opacity-70">
+                <table className="w-full text-sm">
+                  <tbody className="divide-y">
+                    {inactiveEquipos.map((eq) => (
+                      <tr key={eq.id} className="bg-muted/10">
+                        <td className="px-3 py-2 text-muted-foreground line-through">{eq.nombre}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{eq.codigo ?? ""}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{eq.lugar_uso ?? ""}</td>
+                        {canEdit && (
+                          <td className="px-3 py-2 text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-green-700 hover:text-green-800 hover:bg-green-50"
+                              onClick={() => handleReactivarEquipo(eq.id)}
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" />
+                              Reactivar
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Detail panel */}
@@ -342,8 +395,13 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
                   <Button variant="ghost" size="sm" onClick={() => openEditEquipo(selectedEquipo)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDeleteEquipo(selectedEquipo.id)}>
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Deshabilitar equipo"
+                    onClick={() => handleDisableEquipo(selectedEquipo.id)}
+                  >
+                    <PowerOff className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 </>
               )}

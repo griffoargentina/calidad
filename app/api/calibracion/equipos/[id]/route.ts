@@ -45,9 +45,10 @@ export async function DELETE(
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
+  // Soft-delete: set activo = false instead of hard delete
   const { error } = await admin
     .from("equipos_calibracion")
-    .delete()
+    .update({ activo: false })
     .eq("id", params.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
