@@ -11,17 +11,35 @@ export default async function IndicadoresPage() {
   const supabase = await createClient();
   const admin = createAdminClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: usuario } = await admin.from("usuarios").select("*").eq("id", user.id).single();
+  // Get current user profile
+  const { data: usuario } = await admin
+    .from("usuarios")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
   if (!usuario) redirect("/login");
 
   const currentYear = new Date().getFullYear();
 
+  // Fetch indicadores with responsable
   const { data: indicadores } = await admin
     .from("indicadores")
-    .select(`*, responsable:usuarios!responsable_id (id, nombre, email)`)
+    .select(
+      `
+      *,
+      responsable:usuarios!responsable_id (
+        id,
+        nombre,
+        email
+      )
+    `
+    )
     .eq("activo", true)
     .order("orden", { ascending: true });
 
@@ -44,6 +62,7 @@ export default async function IndicadoresPage() {
     );
   }
 
+  // Fetch registros for current year
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const indicadorIds = (indicadores as any[]).map((i) => i.id);
   const { data: registros } = await admin
@@ -53,12 +72,16 @@ export default async function IndicadoresPage() {
     .eq("anio", currentYear)
     .order("mes", { ascending: true });
 
+  // Group registros by indicador_id
   const registrosByIndicador: Record<string, typeof registros> = {};
   for (const reg of registros ?? []) {
-    if (!registrosByIndicador[reg.indicador_id]) registrosByIndicador[reg.indicador_id] = [];
+    if (!registrosByIndicador[reg.indicador_id]) {
+      registrosByIndicador[reg.indicador_id] = [];
+    }
     registrosByIndicador[reg.indicador_id]!.push(reg);
   }
 
+  // Nest registros into indicadores
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const indicadoresConRegistros = (indicadores as any[]).map((ind) => ({
     ...ind,
@@ -68,7 +91,10 @@ export default async function IndicadoresPage() {
   return (
     <div className="flex flex-col h-full">
       <Topbar title="Indicadores de Gestión" />
-      <IndicadoresDashboard indicadores={indicadoresConRegistros} usuario={usuario as Usuario} />
+      <IndicadoresDashboard
+        indicadores={indicadoresConRegistros}
+        usuario={usuario as Usuario}
+      />
     </div>
   );
 }

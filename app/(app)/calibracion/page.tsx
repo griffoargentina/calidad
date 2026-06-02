@@ -26,6 +26,7 @@ export default async function CalibracionPage() {
     admin.from("usuarios").select("rol").eq("id", user?.id ?? "").single(),
   ]);
 
+  // Build latest calibracion map per equipo
   const calibracionesMap: Record<string, unknown> = Object.fromEntries(
     (calibraciones ?? []).reduce((acc, c) => {
       const equipo_id = (c as { equipo_id: string }).equipo_id;
