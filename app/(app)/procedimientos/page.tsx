@@ -18,7 +18,7 @@ export default async function ProcedimientosPage() {
     admin.from("usuarios").select("rol").eq("id", user.id).single(),
   ]);
 
-  const sectorIds = (sectores ?? []).map((s: { id: string }) => s.id);
+  const sectorIds = (sectores ?? []).map((s) => s.id);
 
   const { data: procedimientos } = await admin
     .from("proc_procedimientos")
@@ -26,7 +26,7 @@ export default async function ProcedimientosPage() {
     .in("sector_id", sectorIds.length ? sectorIds : ["00000000-0000-0000-0000-000000000000"])
     .eq("activo", true);
 
-  const procIds = (procedimientos ?? []).map((p: { id: string }) => p.id);
+  const procIds = (procedimientos ?? []).map((p) => p.id);
 
   const { data: revisiones } = await admin
     .from("proc_revisiones")
@@ -36,8 +36,7 @@ export default async function ProcedimientosPage() {
 
   const latestRevMap: Record<string, string | null> = {};
   for (const rev of revisiones ?? []) {
-    const r = rev as { procedimiento_id: string; fecha_vencimiento: string };
-    if (!latestRevMap[r.procedimiento_id]) latestRevMap[r.procedimiento_id] = r.fecha_vencimiento;
+    if (!latestRevMap[rev.procedimiento_id]) latestRevMap[rev.procedimiento_id] = rev.fecha_vencimiento;
   }
 
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
@@ -45,16 +44,16 @@ export default async function ProcedimientosPage() {
 
   const sectorStats: Record<string, { total: number; vencidos: number; porVencer: number }> = {};
   for (const proc of procedimientos ?? []) {
-    const p = proc as { id: string; sector_id: string };
-    if (!sectorStats[p.sector_id]) sectorStats[p.sector_id] = { total: 0, vencidos: 0, porVencer: 0 };
-    const s = sectorStats[p.sector_id];
+    if (!sectorStats[proc.sector_id]) sectorStats[proc.sector_id] = { total: 0, vencidos: 0, porVencer: 0 };
+    const s = sectorStats[proc.sector_id];
     s.total++;
-    const fv = latestRevMap[p.id] ? new Date(latestRevMap[p.id]! + "T00:00:00") : null;
+    const fv = latestRevMap[proc.id] ? new Date(latestRevMap[proc.id]! + "T00:00:00") : null;
     if (!fv || fv < hoy) s.vencidos++;
     else if (fv <= en30) s.porVencer++;
   }
 
-  const sectoresConStats = (sectores ?? []).map((s: { id: string }) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sectoresConStats = (sectores ?? []).map((s: any) => ({
     ...s,
     stats: sectorStats[s.id] ?? { total: 0, vencidos: 0, porVencer: 0 },
   }));
@@ -64,7 +63,8 @@ export default async function ProcedimientosPage() {
   return (
     <div className="flex flex-col h-full">
       <Topbar title="Procedimientos" />
-      <ProcedimientosGrid sectores={sectoresConStats} isAdmin={isAdmin} />
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <ProcedimientosGrid sectores={sectoresConStats as any} isAdmin={isAdmin} />
     </div>
   );
 }
