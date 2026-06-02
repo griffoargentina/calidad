@@ -106,9 +106,13 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
     await loadProcedimientos();
     setEditingEquipo(e);
     setForm({
-      nombre: e.nombre, codigo: e.codigo ?? "", rango_max: e.rango_max ?? "",
-      identificacion_serie: e.identificacion_serie ?? "", tipo: e.tipo ?? "interna",
-      procedimiento_id: e.procedimiento_id ?? "", lugar_uso: e.lugar_uso ?? "",
+      nombre: e.nombre,
+      codigo: e.codigo ?? "",
+      rango_max: e.rango_max ?? "",
+      identificacion_serie: e.identificacion_serie ?? "",
+      tipo: e.tipo ?? "interna",
+      procedimiento_id: e.procedimiento_id ?? "",
+      lugar_uso: e.lugar_uso ?? "",
       frecuencia: e.frecuencia ?? "anual",
     });
     setEquipoDialog(true);
@@ -147,7 +151,8 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
 
   async function handleReactivarEquipo(id: string) {
     await fetch(`/api/calibracion/equipos/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ activo: true }),
     });
     setEquipos((prev) => prev.map((e) => e.id === id ? { ...e, activo: true } : e));
@@ -187,7 +192,8 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
     const uploadRes = await fetch("/api/calibracion/upload", { method: "POST", body: fd });
     const { url, nombre } = await uploadRes.json();
     await fetch(`/api/calibracion/calibraciones/${calId}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ archivo_url: url, archivo_nombre: nombre }),
     });
     setCalibacionesMap((prev) => ({
@@ -202,7 +208,8 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
   async function toggleVigente(cal: Calibracion) {
     const newVal = cal.vigente === false ? true : false;
     await fetch(`/api/calibracion/calibraciones/${cal.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ vigente: newVal }),
     });
     if (!selectedEquipo) return;
@@ -217,7 +224,8 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
   async function handleSaveCal() {
     if (!selectedEquipo || !calForm.fecha_calibracion || !calForm.fecha_vencimiento) return;
     setSavingCal(true);
-    let archivo_url = null, archivo_nombre = null;
+    let archivo_url = null;
+    let archivo_nombre = null;
     if (calFile) {
       const fd = new FormData();
       fd.append("file", calFile);
@@ -228,12 +236,18 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
       archivo_nombre = uploaded.nombre;
     }
     const res = await fetch(`/api/calibracion/equipos/${selectedEquipo.id}/calibraciones`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...calForm, archivo_url, archivo_nombre }),
     });
     const created = await res.json();
-    setCalibacionesMap((prev) => ({ ...prev, [selectedEquipo.id]: [created, ...(prev[selectedEquipo.id] ?? [])] }));
-    setEquipos((prev) => prev.map((e) => e.id === selectedEquipo.id ? { ...e, ultima_calibracion: created } : e));
+    setCalibacionesMap((prev) => ({
+      ...prev,
+      [selectedEquipo.id]: [created, ...(prev[selectedEquipo.id] ?? [])],
+    }));
+    setEquipos((prev) => prev.map((e) =>
+      e.id === selectedEquipo.id ? { ...e, ultima_calibracion: created } : e
+    ));
     setSelectedEquipo((prev) => prev ? { ...prev, ultima_calibracion: created } : null);
     setSavingCal(false);
     setCalDialog(false);
@@ -248,9 +262,13 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
         <div className="flex justify-between items-center mb-4">
           <p className="text-sm text-muted-foreground">{activeEquipos.length} equipo{activeEquipos.length !== 1 ? "s" : ""}</p>
           {canEdit && (
-            <Button size="sm" onClick={openNewEquipo}><Plus className="h-4 w-4 mr-1.5" />Nuevo equipo</Button>
+            <Button size="sm" onClick={openNewEquipo}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              Nuevo equipo
+            </Button>
           )}
         </div>
+
         <div className="bg-white rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -282,9 +300,10 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
                     <td className="px-3 py-2">{eq.identificacion_serie ?? "—"}</td>
                     <td className="px-3 py-2"><Badge variant="outline" className="text-xs capitalize">{eq.tipo ?? "—"}</Badge></td>
                     <td className="px-3 py-2 text-xs" onClick={(e) => e.stopPropagation()}>
-                      {eq.procedimiento?.titulo ? eq.procedimiento.archivo_url
-                        ? <a href={eq.procedimiento.archivo_url} target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">{eq.procedimiento.titulo}</a>
-                        : <span className="text-muted-foreground">{eq.procedimiento.titulo}</span>
+                      {eq.procedimiento?.titulo
+                        ? eq.procedimiento.archivo_url
+                          ? <a href={eq.procedimiento.archivo_url} target="_blank" rel="noreferrer" className="text-primary hover:underline font-medium">{eq.procedimiento.titulo}</a>
+                          : <span className="text-muted-foreground">{eq.procedimiento.titulo}</span>
                         : "—"}
                     </td>
                     <td className="px-3 py-2">{eq.lugar_uso ?? "—"}</td>
@@ -302,9 +321,11 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
             </tbody>
           </table>
         </div>
+
         {inactiveEquipos.length > 0 && (
           <div className="mt-6">
-            <button onClick={() => setShowDeshabilitados((v) => !v)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2">
+            <button onClick={() => setShowDeshabilitados((v) => !v)}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2">
               <ChevronDown className={cn("h-4 w-4 transition-transform", showDeshabilitados && "rotate-180")} />
               Equipos deshabilitados ({inactiveEquipos.length})
             </button>
@@ -333,6 +354,7 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
           </div>
         )}
       </div>
+
       {selectedEquipo && (
         <div className="w-full lg:w-96 shrink-0 bg-white border rounded-lg flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b">
@@ -344,7 +366,9 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
               {canEdit && (
                 <>
                   <Button variant="ghost" size="sm" onClick={() => openEditEquipo(selectedEquipo)}><Pencil className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" size="sm" title="Deshabilitar equipo" onClick={() => handleDisableEquipo(selectedEquipo.id)}><PowerOff className="h-3.5 w-3.5 text-destructive" /></Button>
+                  <Button variant="ghost" size="sm" title="Deshabilitar equipo" onClick={() => handleDisableEquipo(selectedEquipo.id)}>
+                    <PowerOff className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
                 </>
               )}
               <Button variant="ghost" size="sm" onClick={() => setSelectedEquipo(null)}>✕</Button>
@@ -382,8 +406,9 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
                       <span className="text-xs font-medium">Calibrado: {c.fecha_calibracion}</span>
                     </div>
                     {canEdit ? (
-                      <button onClick={() => toggleVigente(c)} className={cn("text-xs px-2 py-0.5 rounded-full font-medium border transition-colors",
-                        c.vigente !== false ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100")}>
+                      <button onClick={() => toggleVigente(c)}
+                        className={cn("text-xs px-2 py-0.5 rounded-full font-medium border transition-colors",
+                          c.vigente !== false ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100")}>
                         {c.vigente !== false ? "Vigente" : "No vigente"}
                       </button>
                     ) : (
@@ -410,6 +435,7 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
           </div>
         </div>
       )}
+
       <Dialog open={equipoDialog} onOpenChange={setEquipoDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editingEquipo ? "Editar equipo" : "Nuevo equipo"}</DialogTitle></DialogHeader>
@@ -419,9 +445,30 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
             <div><label className="text-sm font-medium">Rango máximo</label><Input value={form.rango_max} onChange={(e) => setForm({ ...form, rango_max: e.target.value })} placeholder="150 Kg" className="mt-1" /></div>
             <div><label className="text-sm font-medium">Identificación / Serie</label><Input value={form.identificacion_serie} onChange={(e) => setForm({ ...form, identificacion_serie: e.target.value })} className="mt-1" /></div>
             <div><label className="text-sm font-medium">Lugar de uso</label><Input value={form.lugar_uso} onChange={(e) => setForm({ ...form, lugar_uso: e.target.value })} placeholder="Mezclado" className="mt-1" /></div>
-            <div><label className="text-sm font-medium">Tipo de calibración</label><Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="interna">Interna</SelectItem><SelectItem value="externa">Externa</SelectItem></SelectContent></Select></div>
-            <div><label className="text-sm font-medium">Frecuencia</label><Select value={form.frecuencia} onValueChange={(v) => setForm({ ...form, frecuencia: v })}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mensual">Mensual</SelectItem><SelectItem value="trimestral">Trimestral</SelectItem><SelectItem value="semestral">Semestral</SelectItem><SelectItem value="anual">Anual</SelectItem></SelectContent></Select></div>
-            <div className="col-span-2"><label className="text-sm font-medium">Procedimiento de calibración</label><Select value={form.procedimiento_id || "none"} onValueChange={(v) => setForm({ ...form, procedimiento_id: v === "none" ? "" : v })}><SelectTrigger className="mt-1"><SelectValue placeholder="Sin procedimiento" /></SelectTrigger><SelectContent><SelectItem value="none">Sin procedimiento</SelectItem>{procedimientos.map((p) => (<SelectItem key={p.id} value={p.id}>{p.titulo}</SelectItem>))}</SelectContent></Select></div>
+            <div><label className="text-sm font-medium">Tipo de calibración</label>
+              <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="interna">Interna</SelectItem><SelectItem value="externa">Externa</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <div><label className="text-sm font-medium">Frecuencia</label>
+              <Select value={form.frecuencia} onValueChange={(v) => setForm({ ...form, frecuencia: v })}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mensual">Mensual</SelectItem><SelectItem value="trimestral">Trimestral</SelectItem>
+                  <SelectItem value="semestral">Semestral</SelectItem><SelectItem value="anual">Anual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2"><label className="text-sm font-medium">Procedimiento de calibración</label>
+              <Select value={form.procedimiento_id || "none"} onValueChange={(v) => setForm({ ...form, procedimiento_id: v === "none" ? "" : v })}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Sin procedimiento" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin procedimiento</SelectItem>
+                  {procedimientos.map((p) => <SelectItem key={p.id} value={p.id}>{p.titulo}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEquipoDialog(false)} disabled={saving}>Cancelar</Button>
@@ -429,6 +476,7 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       <Dialog open={calDialog} onOpenChange={setCalDialog}>
         <DialogContent>
           <DialogHeader><DialogTitle>Registrar calibración</DialogTitle></DialogHeader>
@@ -438,8 +486,7 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
               <div><label className="text-sm font-medium">Fecha de vencimiento *</label><Input type="date" value={calForm.fecha_vencimiento} onChange={(e) => setCalForm({ ...calForm, fecha_vencimiento: e.target.value })} className="mt-1" /></div>
             </div>
             <div><label className="text-sm font-medium">Observaciones</label><Input value={calForm.observaciones} onChange={(e) => setCalForm({ ...calForm, observaciones: e.target.value })} className="mt-1" /></div>
-            <div>
-              <label className="text-sm font-medium">Certificado (PDF/Word)</label>
+            <div><label className="text-sm font-medium">Certificado (PDF/Word)</label>
               <div className="mt-1 flex items-center gap-2">
                 <input ref={calFileRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e) => setCalFile(e.target.files?.[0] ?? null)} />
                 <Button variant="outline" size="sm" type="button" onClick={() => calFileRef.current?.click()}>{calFile ? calFile.name : "Elegir archivo"}</Button>
