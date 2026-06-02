@@ -22,7 +22,7 @@ export function calcularEstado(fechaVencimiento: string | null, esBorrador: bool
   const vencimiento = new Date(fechaVencimiento);
 
   if (isPast(vencimiento) && vencimiento < hoy) return "vencido";
-  if (isWithinInterval(vencimiento, { start: hoy, end: addDays(hoy, 30) })) return "por_vencer";
+  if (isWithinInterval(vencimiento, { start: hoy, end: addDays(hoy, 7) })) return "por_vencer";
   return "vigente";
 }
 

@@ -43,7 +43,7 @@ export default async function ClausulasPage() {
 
   // Semáforo de calibración para 7.1.5
   const hoyCalib = new Date(); hoyCalib.setHours(0, 0, 0, 0);
-  const en30diasCalib = new Date(hoyCalib.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const en7diasCalib = new Date(hoyCalib.getTime() + 7 * 24 * 60 * 60 * 1000);
   const seenEquipos = new Set<string>();
   let calibVencidos = 0;
   let calibPorVencer = 0;
@@ -52,7 +52,7 @@ export default async function ClausulasPage() {
     seenEquipos.add(c.equipo_id);
     const fv = c.fecha_vencimiento ? new Date(c.fecha_vencimiento + "T00:00:00") : null;
     if (!fv || fv < hoyCalib) calibVencidos++;
-    else if (fv <= en30diasCalib) calibPorVencer++;
+    else if (fv <= en7diasCalib) calibPorVencer++;
   }
 
   // Qué items tienen al menos un documento (categoria != procedimiento)
@@ -81,7 +81,7 @@ export default async function ClausulasPage() {
       const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
       if (!fv || fv < hoy) {
         s.vencidos++;
-      } else if (fv <= new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000)) {
+      } else if (fv <= new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000)) {
         s.porVencer++;
       }
     }
