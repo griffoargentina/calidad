@@ -28,7 +28,7 @@ export default async function SectorPage({ params }: { params: { id: string } })
     .eq("activo", true)
     .order("nombre");
 
-  const procIds = (procedimientos ?? []).map((p: { id: string }) => p.id);
+  const procIds = (procedimientos ?? []).map((p) => p.id);
 
   const { data: revisiones } = await admin
     .from("proc_revisiones")
@@ -38,11 +38,11 @@ export default async function SectorPage({ params }: { params: { id: string } })
 
   const latestRevMap: Record<string, unknown> = {};
   for (const rev of revisiones ?? []) {
-    const r = rev as { procedimiento_id: string };
-    if (!latestRevMap[r.procedimiento_id]) latestRevMap[r.procedimiento_id] = rev;
+    if (!latestRevMap[rev.procedimiento_id]) latestRevMap[rev.procedimiento_id] = rev;
   }
 
-  const procedimientosConRev = (procedimientos ?? []).map((p: { id: string }) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const procedimientosConRev = (procedimientos ?? []).map((p: any) => ({
     ...p,
     ultima_revision: latestRevMap[p.id] ?? null,
   }));
@@ -54,7 +54,8 @@ export default async function SectorPage({ params }: { params: { id: string } })
       <Topbar title={`Procedimientos — ${(sector as { nombre: string }).nombre}`} />
       <SectorProcedimientos
         sector={sector as { id: string; nombre: string }}
-        procedimientosIniciales={procedimientosConRev}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        procedimientosIniciales={procedimientosConRev as any}
         usuarios={usuarios ?? []}
         canEdit={canEdit}
       />
