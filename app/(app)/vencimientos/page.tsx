@@ -149,7 +149,7 @@ export default async function VencimientosPage({ searchParams }: PageProps) {
             <Clock className="h-5 w-5 text-yellow-500 shrink-0" />
             <div>
               <p className="text-2xl font-bold text-yellow-700">{totalPorVencer}</p>
-              <p className="text-xs text-yellow-600">Por vencer ≤30 días</p>
+              <p className="text-xs text-yellow-600">Por vencer ≤7 días</p>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg border bg-green-50 border-green-200 px-4 py-3">

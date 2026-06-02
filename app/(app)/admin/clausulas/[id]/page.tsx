@@ -54,7 +54,7 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
 
   // Top-level semáforo for the clause (usa fecha real, no campo estado)
   const hoyClausula = new Date(); hoyClausula.setHours(0, 0, 0, 0);
-  const en30dias = new Date(hoyClausula.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const en7dias = new Date(hoyClausula.getTime() + 7 * 24 * 60 * 60 * 1000);
   let semaforo = "sin_evidencia";
   if ((items?.length ?? 0) > 0) {
     const allItems = items ?? [];
@@ -67,7 +67,7 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
     });
     const anyPorVencer = !anyVencido && allItems.some((i) => {
       const fv = i.fecha_vencimiento ? new Date(i.fecha_vencimiento + "T00:00:00") : null;
-      return fv ? fv >= hoyClausula && fv <= en30dias : false;
+      return fv ? fv >= hoyClausula && fv <= en7dias : false;
     });
     if (anyVencido)        semaforo = "vencido";
     else if (anyPorVencer) semaforo = "por_vencer";
@@ -163,7 +163,7 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
                 const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
                 const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
                 const vencOk   = fv ? fv >= hoy : false;
-                const vencWarn = vencOk && fv ? fv <= new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000) : false;
+                const vencWarn = vencOk && fv ? fv <= new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000) : false;
                 const vencColor: "ok" | "warn" | "fail" = vencOk ? (vencWarn ? "warn" : "ok") : "fail";
 
                 return (

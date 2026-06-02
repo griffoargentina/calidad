@@ -79,7 +79,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
   const fechaVenc = item.fecha_vencimiento ? new Date(item.fecha_vencimiento) : null;
   const vencimientoOk = fechaVenc ? fechaVenc >= hoy : false;
   const vencimientoPorVencer = fechaVenc
-    ? fechaVenc >= hoy && fechaVenc <= new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000)
+    ? fechaVenc >= hoy && fechaVenc <= new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000)
     : false;
 
   return (

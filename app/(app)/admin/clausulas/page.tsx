@@ -43,13 +43,16 @@ export default async function ClausulasPage() {
 
   // Semáforo de calibración para 7.1.5
   const hoyCalib = new Date(); hoyCalib.setHours(0, 0, 0, 0);
+  const en7diasCalib = new Date(hoyCalib.getTime() + 7 * 24 * 60 * 60 * 1000);
   const seenEquipos = new Set<string>();
   let calibVencidos = 0;
+  let calibPorVencer = 0;
   for (const c of ultimasCalibraciones ?? []) {
     if (seenEquipos.has(c.equipo_id)) continue;
     seenEquipos.add(c.equipo_id);
     const fv = c.fecha_vencimiento ? new Date(c.fecha_vencimiento + "T00:00:00") : null;
     if (!fv || fv < hoyCalib) calibVencidos++;
+    else if (fv <= en7diasCalib) calibPorVencer++;
   }
 
   // Qué items tienen al menos un documento (categoria != procedimiento)
@@ -78,14 +81,18 @@ export default async function ClausulasPage() {
       const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
       if (!fv || fv < hoy) {
         s.vencidos++;
-      } else if (fv <= new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000)) {
+      } else if (fv <= new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000)) {
         s.porVencer++;
       }
     }
   }
 
   function getSemaforo(clausulaId: string) {
-    if (clausulaId === "7.1.5") return calibVencidos > 0 ? "rojo" : "verde";
+    if (clausulaId === "7.1.5") {
+      if (calibVencidos > 0)   return "rojo";
+      if (calibPorVencer > 0)  return "amarillo";
+      return "verde";
+    }
     const s = clausulaStats[clausulaId];
     if (!s || s.total === 0)      return "rojo";
     if (s.sinArchivo > 0)         return "rojo";
@@ -140,6 +147,8 @@ export default async function ClausulasPage() {
                       <p className="text-xs text-muted-foreground">
                         {calibVencidos > 0
                           ? <span className="text-red-600 font-medium">{calibVencidos} equipo{calibVencidos !== 1 ? "s" : ""} vencido{calibVencidos !== 1 ? "s" : ""}</span>
+                          : calibPorVencer > 0
+                          ? <span className="text-yellow-600 font-medium">{calibPorVencer} equipo{calibPorVencer !== 1 ? "s" : ""} por vencer</span>
                           : <span className="text-green-600 font-medium">Todos los equipos al día</span>
                         }
                       </p>
