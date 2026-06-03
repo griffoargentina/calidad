@@ -68,10 +68,18 @@ export async function POST(req: Request) {
       nombre_archivo: file.name,
       tamaño_bytes: file.size,
       categoria,
+      subido_por: user.id,
       ...(comentario ? { comentario } : {}),
     });
 
     if (dbError) return NextResponse.json({ error: `[DB] ${dbError.message}` }, { status: 500 });
+
+    // Sincronizar version_actual en items para evitar conflicto con fn_renovar_item
+    await admin
+      .from("items")
+      .update({ version_actual: version })
+      .eq("id", itemId)
+      .lt("version_actual", version);
 
     return NextResponse.json({ url: publicUrl });
   } catch (err) {
