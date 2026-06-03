@@ -37,6 +37,7 @@ interface ItemRow {
 interface ArchivoDetalle {
   categoria: string;
   nombre: string;
+  url: string;
 }
 
 interface ItemsTableProps {
@@ -55,7 +56,6 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const columnResizeMode: ColumnResizeMode = "onChange";
   const router = useRouter();
-  // Optimistic overrides for documento_na while API call is in flight
   const [naOverrides, setNaOverrides] = useState<Record<string, boolean>>({});
 
   async function toggleDocumentoNa(itemId: string, current: boolean) {
@@ -240,29 +240,54 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
   });
 
   function exportToExcel() {
+    const hoyExport = new Date(); hoyExport.setHours(0, 0, 0, 0);
     const rows = table.getSortedRowModel().rows.flatMap((row) => {
-      const files = archivosDetalle?.[row.original.id];
+      const id = row.original.id;
+      const files = archivosDetalle?.[id];
+      const docNa = naOverrides[id] !== undefined ? naOverrides[id] : (row.original.metadata?.documento_na ?? false);
+      const hasAnyFile = (files?.length ?? 0) > 0;
+      const hasProc = files?.some((f) => f.categoria === "procedimiento") ?? false;
+      const compliant = docNa ? hasProc : hasAnyFile;
+      const fv = row.original.fecha_vencimiento ? new Date(row.original.fecha_vencimiento + "T00:00:00") : null;
+      const isExpired = fv ? fv < hoyExport : false;
+      const estadoReal: EstadoItem = (!compliant || isExpired) ? "vencido" : row.original.estado as EstadoItem;
       const base = {
-        Código: row.original.codigo,
+        "Código": row.original.codigo,
         "Código formal": row.original.codigo_formal ?? "",
-        Título: row.original.titulo,
+        "Título": row.original.titulo,
         Tipo: TIPO_ITEM_LABELS[row.original.tipo],
-        Cláusula: row.original.clausula_iso,
-        Área: getAreaNombre(row.original.areas),
+        "Cláusula": row.original.clausula_iso,
+        "Área": getAreaNombre(row.original.areas),
         Responsable: getUsuarioNombre(row.original.usuarios),
         Vencimiento: row.original.fecha_vencimiento ?? "",
-        Estado: row.original.estado,
-        Versión: row.original.version_actual,
+        Estado: estadoReal,
+        "Versión": row.original.version_actual,
       };
-      if (!files?.length) return [{ ...base, "Tipo archivo": "", "Nombre archivo": "" }];
-      return files.map(({ categoria, nombre }) => ({
+      if (!files?.length) return [{ ...base, "Tipo archivo": "", "Nombre archivo": "", "Link archivo": "" }];
+      return files.map(({ categoria, nombre, url }) => ({
         ...base,
         "Tipo archivo": categoria === "procedimiento" ? "Proc" : "Doc",
         "Nombre archivo": nombre,
+        "Link archivo": url,
       }));
     });
 
     const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Hacer la columna Link archivo clickeable en Excel
+    const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+    const headers = rows[0] ? Object.keys(rows[0]) : [];
+    const linkCol = headers.indexOf("Link archivo");
+    if (linkCol >= 0) {
+      for (let r = 1; r <= range.e.r; r++) {
+        const cellAddr = XLSX.utils.encode_cell({ r, c: linkCol });
+        const cell = ws[cellAddr];
+        if (cell && cell.v) {
+          cell.l = { Target: cell.v as string };
+        }
+      }
+    }
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Documentos");
     XLSX.writeFile(wb, `documentos_sgc_${new Date().toISOString().slice(0, 10)}.xlsx`);
