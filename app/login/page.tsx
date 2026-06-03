@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
 
 export default function LoginPage() {
+  const [mode, setMode] = useState<"login" | "forgot" | "sent">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,32 +21,35 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-
     if (error) {
       setError("Email o contraseña incorrectos.");
       setLoading(false);
       return;
     }
-
-    // Actualizar ultimo_login
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase
-        .from("usuarios")
-        .update({ ultimo_login: new Date().toISOString() })
-        .eq("id", user.id);
+      await supabase.from("usuarios").update({ ultimo_login: new Date().toISOString() }).eq("id", user.id);
     }
-
     window.location.href = "/dashboard";
+  }
+
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    const supabase = createClient();
+    const redirectTo = `${window.location.origin}/auth/callback?next=/reset-password`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    setLoading(false);
+    if (error) { setError(error.message); return; }
+    setMode("sent");
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="w-full max-w-md px-4">
-        {/* Logo / Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary mb-4">
             <ShieldCheck className="w-9 h-9 text-white" />
@@ -55,56 +59,114 @@ export default function LoginPage() {
         </div>
 
         <Card className="shadow-lg border-0">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Iniciar sesión</CardTitle>
-            <CardDescription>Ingresá con tu email y contraseña asignados</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="nombre@griffo.com.ar"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
+          {mode === "login" && (
+            <>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Iniciar sesión</CardTitle>
+                <CardDescription>Ingresá con tu email y contraseña asignados</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="nombre@griffo.com.ar"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoComplete="email"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Contraseña</Label>
+                      <button
+                        type="button"
+                        onClick={() => { setMode("forgot"); setError(null); }}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        ¿Olvidaste tu contraseña?
+                      </button>
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoComplete="current-password"
+                    />
+                  </div>
+                  {error && (
+                    <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
+                  )}
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Ingresando...</> : "Ingresar"}
+                  </Button>
+                </form>
+              </CardContent>
+            </>
+          )}
 
-              {error && (
-                <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
-                  {error}
+          {mode === "forgot" && (
+            <>
+              <CardHeader className="pb-4">
+                <button
+                  onClick={() => { setMode("login"); setError(null); }}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-2"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Volver
+                </button>
+                <CardTitle className="text-lg">Recuperar contraseña</CardTitle>
+                <CardDescription>Te enviamos un link al email para crear una nueva contraseña</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleForgot} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">Email</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder="nombre@griffo.com.ar"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  {error && (
+                    <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
+                  )}
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</> : "Enviar link de recuperación"}
+                  </Button>
+                </form>
+              </CardContent>
+            </>
+          )}
+
+          {mode === "sent" && (
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center py-6 gap-3 text-center">
+                <CheckCircle2 className="h-12 w-12 text-green-500" />
+                <p className="font-semibold text-lg">Email enviado</p>
+                <p className="text-sm text-muted-foreground">
+                  Revisá tu casilla <span className="font-medium text-foreground">{email}</span>.<br />
+                  Hacé click en el link para crear tu nueva contraseña.
                 </p>
-              )}
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Ingresando...
-                  </>
-                ) : (
-                  "Ingresar"
-                )}
-              </Button>
-            </form>
-          </CardContent>
+                <button
+                  onClick={() => { setMode("login"); setError(null); }}
+                  className="mt-2 text-sm text-primary hover:underline"
+                >
+                  Volver al login
+                </button>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         <p className="text-center text-xs text-slate-400 mt-6">
