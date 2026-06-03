@@ -11,6 +11,7 @@ import { formatFecha } from "@/lib/utils/format";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { InviteUsuarioDialog } from "@/components/admin/invite-usuario-dialog";
 import { SyncUsuariosButton } from "@/components/admin/sync-usuarios-button";
+import { CambiarPasswordDialog } from "@/components/admin/cambiar-password-dialog";
 
 export default async function UsuariosPage() {
   const supabase = await createClient();
@@ -28,11 +29,9 @@ export default async function UsuariosPage() {
     admin.from("areas").select("id, nombre"),
   ]);
 
-  // Construir mapa de áreas
   const areaNombre: Record<string, string> = {};
   for (const a of areasMap ?? []) areaNombre[a.id] = a.nombre;
 
-  // Contar items por responsable y sus estados
   const { data: itemsStats } = await admin
     .from("items")
     .select("responsable_id, estado");
@@ -46,7 +45,6 @@ export default async function UsuariosPage() {
     if (item.estado === "por_vencer") statsMap[item.responsable_id].porVencer++;
   }
 
-  // Ordenar: más problemáticos primero
   const usuariosOrdenados = [...(usuarios ?? [])].sort((a, b) => {
     const aV = statsMap[a.id]?.vencidos ?? 0;
     const bV = statsMap[b.id]?.vencidos ?? 0;
@@ -82,6 +80,7 @@ export default async function UsuariosPage() {
                   <TableHead className="w-24 text-center">% Cumpl.</TableHead>
                   <TableHead className="w-32">Último login</TableHead>
                   <TableHead className="w-16 text-center">Activo</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -134,6 +133,9 @@ export default async function UsuariosPage() {
                           ? <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
                           : <XCircle className="h-4 w-4 text-muted-foreground mx-auto" />
                         }
+                      </TableCell>
+                      <TableCell>
+                        <CambiarPasswordDialog usuarioId={u.id} nombreUsuario={u.nombre} />
                       </TableCell>
                     </TableRow>
                   );
