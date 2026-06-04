@@ -6,11 +6,10 @@ import { Topbar } from "@/components/layout/topbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AuditoriaFormDialog, type Auditoria } from "@/components/auditorias/auditoria-form-dialog";
 import { CompletarAuditoriaModal } from "@/components/auditorias/completar-auditoria-modal";
 import { formatFecha } from "@/lib/utils/format";
-import { ClipboardCheck, Plus, Edit2, Trash2, ExternalLink, MoreVertical, Loader2, RefreshCw, FileCheck } from "lucide-react";
+import { ClipboardCheck, Plus, Edit2, Trash2, ExternalLink, Loader2, RefreshCw, FileCheck } from "lucide-react";
 
 const TIPO_COLORS: Record<string, string> = {
   interna: "bg-blue-100 text-blue-700",
@@ -87,6 +86,7 @@ export default function AuditoriasPage() {
   };
 
   const canEdit = userRol !== "lector";
+  const isAdmin = userRol === "admin";
 
   async function handleDelete(id: string) {
     if (!confirm("¿Eliminar esta auditoría?")) return;
@@ -94,11 +94,11 @@ export default function AuditoriasPage() {
     load();
   }
 
-  async function handleEstadoChange(id: string, nuevoEstado: string) {
+  async function handleEnCurso(id: string) {
     await fetch(`/api/auditorias/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ estado: nuevoEstado }),
+      body: JSON.stringify({ estado: "en_curso" }),
     });
     load();
   }
@@ -177,11 +177,11 @@ export default function AuditoriasPage() {
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
                     <TableHead>Título / proceso</TableHead>
                     <TableHead className="w-24">Tipo</TableHead>
-                    <TableHead className="w-32">Responsable</TableHead>
+                    <TableHead className="w-36">Responsable</TableHead>
                     <TableHead className="w-28">Vence</TableHead>
                     <TableHead className="w-28">Estado</TableHead>
-                    <TableHead className="w-28 text-center">NC Mã/m/O</TableHead>
-                    <TableHead className="w-10"></TableHead>
+                    <TableHead className="w-24 text-center">NC M/m/O</TableHead>
+                    <TableHead className="w-36"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -229,44 +229,41 @@ export default function AuditoriasPage() {
                         ) : <span className="text-xs text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <MoreVertical className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-1 justify-end">
+                          {canEdit && a.estado !== "completada" && (
+                            <Button size="sm" variant="outline"
+                              className="h-7 text-xs text-green-700 border-green-200 hover:bg-green-50"
+                              onClick={() => { setCompletarAuditoria(a); setShowCompletar(true); }}>
+                              <FileCheck className="h-3 w-3 mr-1" />Completar
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {canEdit && a.estado !== "completada" && (
-                              <DropdownMenuItem onClick={() => { setCompletarAuditoria(a); setShowCompletar(true); }}>
-                                <FileCheck className="mr-2 h-3.5 w-3.5 text-green-600" />Completar
-                              </DropdownMenuItem>
-                            )}
-                            {canEdit && a.estado === "programada" && (
-                              <DropdownMenuItem onClick={() => handleEstadoChange(a.id, "en_curso")}>
-                                <RefreshCw className="mr-2 h-3.5 w-3.5 text-blue-500" />Marcar en curso
-                              </DropdownMenuItem>
-                            )}
-                            {a.archivo_url && (
-                              <DropdownMenuItem asChild>
-                                <a href={a.archivo_url} target="_blank" rel="noopener noreferrer">
-                                  <ExternalLink className="mr-2 h-3.5 w-3.5" />Ver informe
-                                </a>
-                              </DropdownMenuItem>
-                            )}
-                            {canEdit && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => { setEditAuditoria(a); setShowForm(true); }}>
-                                  <Edit2 className="mr-2 h-3.5 w-3.5" />Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive focus:text-destructive"
-                                  onClick={() => handleDelete(a.id)}>
-                                  <Trash2 className="mr-2 h-3.5 w-3.5" />Eliminar
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                          )}
+                          {canEdit && a.estado === "programada" && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Marcar en curso"
+                              onClick={() => handleEnCurso(a.id)}>
+                              <RefreshCw className="h-3.5 w-3.5 text-blue-500" />
+                            </Button>
+                          )}
+                          {a.archivo_url && (
+                            <a href={a.archivo_url} target="_blank" rel="noopener noreferrer">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver informe">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </a>
+                          )}
+                          {canEdit && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar"
+                              onClick={() => { setEditAuditoria(a); setShowForm(true); }}>
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {isAdmin && (
+                            <Button size="icon" variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive" title="Eliminar"
+                              onClick={() => handleDelete(a.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
