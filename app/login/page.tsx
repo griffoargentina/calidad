@@ -23,31 +23,29 @@ export default function LoginPage() {
     const isRecoveryHash = hash.includes("type=recovery");
 
     if (isRecoveryHash) {
-      // First: check if Supabase already processed the hash and has a valid session
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          // Valid token — go to reset password
-          window.location.href = "/reset-password";
-        } else {
-          // Expired token — show forgot form
-          setMode("forgot");
-          setError("El link de recuperación expiró. Ingresá tu email para solicitar uno nuevo.");
-          window.history.replaceState(null, "", window.location.pathname);
-        }
-      });
+      // Parse tokens directly from hash fragment — @supabase/ssr doesn't auto-process them
+      const hashParams = new URLSearchParams(hash.substring(1));
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+          .then(({ data, error }) => {
+            if (!error && data.session) {
+              window.location.href = "/reset-password";
+            } else {
+              setMode("forgot");
+              setError("El link de recuperación expiró. Ingresá tu email para solicitar uno nuevo.");
+              window.history.replaceState(null, "", window.location.pathname);
+            }
+          });
+      } else {
+        // No tokens in hash — likely expired/malformed
+        setMode("forgot");
+        setError("El link de recuperación no es válido. Ingresá tu email para solicitar uno nuevo.");
+        window.history.replaceState(null, "", window.location.pathname);
+      }
     }
-
-    // Always listen — covers the case where processing happens after mount
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" && session) {
-        window.location.href = "/reset-password";
-      }
-      if (event === "INITIAL_SESSION" && session && isRecoveryHash) {
-        window.location.href = "/reset-password";
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   async function handleLogin(e: React.FormEvent) {
