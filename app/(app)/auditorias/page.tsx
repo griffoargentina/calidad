@@ -51,9 +51,7 @@ export default function AuditoriasPage() {
   const [showForm, setShowForm] = useState(false);
   const [editAuditoria, setEditAuditoria] = useState<Auditoria | null>(null);
   const [completarAuditoria, setCompletarAuditoria] = useState<Auditoria | null>(null);
-  const [showCompletar, setShowCompletar] = useState(false);
   const [archivosAuditoria, setArchivosAuditoria] = useState<Auditoria | null>(null);
-  const [showArchivos, setShowArchivos] = useState(false);
   const [userRol, setUserRol] = useState("lector");
 
   const load = useCallback(async () => {
@@ -100,17 +98,19 @@ export default function AuditoriasPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("¿Eliminar esta auditoría?")) return;
-    await fetch(`/api/auditorias/${id}`, { method: "DELETE" });
-    load();
+    const res = await fetch(`/api/auditorias/${id}`, { method: "DELETE" });
+    if (!res.ok) { alert("No se pudo eliminar la auditoría."); return; }
+    await load();
   }
 
   async function handleEnCurso(id: string) {
-    await fetch(`/api/auditorias/${id}`, {
+    const res = await fetch(`/api/auditorias/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ estado: "en_curso" }),
     });
-    load();
+    if (!res.ok) { alert("No se pudo actualizar el estado."); return; }
+    await load();
   }
 
   return (
@@ -239,14 +239,14 @@ export default function AuditoriasPage() {
                         <div className="flex items-center gap-1 justify-end">
                           {/* Archivos / historial */}
                           <Button size="icon" variant="ghost" className="h-7 w-7" title="Archivos e historial"
-                            onClick={() => { setArchivosAuditoria(a); setShowArchivos(true); }}>
+                            onClick={() => setArchivosAuditoria(a)}>
                             <Paperclip className="h-3.5 w-3.5" />
                           </Button>
 
                           {canEdit && a.estado !== "completada" && (
                             <Button size="sm" variant="outline"
                               className="h-7 text-xs text-green-700 border-green-200 hover:bg-green-50"
-                              onClick={() => { setCompletarAuditoria(a); setShowCompletar(true); }}>
+                              onClick={() => setCompletarAuditoria(a)}>
                               <FileCheck className="h-3 w-3 mr-1" />Completar
                             </Button>
                           )}
@@ -296,14 +296,14 @@ export default function AuditoriasPage() {
         auditoria={editAuditoria}
       />
       <CompletarAuditoriaModal
-        open={showCompletar}
-        onOpenChange={setShowCompletar}
+        open={completarAuditoria !== null}
+        onOpenChange={(v) => { if (!v) setCompletarAuditoria(null); }}
         onSuccess={load}
         auditoria={completarAuditoria}
       />
       <AuditoriaArchivosModal
-        open={showArchivos}
-        onOpenChange={setShowArchivos}
+        open={archivosAuditoria !== null}
+        onOpenChange={(v) => { if (!v) setArchivosAuditoria(null); }}
         auditoria={archivosAuditoria}
         canEdit={canEdit}
       />

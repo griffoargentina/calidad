@@ -50,21 +50,24 @@ export async function POST(
 
   // Register file in auditoria_archivos if provided
   if (archivo_url && archivo_nombre) {
-    await admin.from("auditoria_archivos").insert({
+    const { error: archivoError } = await admin.from("auditoria_archivos").insert({
       auditoria_id: params.id,
       nombre: archivo_nombre,
       url: archivo_url,
-      notas: "Informe de auditoría (completar)",
+      notas: notas || null,
       subido_por: user.id,
-    }).select().single();
+    });
+    if (archivoError) return NextResponse.json({ error: archivoError.message }, { status: 500 });
   }
 
   let nextAuditoria = null;
   if (auditoria.frecuencia_dias) {
-    const hoy = new Date(ahora);
-    hoy.setHours(0, 0, 0, 0);
-    const proxVenc = new Date(hoy);
-    proxVenc.setDate(proxVenc.getDate() + auditoria.frecuencia_dias);
+    // Base the next vencimiento on the original audit's fecha_vencimiento to preserve cadence.
+    // Use noon UTC to avoid DST/timezone edge cases when adding days.
+    const baseStr = auditoria.fecha_vencimiento ?? ahora.split("T")[0];
+    const base = new Date(baseStr + "T12:00:00Z");
+    base.setUTCDate(base.getUTCDate() + auditoria.frecuencia_dias);
+    const proxVenc = base.toISOString().split("T")[0];
 
     const { data: next } = await admin
       .from("auditorias")
@@ -74,8 +77,8 @@ export async function POST(
         area_id: auditoria.area_id,
         responsable_id: auditoria.responsable_id,
         norma: auditoria.norma,
-        fecha_programada: hoy.toISOString().split("T")[0],
-        fecha_vencimiento: proxVenc.toISOString().split("T")[0],
+        fecha_programada: ahora.split("T")[0],
+        fecha_vencimiento: proxVenc,
         frecuencia_dias: auditoria.frecuencia_dias,
         estado: "programada",
         creado_por: user.id,

@@ -63,34 +63,46 @@ export function AuditoriaArchivosModal({ open, onOpenChange, auditoria, canEdit 
     setUploading(true);
     setError(null);
 
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("auditoriaId", auditoria.id);
-    const uploadRes = await fetch("/api/auditorias/upload", { method: "POST", body: fd });
-    if (!uploadRes.ok) {
-      const d = await uploadRes.json();
-      setError(d.error ?? "Error al subir archivo");
-      setUploading(false);
-      return;
-    }
-    const { url, nombre } = await uploadRes.json();
+    const abortCtrl = new AbortController();
+    const { signal } = abortCtrl;
 
-    const saveRes = await fetch(`/api/auditorias/${auditoria.id}/archivos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre, url, notas }),
-    });
-    if (!saveRes.ok) {
-      const d = await saveRes.json();
-      setError(d.error ?? "Error al guardar");
-      setUploading(false);
-      return;
-    }
+    // Cancel in-flight requests if the modal closes mid-upload
+    const cleanup = () => abortCtrl.abort();
+    window.addEventListener("beforeunload", cleanup, { once: true });
 
-    setFile(null);
-    setNotas("");
-    setUploading(false);
-    loadArchivos();
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("auditoriaId", auditoria.id);
+      const uploadRes = await fetch("/api/auditorias/upload", { method: "POST", body: fd, signal });
+      if (!uploadRes.ok) {
+        const d = await uploadRes.json();
+        setError(d.error ?? "Error al subir archivo");
+        return;
+      }
+      const { url, nombre } = await uploadRes.json();
+
+      const saveRes = await fetch(`/api/auditorias/${auditoria.id}/archivos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, url, notas }),
+        signal,
+      });
+      if (!saveRes.ok) {
+        const d = await saveRes.json();
+        setError(d.error ?? "Error al guardar");
+        return;
+      }
+
+      setFile(null);
+      setNotas("");
+      loadArchivos();
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") setError("Error al subir archivo");
+    } finally {
+      window.removeEventListener("beforeunload", cleanup);
+      setUploading(false);
+    }
   }
 
   async function handleDelete(archivoId: string) {

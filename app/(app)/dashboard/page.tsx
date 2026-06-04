@@ -147,7 +147,10 @@ export default async function DashboardPage() {
         if (!fv || fv < hoyP) procVencidosCount++;
       }
     }
-  } catch { /* tabla no existe aún */ }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!msg.includes("does not exist") && !msg.includes("42P01")) console.error("[dashboard] proc query:", msg);
+  }
 
   let auditVencidas = 0;
   try {
@@ -160,7 +163,10 @@ export default async function DashboardPage() {
       const fv = a.fecha_vencimiento ? new Date(a.fecha_vencimiento + "T00:00:00") : null;
       if (!fv || fv < hoyA) auditVencidas++;
     }
-  } catch { /* tabla no existe aún */ }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!msg.includes("does not exist") && !msg.includes("42P01")) console.error("[dashboard] auditorias query:", msg);
+  }
 
   function formatFechaCorta(d: Date) {
     return d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });

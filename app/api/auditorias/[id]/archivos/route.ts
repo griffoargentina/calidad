@@ -69,6 +69,9 @@ export async function DELETE(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+  const { data: us } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
+  if (us?.rol === "lector") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+
   const url = new URL(req.url);
   const archivoId = url.searchParams.get("archivoId");
   if (!archivoId) return NextResponse.json({ error: "archivoId requerido" }, { status: 400 });
