@@ -12,6 +12,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { InviteUsuarioDialog } from "@/components/admin/invite-usuario-dialog";
 import { SyncUsuariosButton } from "@/components/admin/sync-usuarios-button";
 import { CambiarPasswordDialog } from "@/components/admin/cambiar-password-dialog";
+import { ResetAllPasswordsButton } from "@/components/admin/reset-all-passwords-button";
 
 export default async function UsuariosPage() {
   const supabase = await createClient();
@@ -61,6 +62,7 @@ export default async function UsuariosPage() {
     <div className="flex flex-col h-full">
       <Topbar title="Usuarios" actions={
         <div className="flex items-center gap-2">
+          <ResetAllPasswordsButton />
           <SyncUsuariosButton />
           <InviteUsuarioDialog areas={areas ?? []} />
         </div>
