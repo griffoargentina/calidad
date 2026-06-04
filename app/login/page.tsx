@@ -19,41 +19,34 @@ export default function LoginPage() {
 
   useEffect(() => {
     const supabase = createClient();
-
-    // If URL has a recovery hash, listen for PASSWORD_RECOVERY event
     const hash = typeof window !== "undefined" ? window.location.hash : "";
-    const isRecoveryAttempt = hash.includes("access_token") &&
-      (hash.includes("type=recovery") || hash.includes("type=signup"));
+    const isRecoveryHash = hash.includes("type=recovery");
 
-    if (isRecoveryAttempt) {
-      // Give Supabase a moment to process the hash and fire the event
-      const timeout = setTimeout(() => {
-        // Token likely expired — show forgot form with message
-        setMode("forgot");
-        setError("El link de recuperación expiró. Ingresá tu email para solicitar uno nuevo.");
-        // Clean the hash from the URL
-        window.history.replaceState(null, "", window.location.pathname);
-      }, 2000);
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-        if (event === "PASSWORD_RECOVERY") {
-          clearTimeout(timeout);
+    if (isRecoveryHash) {
+      // First: check if Supabase already processed the hash and has a valid session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          // Valid token — go to reset password
           window.location.href = "/reset-password";
+        } else {
+          // Expired token — show forgot form
+          setMode("forgot");
+          setError("El link de recuperación expiró. Ingresá tu email para solicitar uno nuevo.");
+          window.history.replaceState(null, "", window.location.pathname);
         }
       });
-
-      return () => {
-        clearTimeout(timeout);
-        subscription.unsubscribe();
-      };
     }
 
-    // Normal flow: if a recovery session somehow lands here, redirect
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
+    // Always listen — covers the case where processing happens after mount
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" && session) {
+        window.location.href = "/reset-password";
+      }
+      if (event === "INITIAL_SESSION" && session && isRecoveryHash) {
         window.location.href = "/reset-password";
       }
     });
+
     return () => subscription.unsubscribe();
   }, []);
 
@@ -158,7 +151,7 @@ export default function LoginPage() {
                   {error && (
                     <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-md">
                       <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                      {error}
+                      <span>{error}</span>
                     </div>
                   )}
                   <Button type="submit" className="w-full" disabled={loading}>
@@ -179,7 +172,7 @@ export default function LoginPage() {
                   Hacé click en el link para crear tu nueva contraseña.
                 </p>
                 <p className="text-xs text-muted-foreground bg-muted px-3 py-2 rounded-md">
-                  El link expira en 1 hora. Usalo desde el mismo browser.
+                  ⚠️ El link expira en 1 hora. Abrílo desde el mismo browser.
                 </p>
                 <button onClick={() => { setMode("login"); setError(null); }}
                   className="mt-2 text-sm text-primary hover:underline">
