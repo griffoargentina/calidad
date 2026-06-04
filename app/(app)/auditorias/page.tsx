@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AuditoriaFormDialog, type Auditoria } from "@/components/auditorias/auditoria-form-dialog";
 import { CompletarAuditoriaModal } from "@/components/auditorias/completar-auditoria-modal";
+import { AuditoriaArchivosModal } from "@/components/auditorias/auditoria-archivos-modal";
 import { formatFecha } from "@/lib/utils/format";
-import { ClipboardCheck, Plus, Edit2, Trash2, ExternalLink, Loader2, RefreshCw, FileCheck } from "lucide-react";
+import { ClipboardCheck, Plus, Edit2, Trash2, ExternalLink, Loader2, RefreshCw, FileCheck, Paperclip } from "lucide-react";
 
 const TIPO_COLORS: Record<string, string> = {
   interna: "bg-blue-100 text-blue-700",
@@ -51,6 +52,8 @@ export default function AuditoriasPage() {
   const [editAuditoria, setEditAuditoria] = useState<Auditoria | null>(null);
   const [completarAuditoria, setCompletarAuditoria] = useState<Auditoria | null>(null);
   const [showCompletar, setShowCompletar] = useState(false);
+  const [archivosAuditoria, setArchivosAuditoria] = useState<Auditoria | null>(null);
+  const [showArchivos, setShowArchivos] = useState(false);
   const [userRol, setUserRol] = useState("lector");
 
   const load = useCallback(async () => {
@@ -185,7 +188,7 @@ export default function AuditoriasPage() {
                     <TableHead className="w-28">Vence</TableHead>
                     <TableHead className="w-28">Estado</TableHead>
                     <TableHead className="w-24 text-center">NC M/m/O</TableHead>
-                    <TableHead className="w-36"></TableHead>
+                    <TableHead className="w-44"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -234,6 +237,12 @@ export default function AuditoriasPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 justify-end">
+                          {/* Archivos / historial */}
+                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Archivos e historial"
+                            onClick={() => { setArchivosAuditoria(a); setShowArchivos(true); }}>
+                            <Paperclip className="h-3.5 w-3.5" />
+                          </Button>
+
                           {canEdit && a.estado !== "completada" && (
                             <Button size="sm" variant="outline"
                               className="h-7 text-xs text-green-700 border-green-200 hover:bg-green-50"
@@ -249,7 +258,7 @@ export default function AuditoriasPage() {
                           )}
                           {a.archivo_url && (
                             <a href={a.archivo_url} target="_blank" rel="noopener noreferrer">
-                              <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver informe">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver informe (completar)">
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </Button>
                             </a>
@@ -291,6 +300,12 @@ export default function AuditoriasPage() {
         onOpenChange={setShowCompletar}
         onSuccess={load}
         auditoria={completarAuditoria}
+      />
+      <AuditoriaArchivosModal
+        open={showArchivos}
+        onOpenChange={setShowArchivos}
+        auditoria={archivosAuditoria}
+        canEdit={canEdit}
       />
     </div>
   );
