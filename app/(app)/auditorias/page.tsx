@@ -33,6 +33,13 @@ const FRECUENCIA_LABELS: Record<number, string> = {
   30: "Mensual", 60: "Bimestral", 90: "Trimestral", 180: "Semestral", 365: "Anual",
 };
 
+type RelField = { id: string; nombre: string } | { id: string; nombre: string }[] | null | undefined;
+function getNombre(field: RelField): string {
+  if (!field) return "—";
+  const obj = Array.isArray(field) ? field[0] : field;
+  return obj?.nombre ?? "—";
+}
+
 export default function AuditoriasPage() {
   const [auditorias, setAuditorias] = useState<Auditoria[]>([]);
   const [areas, setAreas] = useState<Array<{ id: string; nombre: string }>>([]);
@@ -114,7 +121,6 @@ export default function AuditoriasPage() {
         ) : undefined}
       />
       <div className="flex-1 p-6 space-y-5 overflow-y-auto">
-        {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
             { label: "Total", value: stats.total, cls: "" },
@@ -132,7 +138,6 @@ export default function AuditoriasPage() {
           ))}
         </div>
 
-        {/* Filters */}
         <div className="flex flex-wrap gap-2">
           {["todos", "interna", "externa", "proveedor", "proceso"].map((t) => (
             <button key={t} onClick={() => setTipoFilter(t)}
@@ -153,7 +158,6 @@ export default function AuditoriasPage() {
           ))}
         </div>
 
-        {/* Table */}
         <Card>
           <CardContent className="p-0">
             {loading ? (
@@ -205,7 +209,7 @@ export default function AuditoriasPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground">{a.responsable?.nombre ?? "—"}</span>
+                        <span className="text-sm text-muted-foreground">{getNombre(a.responsable)}</span>
                       </TableCell>
                       <TableCell>
                         <span className={`text-sm ${a.estado === "vencida" ? "text-red-600 font-medium" : ""}`}>
