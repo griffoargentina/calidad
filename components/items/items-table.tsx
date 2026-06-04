@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EstadoBadge } from "@/components/shared/estado-badge";
-import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
+import { TIPO_ITEM_LABELS, ESTADO_LABELS } from "@/lib/constants/items";
 import { formatFecha } from "@/lib/utils/format";
 import { TipoItem, EstadoItem } from "@/types/database";
 import { FileText, ArrowUpDown, ArrowUp, ArrowDown, Download } from "lucide-react";
@@ -260,7 +260,7 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
         "Área": getAreaNombre(row.original.areas),
         Responsable: getUsuarioNombre(row.original.usuarios),
         Vencimiento: row.original.fecha_vencimiento ?? "",
-        Estado: estadoReal,
+        Estado: ESTADO_LABELS[estadoReal] ?? estadoReal,
         "Versión": row.original.version_actual,
       };
       if (!files?.length) return [{ ...base, "Tipo archivo": "", "Nombre archivo": "", "Link archivo": "" }];
