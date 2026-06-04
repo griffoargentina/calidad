@@ -18,9 +18,17 @@ export async function PATCH(
   const body = await req.json();
   const admin = createAdminClient();
 
+  // Allowlist editable fields — prevents callers from overwriting creado_por, completada_at, etc.
+  const allowed = ["titulo", "tipo", "area_id", "responsable_id", "norma",
+    "fecha_programada", "fecha_vencimiento", "frecuencia_dias", "estado", "notas"];
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  for (const key of allowed) {
+    if (key in body) patch[key] = body[key];
+  }
+
   const { data, error } = await admin
     .from("auditorias")
-    .update({ ...body, updated_at: new Date().toISOString() })
+    .update(patch)
     .eq("id", params.id)
     .select()
     .single();

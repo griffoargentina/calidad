@@ -9,6 +9,9 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+  const { data: us } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
+  if (us?.rol === "lector") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
   const procedimientoId = (formData.get("procedimiento_id") as string) || "general";

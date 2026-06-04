@@ -20,8 +20,8 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     // Verify there's an active session (set by /auth/callback)
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
         window.location.href = "/login?error=sesion_expirada";
       } else {
         setReady(true);

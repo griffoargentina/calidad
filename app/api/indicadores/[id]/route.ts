@@ -7,6 +7,8 @@ export async function GET(
 ) {
   const { id } = await params;
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   // Fetch indicador with responsable
   const { data: indicador, error } = await supabase
