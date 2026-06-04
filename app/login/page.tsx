@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
+import { ShieldCheck, Loader2, CheckCircle2, ArrowLeft, AlertTriangle } from "lucide-react";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "forgot" | "sent">("login");
@@ -17,11 +17,38 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fallback: Supabase may redirect to /login with #access_token when Site URL
-  // is set to the root and /auth/confirm is not in the Redirect URLs allowlist.
-  // Detect PASSWORD_RECOVERY event and forward to /reset-password.
   useEffect(() => {
     const supabase = createClient();
+
+    // If URL has a recovery hash, listen for PASSWORD_RECOVERY event
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    const isRecoveryAttempt = hash.includes("access_token") &&
+      (hash.includes("type=recovery") || hash.includes("type=signup"));
+
+    if (isRecoveryAttempt) {
+      // Give Supabase a moment to process the hash and fire the event
+      const timeout = setTimeout(() => {
+        // Token likely expired — show forgot form with message
+        setMode("forgot");
+        setError("El link de recuperación expiró. Ingresá tu email para solicitar uno nuevo.");
+        // Clean the hash from the URL
+        window.history.replaceState(null, "", window.location.pathname);
+      }, 2000);
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === "PASSWORD_RECOVERY") {
+          clearTimeout(timeout);
+          window.location.href = "/reset-password";
+        }
+      });
+
+      return () => {
+        clearTimeout(timeout);
+        subscription.unsubscribe();
+      };
+    }
+
+    // Normal flow: if a recovery session somehow lands here, redirect
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         window.location.href = "/reset-password";
@@ -82,37 +109,22 @@ export default function LoginPage() {
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="nombre@griffo.com.ar"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      autoComplete="email"
-                      autoFocus
-                    />
+                    <Input id="email" type="email" placeholder="nombre@griffo.com.ar"
+                      value={email} onChange={(e) => setEmail(e.target.value)}
+                      required autoComplete="email" autoFocus />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="password">Contraseña</Label>
-                      <button
-                        type="button"
+                      <button type="button"
                         onClick={() => { setMode("forgot"); setError(null); }}
-                        className="text-xs text-primary hover:underline"
-                      >
+                        className="text-xs text-primary hover:underline">
                         ¿Olvidaste tu contraseña?
                       </button>
                     </div>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      autoComplete="current-password"
-                    />
+                    <Input id="password" type="password" placeholder="••••••••"
+                      value={password} onChange={(e) => setPassword(e.target.value)}
+                      required autoComplete="current-password" />
                   </div>
                   {error && (
                     <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
@@ -128,10 +140,8 @@ export default function LoginPage() {
           {mode === "forgot" && (
             <>
               <CardHeader className="pb-4">
-                <button
-                  onClick={() => { setMode("login"); setError(null); }}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-2"
-                >
+                <button onClick={() => { setMode("login"); setError(null); }}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-2">
                   <ArrowLeft className="h-3.5 w-3.5" /> Volver
                 </button>
                 <CardTitle className="text-lg">Recuperar contraseña</CardTitle>
@@ -141,18 +151,15 @@ export default function LoginPage() {
                 <form onSubmit={handleForgot} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="forgot-email">Email</Label>
-                    <Input
-                      id="forgot-email"
-                      type="email"
-                      placeholder="nombre@griffo.com.ar"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      autoFocus
-                    />
+                    <Input id="forgot-email" type="email" placeholder="nombre@griffo.com.ar"
+                      value={email} onChange={(e) => setEmail(e.target.value)}
+                      required autoFocus />
                   </div>
                   {error && (
-                    <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
+                    <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-md">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      {error}
+                    </div>
                   )}
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Enviando...</> : "Enviar link de recuperación"}
@@ -171,10 +178,11 @@ export default function LoginPage() {
                   Revisá tu casilla <span className="font-medium text-foreground">{email}</span>.<br />
                   Hacé click en el link para crear tu nueva contraseña.
                 </p>
-                <button
-                  onClick={() => { setMode("login"); setError(null); }}
-                  className="mt-2 text-sm text-primary hover:underline"
-                >
+                <p className="text-xs text-muted-foreground bg-muted px-3 py-2 rounded-md">
+                  El link expira en 1 hora. Usalo desde el mismo browser.
+                </p>
+                <button onClick={() => { setMode("login"); setError(null); }}
+                  className="mt-2 text-sm text-primary hover:underline">
                   Volver al login
                 </button>
               </div>
