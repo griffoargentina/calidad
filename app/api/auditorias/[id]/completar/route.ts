@@ -48,6 +48,17 @@ export async function POST(
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
+  // Register file in auditoria_archivos if provided
+  if (archivo_url && archivo_nombre) {
+    await admin.from("auditoria_archivos").insert({
+      auditoria_id: params.id,
+      nombre: archivo_nombre,
+      url: archivo_url,
+      notas: "Informe de auditoría (completar)",
+      subido_por: user.id,
+    }).select().single();
+  }
+
   let nextAuditoria = null;
   if (auditoria.frecuencia_dias) {
     const hoy = new Date(ahora);
