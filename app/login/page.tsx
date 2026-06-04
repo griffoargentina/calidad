@@ -40,7 +40,8 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback?next=/reset-password`;
+    // Usamos /auth/confirm que maneja TODOS los flujos (PKCE, OTP e implícito)
+    const redirectTo = `${window.location.origin}/auth/confirm?next=/reset-password`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     setLoading(false);
     if (error) { setError(error.message); return; }
