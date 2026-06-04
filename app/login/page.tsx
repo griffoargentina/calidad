@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fallback: Supabase may redirect to /login with #access_token when Site URL
+  // is set to the root and /auth/confirm is not in the Redirect URLs allowlist.
+  // Detect PASSWORD_RECOVERY event and forward to /reset-password.
+  useEffect(() => {
+    const supabase = createClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        window.location.href = "/reset-password";
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -40,7 +53,6 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     const supabase = createClient();
-    // Usamos /auth/confirm que maneja TODOS los flujos (PKCE, OTP e implícito)
     const redirectTo = `${window.location.origin}/auth/confirm?next=/reset-password`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     setLoading(false);
