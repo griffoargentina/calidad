@@ -9,7 +9,7 @@ import { formatFecha } from "@/lib/utils/format";
 import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import {
   FileText, AlertTriangle, CheckCircle2, XCircle,
-  ArrowRight, TrendingUp, BookOpen, Wrench, BarChart2, ClipboardList,
+  ArrowRight, TrendingUp, BookOpen, Wrench, BarChart2, ClipboardList, ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -89,7 +89,6 @@ export default async function DashboardPage() {
     ? Math.max(0, Math.round(((totalConBorradores - vencidosTotal) / totalConBorradores) * 100))
     : 0;
 
-  // Calibraciones: solo equipos activos
   const activeEquipoIds = new Set((equiposCalib ?? []).map((e) => e.id));
   const calibMap = new Map<string, string | null>();
   for (const c of calibraciones ?? []) {
@@ -107,7 +106,6 @@ export default async function DashboardPage() {
     }
   }
 
-  // Indicadores: sin dato = vencido
   const anio = hoy.getFullYear();
   const mes = hoy.getMonth() + 1;
   const registroSet = new Set(
@@ -124,7 +122,6 @@ export default async function DashboardPage() {
     }
   }
 
-  // Procedimientos del módulo propio
   let procVencidosCount = 0;
   try {
     const { data: allProcs } = await admin
@@ -150,9 +147,20 @@ export default async function DashboardPage() {
         if (!fv || fv < hoyP) procVencidosCount++;
       }
     }
-  } catch {
-    // tabla no existe aún — se muestra 0
-  }
+  } catch { /* tabla no existe aún */ }
+
+  let auditVencidas = 0;
+  try {
+    const { data: auditoriasData } = await supabase
+      .from("auditorias")
+      .select("id, fecha_vencimiento, estado")
+      .neq("estado", "completada");
+    const hoyA = new Date(); hoyA.setHours(0, 0, 0, 0);
+    for (const a of auditoriasData ?? []) {
+      const fv = a.fecha_vencimiento ? new Date(a.fecha_vencimiento + "T00:00:00") : null;
+      if (!fv || fv < hoyA) auditVencidas++;
+    }
+  } catch { /* tabla no existe aún */ }
 
   function formatFechaCorta(d: Date) {
     return d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
@@ -188,7 +196,7 @@ export default async function DashboardPage() {
             alert={procVencidosCount > 0} href="/procedimientos" />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           <Link href="/calibracion" className="block hover:opacity-90 transition-opacity">
             <Card className={calibVencidos > 0 ? "border-red-200 bg-red-50/30" : "border-green-200 bg-green-50/20"}>
               <CardContent className="p-5 flex items-center gap-4">
@@ -210,9 +218,7 @@ export default async function DashboardPage() {
                     : <p className="text-xs text-green-600 mt-0.5">Todos al día</p>
                   }
                 </div>
-                {calibVencidos > 0
-                  ? <XCircle className="h-5 w-5 text-red-400 shrink-0" />
-                  : <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />}
+                {calibVencidos > 0 ? <XCircle className="h-5 w-5 text-red-400 shrink-0" /> : <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />}
               </CardContent>
             </Card>
           </Link>
@@ -236,9 +242,31 @@ export default async function DashboardPage() {
                     : <p className="text-xs text-green-600 mt-0.5">Todos al día</p>
                   }
                 </div>
-                {indVencidos > 0
-                  ? <XCircle className="h-5 w-5 text-red-400 shrink-0" />
-                  : <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />}
+                {indVencidos > 0 ? <XCircle className="h-5 w-5 text-red-400 shrink-0" /> : <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />}
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/auditorias" className="block hover:opacity-90 transition-opacity">
+            <Card className={auditVencidas > 0 ? "border-red-200 bg-red-50/30" : "border-green-200 bg-green-50/20"}>
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className={"flex items-center justify-center w-12 h-12 rounded-xl shrink-0 " + (auditVencidas > 0 ? "bg-red-100" : "bg-green-100")}>
+                  <ClipboardCheck className={"w-6 h-6 " + (auditVencidas > 0 ? "text-red-500" : "text-green-500")} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground">Auditorías</p>
+                  <div className="flex items-baseline gap-2">
+                    <p className={"text-3xl font-bold " + (auditVencidas > 0 ? "text-red-600" : "text-green-600")}>
+                      {auditVencidas > 0 ? auditVencidas : "OK"}
+                    </p>
+                    {auditVencidas > 0 && <span className="text-xs text-muted-foreground">{auditVencidas !== 1 ? "vencidas" : "vencida"}</span>}
+                  </div>
+                  {auditVencidas > 0
+                    ? <p className="text-xs text-red-500 font-medium mt-0.5">Requieren atención</p>
+                    : <p className="text-xs text-green-600 mt-0.5">Todas al día</p>
+                  }
+                </div>
+                {auditVencidas > 0 ? <XCircle className="h-5 w-5 text-red-400 shrink-0" /> : <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />}
               </CardContent>
             </Card>
           </Link>
@@ -394,6 +422,7 @@ export default async function DashboardPage() {
             <Button variant="outline" asChild><Link href="/admin/clausulas">Mapa de cláusulas ISO</Link></Button>
             <Button variant="outline" asChild><Link href="/vencimientos">Calendario de vencimientos</Link></Button>
             <Button variant="outline" asChild><Link href="/procedimientos">Procedimientos</Link></Button>
+            <Button variant="outline" asChild><Link href="/auditorias">Plan de Auditoría</Link></Button>
           </CardContent>
         </Card>
       </div>
