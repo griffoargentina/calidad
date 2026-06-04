@@ -26,12 +26,14 @@ export interface Auditoria {
   notas: string | null;
   completada_at: string | null;
   created_at: string;
-  areas: { id: string; nombre: string } | null;
-  responsable: { id: string; nombre: string } | null;
+  areas: { id: string; nombre: string } | { id: string; nombre: string }[] | null;
+  responsable: { id: string; nombre: string } | { id: string; nombre: string }[] | null;
 }
 
+const NONE = "__none__";
+
 const FRECUENCIAS = [
-  { label: "Sin periodicidad", value: "" },
+  { label: "Sin periodicidad", value: NONE },
   { label: "Mensual (30 días)", value: "30" },
   { label: "Bimestral (60 días)", value: "60" },
   { label: "Trimestral (90 días)", value: "90" },
@@ -45,6 +47,16 @@ const TIPOS = [
   { label: "Proveedor", value: "proveedor" },
   { label: "Proceso", value: "proceso" },
 ];
+
+function getAreaId(auditoria: Auditoria): string {
+  const a = Array.isArray(auditoria.areas) ? auditoria.areas[0] : auditoria.areas;
+  return a?.id ?? NONE;
+}
+
+function getResponsableId(auditoria: Auditoria): string {
+  const r = Array.isArray(auditoria.responsable) ? auditoria.responsable[0] : auditoria.responsable;
+  return r?.id ?? NONE;
+}
 
 interface Props {
   open: boolean;
@@ -61,33 +73,32 @@ export function AuditoriaFormDialog({ open, onOpenChange, onSuccess, areas, usua
   const [error, setError] = useState<string | null>(null);
   const [titulo, setTitulo] = useState("");
   const [tipo, setTipo] = useState("interna");
-  const [areaId, setAreaId] = useState("");
-  const [responsableId, setResponsableId] = useState("");
+  const [areaId, setAreaId] = useState(NONE);
+  const [responsableId, setResponsableId] = useState(NONE);
   const [norma, setNorma] = useState("ISO 9001:2015");
   const [fechaProgramada, setFechaProgramada] = useState("");
   const [fechaVencimiento, setFechaVencimiento] = useState("");
-  const [frecuenciaDias, setFrecuenciaDias] = useState("");
+  const [frecuenciaDias, setFrecuenciaDias] = useState("90");
   const [notas, setNotas] = useState("");
 
   useEffect(() => {
-    if (open) {
-      if (auditoria) {
-        setTitulo(auditoria.titulo);
-        setTipo(auditoria.tipo);
-        setAreaId(auditoria.areas?.id ?? "");
-        setResponsableId(auditoria.responsable?.id ?? "");
-        setNorma(auditoria.norma ?? "ISO 9001:2015");
-        setFechaProgramada(auditoria.fecha_programada ?? "");
-        setFechaVencimiento(auditoria.fecha_vencimiento);
-        setFrecuenciaDias(auditoria.frecuencia_dias?.toString() ?? "");
-        setNotas(auditoria.notas ?? "");
-      } else {
-        setTitulo(""); setTipo("interna"); setAreaId(""); setResponsableId("");
-        setNorma("ISO 9001:2015"); setFechaProgramada(""); setFechaVencimiento("");
-        setFrecuenciaDias("90"); setNotas("");
-      }
-      setError(null);
+    if (!open) return;
+    if (auditoria) {
+      setTitulo(auditoria.titulo);
+      setTipo(auditoria.tipo);
+      setAreaId(getAreaId(auditoria));
+      setResponsableId(getResponsableId(auditoria));
+      setNorma(auditoria.norma ?? "ISO 9001:2015");
+      setFechaProgramada(auditoria.fecha_programada ?? "");
+      setFechaVencimiento(auditoria.fecha_vencimiento ?? "");
+      setFrecuenciaDias(auditoria.frecuencia_dias?.toString() ?? NONE);
+      setNotas(auditoria.notas ?? "");
+    } else {
+      setTitulo(""); setTipo("interna"); setAreaId(NONE); setResponsableId(NONE);
+      setNorma("ISO 9001:2015"); setFechaProgramada(""); setFechaVencimiento("");
+      setFrecuenciaDias("90"); setNotas("");
     }
+    setError(null);
   }, [auditoria, open]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -95,13 +106,14 @@ export function AuditoriaFormDialog({ open, onOpenChange, onSuccess, areas, usua
     setLoading(true);
     setError(null);
     const body = {
-      titulo, tipo,
-      area_id: areaId || null,
-      responsable_id: responsableId || null,
+      titulo,
+      tipo,
+      area_id: areaId === NONE ? null : areaId,
+      responsable_id: responsableId === NONE ? null : responsableId,
       norma: norma || null,
       fecha_programada: fechaProgramada || null,
       fecha_vencimiento: fechaVencimiento,
-      frecuencia_dias: frecuenciaDias ? parseInt(frecuenciaDias) : null,
+      frecuencia_dias: frecuenciaDias && frecuenciaDias !== NONE ? parseInt(frecuenciaDias) : null,
       notas: notas || null,
     };
     const url = isEdit ? `/api/auditorias/${auditoria!.id}` : "/api/auditorias";
@@ -155,7 +167,7 @@ export function AuditoriaFormDialog({ open, onOpenChange, onSuccess, areas, usua
               <Select value={areaId} onValueChange={setAreaId}>
                 <SelectTrigger><SelectValue placeholder="Sin área" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— Sin área —</SelectItem>
+                  <SelectItem value={NONE}>— Sin área —</SelectItem>
                   {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -165,7 +177,7 @@ export function AuditoriaFormDialog({ open, onOpenChange, onSuccess, areas, usua
               <Select value={responsableId} onValueChange={setResponsableId}>
                 <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— Sin asignar —</SelectItem>
+                  <SelectItem value={NONE}>— Sin asignar —</SelectItem>
                   {usuarios.map(u => <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -194,7 +206,9 @@ export function AuditoriaFormDialog({ open, onOpenChange, onSuccess, areas, usua
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={loading}>
-              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : isEdit ? "Guardar cambios" : "Crear auditoría"}
+              {loading
+                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+                : isEdit ? "Guardar cambios" : "Crear auditoría"}
             </Button>
           </DialogFooter>
         </form>
