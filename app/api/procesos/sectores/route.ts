@@ -33,9 +33,10 @@ export async function GET() {
   const sectorIds = visibles.map((s: { id: string }) => s.id);
   const NULL_ID = "00000000-0000-0000-0000-000000000000";
 
-  const [{ data: flujogramas }, { data: instructivos }] = await Promise.all([
+  const [{ data: flujogramas }, { data: instructivos }, { data: responsables }] = await Promise.all([
     admin.from("proc_flujogramas").select("id, sector_id").in("sector_id", sectorIds.length ? sectorIds : [NULL_ID]),
     admin.from("proc_instructivos").select("id, sector_id, estado").in("sector_id", sectorIds.length ? sectorIds : [NULL_ID]),
+    admin.from("proc_sector_responsables").select("sector_id, usuarios!usuario_id(nombre)").in("sector_id", sectorIds.length ? sectorIds : [NULL_ID]),
   ]);
 
   const flujoCountBySector: Record<string, number> = {};
@@ -54,11 +55,21 @@ export async function GET() {
     }
   }
 
+  const responsablesBySector: Record<string, string[]> = {};
+  for (const r of responsables ?? []) {
+    const row = r as { sector_id: string; usuarios: { nombre: string } | { nombre: string }[] | null };
+    const u = Array.isArray(row.usuarios) ? row.usuarios[0] : row.usuarios;
+    if (!u) continue;
+    if (!responsablesBySector[row.sector_id]) responsablesBySector[row.sector_id] = [];
+    responsablesBySector[row.sector_id].push(u.nombre);
+  }
+
   const result = visibles.map((s: { id: string }) => ({
     ...s,
     count_flujogramas: flujoCountBySector[(s as { id: string }).id] ?? 0,
     count_instructivos: instrCountBySector[(s as { id: string }).id] ?? 0,
     tiene_alerta: alertaBySector[(s as { id: string }).id] ?? false,
+    responsables: responsablesBySector[(s as { id: string }).id] ?? [],
   }));
 
   return NextResponse.json(result);

@@ -21,6 +21,7 @@ interface Sector {
   count_flujogramas: number;
   count_instructivos: number;
   tiene_alerta: boolean;
+  responsables: string[];
 }
 
 interface Stats {
@@ -138,7 +139,12 @@ export default function ProcesosPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="px-4 pb-4 space-y-1">
+                  <CardContent className="px-4 pb-4 space-y-1.5">
+                    {sector.responsables.length > 0 && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {sector.responsables.join(", ")}
+                      </p>
+                    )}
                     <div className="flex gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <GitBranch className="h-3 w-3" />
@@ -149,9 +155,6 @@ export default function ProcesosPage() {
                         {sector.count_instructivos} instructivo{sector.count_instructivos !== 1 ? "s" : ""}
                       </span>
                     </div>
-                    {sector.descripcion && (
-                      <p className="text-xs text-muted-foreground line-clamp-1">{sector.descripcion}</p>
-                    )}
                   </CardContent>
                 </Card>
               </Link>
