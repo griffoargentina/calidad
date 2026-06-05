@@ -188,7 +188,7 @@ function LanesConfigPanel({ allSectores, lanes, onChange, onClose }: LanesConfig
   return (
     <div className="w-64 border-l bg-white flex flex-col overflow-hidden shrink-0">
       <div className="flex items-center justify-between px-4 py-3 border-b">
-        <span className="font-semibold text-sm">Configurar carriles</span>
+        <span className="font-semibold text-sm">Sectores del diagrama</span>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
@@ -319,7 +319,7 @@ function EditPanel({ node, allSectores, instructivos, lanes, onSave, onClose, on
 
         {activeLaneSectors.length > 0 && (
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Columna (carril)</label>
+            <label className="text-xs font-medium text-muted-foreground">Columna del sector</label>
             <Select value={laneSectorId} onValueChange={setLaneSectorId}>
               <SelectTrigger className="mt-1 h-8 text-sm">
                 <SelectValue placeholder="Sin carril asignado" />
@@ -558,17 +558,20 @@ export function FlujogramaEditor({
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <div className="border-b bg-white px-4 py-2 flex items-center gap-2 shrink-0 flex-wrap">
+        {/* Sector button always visible */}
+        <Button
+          size="sm"
+          variant={lanes.length > 0 ? "secondary" : "outline"}
+          className="h-7 text-xs gap-1.5"
+          onClick={() => { if (canEdit) { setShowLanesConfig((v) => !v); setSelectedNode(null); } }}
+          disabled={!canEdit}
+        >
+          <LayoutGrid className="h-3 w-3" />
+          {lanes.length > 0 ? `Sectores (${lanes.length})` : "Agregar sector"}
+        </Button>
+
         {canEdit ? (
           <>
-            <Button
-              size="sm"
-              variant={lanes.length > 0 ? "secondary" : "outline"}
-              className="h-7 text-xs gap-1.5"
-              onClick={() => { setShowLanesConfig((v) => !v); setSelectedNode(null); }}
-            >
-              <LayoutGrid className="h-3 w-3" />
-              {lanes.length > 0 ? `Carriles (${lanes.length})` : "Carriles"}
-            </Button>
 
             <div className="w-px h-4 bg-border mx-0.5" />
 
