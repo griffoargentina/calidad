@@ -174,9 +174,13 @@ export default function SectorDetailPage() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-semibold">{sector.nombre}</h1>
-                {sector.privado && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
-                    <Lock className="h-3 w-3" />PRIVADO
+                {sector.privado ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                    <Lock className="h-3 w-3" />Privado
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                    Público
                   </span>
                 )}
               </div>
