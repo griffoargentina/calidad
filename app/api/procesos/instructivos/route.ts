@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
-  const { sector_id, nombre, responsable_id, url_archivo, nombre_archivo, es_publico } = await req.json();
+  const { sector_id, nombre, responsable_id, url_archivo, nombre_archivo, es_publico, estado } = await req.json();
   if (!sector_id || !nombre?.trim()) {
     return NextResponse.json({ error: "sector_id y nombre son requeridos" }, { status: 400 });
   }
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       url_archivo: url_archivo || null,
       nombre_archivo: nombre_archivo || null,
       es_publico: es_publico ?? false,
-      estado: "pendiente_aprobacion",
+      estado: estado ?? "borrador",
     })
     .select("*, responsable:usuarios!responsable_id(id, nombre)")
     .single();

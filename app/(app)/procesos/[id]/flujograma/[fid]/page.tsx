@@ -134,6 +134,7 @@ export default function FlujogramaEditorPage() {
         <FlujogramaEditor
           key={editorKey}
           flujogramaId={fid}
+          flujogramaSectorId={flujograma.sector_id}
           initialNodes={initialNodes}
           initialEdges={initialEdges}
           initialLanes={initialLanes}

@@ -11,7 +11,7 @@ import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, Plus, X, Loader2, Trash2, Circle, Square, Diamond, LayoutGrid } from "lucide-react";
+import { Save, Plus, X, Loader2, Trash2, Circle, Square, Diamond, LayoutGrid, FileText, ExternalLink, Upload } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -21,7 +21,7 @@ const LANE_HEADER = 48;
 // ─── Data types ────────────────────────────────────────────────────────────────
 
 export interface Sector { id: string; nombre: string }
-export interface Instructivo { id: string; nombre: string; version: number }
+export interface Instructivo { id: string; nombre: string; version: number; url_archivo?: string | null }
 
 export interface NodeData {
   nombre: string;
@@ -232,19 +232,33 @@ interface PanelProps {
   allSectores: Sector[];
   instructivos: Instructivo[];
   lanes: string[];
+  flujogramaSectorId: string;
   onSave: (id: string, data: Partial<NodeData>) => void;
   onClose: () => void;
   onDelete: (id: string) => void;
   canDelete: boolean;
 }
 
-function EditPanel({ node, allSectores, instructivos, lanes, onSave, onClose, onDelete, canDelete }: PanelProps) {
+function EditPanel({
+  node, allSectores, instructivos, lanes, flujogramaSectorId,
+  onSave, onClose, onDelete, canDelete,
+}: PanelProps) {
   const [nombre, setNombre] = useState(node.data.nombre);
   const [tipo, setTipo] = useState(node.data.tipo);
   const [descripcion, setDescripcion] = useState(node.data.descripcion ?? "");
   const [sectores, setSectores] = useState<string[]>(node.data.sectores ?? []);
   const [instructivoId, setInstructivoId] = useState(node.data.instructivo_id ?? "__none__");
   const [laneSectorId, setLaneSectorId] = useState(node.data.lane_sector_id ?? "__none__");
+
+  // Extra instructivos created inline (not yet in the parent list)
+  const [localInstructivos, setLocalInstructivos] = useState<Instructivo[]>([]);
+
+  // Inline create-instructivo form
+  const [creatingInst, setCreatingInst] = useState(false);
+  const [instNombre, setInstNombre] = useState("");
+  const [instFile, setInstFile] = useState<File | null>(null);
+  const [instUploading, setInstUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setNombre(node.data.nombre);
@@ -253,11 +267,15 @@ function EditPanel({ node, allSectores, instructivos, lanes, onSave, onClose, on
     setSectores(node.data.sectores ?? []);
     setInstructivoId(node.data.instructivo_id ?? "__none__");
     setLaneSectorId(node.data.lane_sector_id ?? "__none__");
+    setCreatingInst(false);
+    setInstNombre("");
+    setInstFile(null);
   }, [node.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSave() {
     const sectorNombres = allSectores.filter((s) => sectores.includes(s.id)).map((s) => s.nombre);
-    const inst = instructivos.find((i) => i.id === instructivoId);
+    const allInst = [...instructivos, ...localInstructivos];
+    const inst = allInst.find((i) => i.id === instructivoId);
     onSave(node.id, {
       nombre, tipo,
       descripcion: descripcion || undefined,
@@ -270,7 +288,51 @@ function EditPanel({ node, allSectores, instructivos, lanes, onSave, onClose, on
     onClose();
   }
 
+  async function handleCreateInstructivo() {
+    if (!instNombre.trim()) return;
+    setInstUploading(true);
+
+    let url_archivo: string | null = null;
+    let nombre_archivo: string | null = null;
+
+    if (instFile) {
+      const fd = new FormData();
+      fd.append("file", instFile);
+      const uploadRes = await fetch("/api/procesos/instructivos/upload", { method: "POST", body: fd });
+      if (uploadRes.ok) {
+        const d = await uploadRes.json();
+        url_archivo = d.url;
+        nombre_archivo = d.nombre_archivo;
+      }
+    }
+
+    const res = await fetch("/api/procesos/instructivos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sector_id: flujogramaSectorId,
+        nombre: instNombre.trim(),
+        url_archivo,
+        nombre_archivo,
+        estado: "borrador",
+      }),
+    });
+
+    if (res.ok) {
+      const newInst: Instructivo = await res.json();
+      setLocalInstructivos((prev) => [...prev, newInst]);
+      setInstructivoId(newInst.id);
+      setCreatingInst(false);
+      setInstNombre("");
+      setInstFile(null);
+    }
+
+    setInstUploading(false);
+  }
+
   const activeLaneSectors = allSectores.filter((s) => lanes.includes(s.id));
+  const allInstructivos = [...instructivos, ...localInstructivos];
+  const linkedInst = allInstructivos.find((i) => i.id === instructivoId);
 
   return (
     <div className="w-72 border-l bg-white flex flex-col overflow-hidden shrink-0">
@@ -336,7 +398,7 @@ function EditPanel({ node, allSectores, instructivos, lanes, onSave, onClose, on
 
         <div>
           <label className="text-xs font-medium text-muted-foreground">Sectores participantes</label>
-          <div className="mt-1 border rounded-md p-2 space-y-0.5 max-h-44 overflow-y-auto">
+          <div className="mt-1 border rounded-md p-2 space-y-0.5 max-h-36 overflow-y-auto">
             {allSectores.map((s) => (
               <label key={s.id} className="flex items-center gap-2 cursor-pointer text-sm py-0.5">
                 <input type="checkbox" className="rounded"
@@ -351,19 +413,98 @@ function EditPanel({ node, allSectores, instructivos, lanes, onSave, onClose, on
           </div>
         </div>
 
-        <div>
-          <label className="text-xs font-medium text-muted-foreground">Instructivo vinculado</label>
-          <Select value={instructivoId} onValueChange={setInstructivoId}>
-            <SelectTrigger className="mt-1 h-8 text-sm">
-              <SelectValue placeholder="Sin instructivo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Sin instructivo</SelectItem>
-              {instructivos.map((inst) => (
-                <SelectItem key={inst.id} value={inst.id}>{inst.nombre} v{inst.version}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* ── Instructivo section ── */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-muted-foreground">Instructivo</label>
+            {!creatingInst && (
+              <Button size="sm" variant="ghost" className="h-6 text-xs px-2 text-blue-600 hover:text-blue-700"
+                onClick={() => { setCreatingInst(true); setInstNombre(nombre); }}>
+                <Plus className="h-3 w-3 mr-1" />Crear nuevo
+              </Button>
+            )}
+          </div>
+
+          {/* Existing instructivo selector */}
+          {!creatingInst && (
+            <Select value={instructivoId} onValueChange={setInstructivoId}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Sin instructivo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sin instructivo</SelectItem>
+                {allInstructivos.map((inst) => (
+                  <SelectItem key={inst.id} value={inst.id}>{inst.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Ver link when linked */}
+          {!creatingInst && linkedInst && linkedInst.url_archivo && (
+            <a
+              href={linkedInst.url_archivo}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline"
+            >
+              <FileText className="h-3 w-3" />
+              {linkedInst.nombre}
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+
+          {/* Inline create form */}
+          {creatingInst && (
+            <div className="border rounded-lg p-3 space-y-3 bg-blue-50/50 border-blue-100">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Nombre del instructivo *</label>
+                <Input className="mt-1 h-8 text-sm" value={instNombre}
+                  onChange={(e) => setInstNombre(e.target.value)}
+                  placeholder="Ej: Cómo procesar una factura" />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Archivo o video</label>
+                <div
+                  className="mt-1 border-2 border-dashed border-blue-200 rounded-md p-3 text-center cursor-pointer hover:border-blue-400 transition-colors"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {instFile ? (
+                    <div className="flex items-center justify-center gap-2 text-xs text-slate-700">
+                      <FileText className="h-4 w-4 text-blue-500 shrink-0" />
+                      <span className="truncate max-w-[150px]">{instFile.name}</span>
+                      <button className="text-muted-foreground hover:text-destructive ml-1"
+                        onClick={(e) => { e.stopPropagation(); setInstFile(null); }}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                      <Upload className="h-5 w-5 opacity-40" />
+                      <span className="text-xs">Hacer clic para seleccionar</span>
+                      <span className="text-[10px] opacity-60">PDF, Word, MP4, etc.</span>
+                    </div>
+                  )}
+                </div>
+                <input ref={fileRef} type="file" className="hidden"
+                  onChange={(e) => setInstFile(e.target.files?.[0] ?? null)} />
+              </div>
+
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1 h-7 text-xs"
+                  onClick={handleCreateInstructivo}
+                  disabled={instUploading || !instNombre.trim()}>
+                  {instUploading
+                    ? <><Loader2 className="h-3 w-3 animate-spin mr-1" />Creando…</>
+                    : "Crear y vincular"}
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs"
+                  onClick={() => { setCreatingInst(false); setInstFile(null); }}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -380,6 +521,7 @@ function EditPanel({ node, allSectores, instructivos, lanes, onSave, onClose, on
 
 interface Props {
   flujogramaId: string;
+  flujogramaSectorId: string;
   initialNodes: Node<NodeData>[];
   initialEdges: Edge[];
   initialLanes?: string[];
@@ -391,7 +533,7 @@ interface Props {
 }
 
 export function FlujogramaEditor({
-  flujogramaId, initialNodes, initialEdges, initialLanes,
+  flujogramaId, flujogramaSectorId, initialNodes, initialEdges, initialLanes,
   allSectores, instructivos, canEdit, isAdmin, onSaved,
 }: Props) {
   const [nodes, setNodes] = useState<Node<NodeData>[]>(initialNodes);
@@ -671,6 +813,7 @@ export function FlujogramaEditor({
             allSectores={allSectores}
             instructivos={instructivos}
             lanes={lanes}
+            flujogramaSectorId={flujogramaSectorId}
             onSave={(id, data) => {
               updateNodeData(id, data);
               setSelectedNode(null);
