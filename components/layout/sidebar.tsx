@@ -33,7 +33,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/items", label: "Documentos", icon: FileText },
-  { href: "/procedimientos", label: "Procedimientos", icon: ClipboardList },
+  { href: "/procesos", label: "Procesos", icon: ClipboardList },
   { href: "/auditorias", label: "Auditorías", icon: ClipboardCheck },
   { href: "/vencimientos", label: "Vencimientos", icon: CalendarClock },
   { href: "/calibracion", label: "Calibración", icon: Gauge },
