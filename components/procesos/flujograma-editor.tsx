@@ -11,7 +11,7 @@ import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, Plus, X, Loader2, Trash2, Circle, Square, Diamond, LayoutGrid, FileText, ExternalLink, Upload } from "lucide-react";
+import { Save, Plus, X, Loader2, Trash2, Circle, Square, Diamond, LayoutGrid, FileText, ExternalLink, Upload, History, RotateCcw } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -257,6 +257,7 @@ function EditPanel({
   const [creatingInst, setCreatingInst] = useState(false);
   const [instNombre, setInstNombre] = useState("");
   const [instFile, setInstFile] = useState<File | null>(null);
+  const [instSectores, setInstSectores] = useState<string[]>([]);
   const [instUploading, setInstUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -322,9 +323,12 @@ function EditPanel({
       const newInst: Instructivo = await res.json();
       setLocalInstructivos((prev) => [...prev, newInst]);
       setInstructivoId(newInst.id);
+      // Sync chosen sectors back to the paso
+      setSectores(instSectores);
       setCreatingInst(false);
       setInstNombre("");
       setInstFile(null);
+      setInstSectores([]);
     }
 
     setInstUploading(false);
@@ -419,7 +423,7 @@ function EditPanel({
             <label className="text-xs font-medium text-muted-foreground">Instructivo</label>
             {!creatingInst && (
               <Button size="sm" variant="ghost" className="h-6 text-xs px-2 text-blue-600 hover:text-blue-700"
-                onClick={() => { setCreatingInst(true); setInstNombre(nombre); }}>
+                onClick={() => { setCreatingInst(true); setInstNombre(nombre); setInstSectores(sectores); }}>
                 <Plus className="h-3 w-3 mr-1" />Crear nuevo
               </Button>
             )}
@@ -461,6 +465,23 @@ function EditPanel({
                 <Input className="mt-1 h-8 text-sm" value={instNombre}
                   onChange={(e) => setInstNombre(e.target.value)}
                   placeholder="Ej: Cómo procesar una factura" />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Sectores que intervienen</label>
+                <div className="mt-1 border rounded-md p-2 space-y-0.5 max-h-32 overflow-y-auto bg-white">
+                  {allSectores.map((s) => (
+                    <label key={s.id} className="flex items-center gap-2 cursor-pointer text-sm py-0.5">
+                      <input type="checkbox" className="rounded"
+                        checked={instSectores.includes(s.id)}
+                        onChange={(e) => setInstSectores(e.target.checked
+                          ? [...instSectores, s.id]
+                          : instSectores.filter((id) => id !== s.id)
+                        )} />
+                      {s.nombre}
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -517,6 +538,105 @@ function EditPanel({
   );
 }
 
+// ─── Historial Panel ─────────────────────────────────────────────────────────
+
+interface HistorialEntry {
+  id: string;
+  fecha: string;
+  resumen: string | null;
+  flow_data: { nodes: Node<NodeData>[]; edges: Edge[] };
+  guardado_por: { nombre: string } | { nombre: string }[] | null;
+}
+
+interface HistorialPanelProps {
+  flujogramaId: string;
+  onRestore: (nodes: Node<NodeData>[], edges: Edge[]) => void;
+  onClose: () => void;
+}
+
+function HistorialPanel({ flujogramaId, onRestore, onClose }: HistorialPanelProps) {
+  const [entries, setEntries] = useState<HistorialEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/procesos/flujogramas/${flujogramaId}/historial`)
+      .then((r) => r.json())
+      .then((d) => { setEntries(Array.isArray(d) ? d : []); setLoading(false); });
+  }, [flujogramaId]);
+
+  function formatFecha(iso: string) {
+    const d = new Date(iso);
+    return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
+      + " " + d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function getUsuario(entry: HistorialEntry) {
+    const u = Array.isArray(entry.guardado_por) ? entry.guardado_por[0] : entry.guardado_por;
+    return u?.nombre ?? "—";
+  }
+
+  return (
+    <div className="w-72 border-l bg-white flex flex-col overflow-hidden shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b">
+        <div className="flex items-center gap-2">
+          <History className="h-4 w-4 text-muted-foreground" />
+          <span className="font-semibold text-sm">Historial</span>
+        </div>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : entries.length === 0 ? (
+          <div className="flex flex-col items-center py-10 text-muted-foreground gap-2">
+            <History className="h-8 w-8 opacity-20" />
+            <p className="text-xs">Sin historial aún. Guardá el diagrama para crear la primera versión.</p>
+          </div>
+        ) : (
+          <div className="divide-y">
+            {entries.map((entry, i) => (
+              <div key={entry.id} className="px-4 py-3 hover:bg-slate-50 group">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-slate-700">{formatFecha(entry.fecha)}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{getUsuario(entry)}</p>
+                    {entry.resumen && (
+                      <p className="text-[11px] text-muted-foreground/70 mt-0.5">{entry.resumen}</p>
+                    )}
+                  </div>
+                  {i > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 text-[11px] px-2 opacity-0 group-hover:opacity-100 shrink-0 text-blue-600 hover:text-blue-700"
+                      onClick={() => {
+                        if (confirm(`¿Restaurar a esta versión del ${formatFecha(entry.fecha)}? Los cambios sin guardar se perderán.`)) {
+                          onRestore(entry.flow_data.nodes ?? [], entry.flow_data.edges ?? []);
+                          onClose();
+                        }
+                      }}
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />Restaurar
+                    </Button>
+                  )}
+                  {i === 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium shrink-0">actual</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main editor ───────────────────────────────────────────────────────────────
 
 interface Props {
@@ -541,6 +661,7 @@ export function FlujogramaEditor({
   const [lanes, setLanes] = useState<string[]>(initialLanes ?? []);
   const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
   const [showLanesConfig, setShowLanesConfig] = useState(false);
+  const [showHistorial, setShowHistorial] = useState(false);
   const [addLaneSectorId, setAddLaneSectorId] = useState<string>("__none__");
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -655,6 +776,13 @@ export function FlujogramaEditor({
     setDirty(true);
   }
 
+  function restoreSnapshot(restoredNodes: Node<NodeData>[], restoredEdges: Edge[]) {
+    setNodes(restoredNodes);
+    setEdges(restoredEdges);
+    setSelectedNode(null);
+    setDirty(true);
+  }
+
   function handleLanesChange(newLanes: string[]) {
     setLanes(newLanes);
     setDirty(true);
@@ -684,15 +812,16 @@ export function FlujogramaEditor({
     if (res.ok) { setDirty(false); onSaved?.(); }
   }
 
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    if ((node.id as string).startsWith("__lane__")) return;
-    if (canEdit) setSelectedNode(node as Node<NodeData>);
-  }, [canEdit]);
 
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
     setShowLanesConfig(false);
   }, []);
+
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    if ((node.id as string).startsWith("__lane__")) return;
+    if (canEdit) { setSelectedNode(node as Node<NodeData>); setShowHistorial(false); setShowLanesConfig(false); }
+  }, [canEdit]);
 
   const activeLaneSectors = allSectores.filter((s) => lanes.includes(s.id));
 
@@ -705,7 +834,7 @@ export function FlujogramaEditor({
           size="sm"
           variant={lanes.length > 0 ? "secondary" : "outline"}
           className="h-7 text-xs gap-1.5"
-          onClick={() => { if (canEdit) { setShowLanesConfig((v) => !v); setSelectedNode(null); } }}
+          onClick={() => { if (canEdit) { setShowLanesConfig((v) => !v); setShowHistorial(false); setSelectedNode(null); } }}
           disabled={!canEdit}
         >
           <LayoutGrid className="h-3 w-3" />
@@ -756,6 +885,15 @@ export function FlujogramaEditor({
         ) : (
           <span className="text-xs text-muted-foreground">Vista de solo lectura</span>
         )}
+
+        {/* Historial button — always visible */}
+        <Button
+          size="sm" variant={showHistorial ? "secondary" : "ghost"}
+          className="h-7 text-xs gap-1.5 ml-1"
+          onClick={() => { setShowHistorial((v) => !v); setShowLanesConfig(false); setSelectedNode(null); }}
+        >
+          <History className="h-3 w-3" />Historial
+        </Button>
       </div>
 
       {/* Canvas + side panels */}
@@ -807,7 +945,15 @@ export function FlujogramaEditor({
           />
         )}
 
-        {selectedNode && !showLanesConfig && canEdit && (
+        {showHistorial && (
+          <HistorialPanel
+            flujogramaId={flujogramaId}
+            onRestore={restoreSnapshot}
+            onClose={() => setShowHistorial(false)}
+          />
+        )}
+
+        {selectedNode && !showLanesConfig && !showHistorial && canEdit && (
           <EditPanel
             node={selectedNode}
             allSectores={allSectores}

@@ -64,6 +64,16 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Auto-log revision on every edit
+  await admin.from("proc_revisiones").insert({
+    instructivo_id: params.id,
+    revisado_por: user.id,
+    fecha: allowed.updated_at,
+    hubo_cambio: true,
+    observaciones: "Editado",
+  });
+
   return NextResponse.json(data);
 }
 

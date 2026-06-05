@@ -19,14 +19,28 @@ export async function POST(
   const { flow_data, nodes } = await req.json();
   // nodes: Array<{ id, nombre, tipo, descripcion, sectores: string[], instructivo_id: string|null, orden: number }>
 
+  const ahora = new Date().toISOString();
+
   // 1. Save flow_data + bump updated_at
   const { error: flujErr } = await admin
     .from("proc_flujogramas")
-    .update({ flow_data, updated_at: new Date().toISOString() })
+    .update({ flow_data, updated_at: ahora })
     .eq("id", params.id);
   if (flujErr) return NextResponse.json({ error: flujErr.message }, { status: 500 });
 
-  // 2. Sync proc_pasos — upsert all nodes, delete removed ones
+  // 2. Save historial snapshot
+  const nPasos = nodes.length;
+  const nConex = (flow_data?.edges?.length ?? 0) as number;
+  const resumen = `${nPasos} paso${nPasos !== 1 ? "s" : ""}, ${nConex} conexi${nConex !== 1 ? "ones" : "ón"}`;
+  await admin.from("proc_flujograma_historial").insert({
+    flujograma_id: params.id,
+    guardado_por: user.id,
+    fecha: ahora,
+    flow_data,
+    resumen,
+  });
+
+  // 3. Sync proc_pasos — upsert all nodes, delete removed ones
   const nodeIds: string[] = nodes.map((n: { id: string }) => n.id);
 
   // Delete pasos that are no longer in the diagram
