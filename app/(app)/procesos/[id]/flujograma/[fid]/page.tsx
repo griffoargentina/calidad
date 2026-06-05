@@ -16,7 +16,7 @@ interface Flujograma {
   sector_id: string;
   version: number;
   estado: string;
-  flow_data: { nodes: Node<NodeData>[]; edges: Edge[] } | null;
+  flow_data: { nodes: Node<NodeData>[]; edges: Edge[]; lanes?: string[] } | null;
   sector: { id: string; nombre: string } | { id: string; nombre: string }[] | null;
   pasos: Array<{
     id: string; nombre: string; tipo: string; orden: number;
@@ -34,6 +34,7 @@ export default function FlujogramaEditorPage() {
   const [flujograma, setFlujograma] = useState<Flujograma | null>(null);
   const [initialNodes, setInitialNodes] = useState<Node<NodeData>[]>([]);
   const [initialEdges, setInitialEdges] = useState<Edge[]>([]);
+  const [initialLanes, setInitialLanes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [userRol, setUserRol] = useState("lector");
   const [allSectores, setAllSectores] = useState<Sector[]>([]);
@@ -50,10 +51,12 @@ export default function FlujogramaEditorPage() {
     if (data.flow_data?.nodes) {
       setInitialNodes(data.flow_data.nodes);
       setInitialEdges(data.flow_data.edges ?? []);
+      setInitialLanes(data.flow_data.lanes ?? []);
     } else {
       const { nodes, edges } = pasosToFlow(data.pasos ?? []);
       setInitialNodes(nodes);
       setInitialEdges(edges);
+      setInitialLanes([]);
     }
 
     setLoading(false);
@@ -133,6 +136,7 @@ export default function FlujogramaEditorPage() {
           flujogramaId={fid}
           initialNodes={initialNodes}
           initialEdges={initialEdges}
+          initialLanes={initialLanes}
           allSectores={allSectores}
           instructivos={sectorInstructivos}
           canEdit={canEdit}

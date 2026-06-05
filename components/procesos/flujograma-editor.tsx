@@ -11,7 +11,12 @@ import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, Plus, X, Loader2, Trash2, Circle, Square, Diamond } from "lucide-react";
+import { Save, Plus, X, Loader2, Trash2, Circle, Square, Diamond, LayoutGrid } from "lucide-react";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const LANE_WIDTH = 230;
+const LANE_HEADER = 48;
 
 // ─── Data types ────────────────────────────────────────────────────────────────
 
@@ -24,16 +29,38 @@ export interface NodeData {
   descripcion?: string;
   sectores: string[];
   instructivo_id: string | null;
+  lane_sector_id?: string;
   sector_nombres?: string[];
   instructivo_nombre?: string;
   [key: string]: unknown;
 }
 
-// ─── Custom node shapes ────────────────────────────────────────────────────────
+// ─── Lane background node ─────────────────────────────────────────────────────
 
-function IniciоFinNode({ data, selected }: { data: NodeData; selected?: boolean }) {
+function LaneNode({ data }: { data: { nombre: string; height: number } }) {
   return (
-    <div className={`px-5 py-2 rounded-full border-2 text-sm font-semibold text-center min-w-[100px] select-none
+    <div
+      style={{ width: LANE_WIDTH, height: data.height, pointerEvents: "none" }}
+      className="border-r border-slate-200 select-none"
+    >
+      <div
+        style={{ height: LANE_HEADER }}
+        className="border-b border-slate-200 bg-slate-100 flex items-center justify-center px-3"
+      >
+        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide text-center leading-tight">
+          {data.nombre}
+        </span>
+      </div>
+      <div className="bg-white/70" style={{ height: data.height - LANE_HEADER }} />
+    </div>
+  );
+}
+
+// ─── Process node shapes ──────────────────────────────────────────────────────
+
+function InicioFinNode({ data, selected }: { data: NodeData; selected?: boolean }) {
+  return (
+    <div className={`px-5 py-2 rounded-full border-2 text-sm font-semibold text-center min-w-[110px] select-none
       ${data.tipo === "inicio" ? "bg-green-50 border-green-400 text-green-800" : "bg-slate-100 border-slate-400 text-slate-700"}
       ${selected ? "ring-2 ring-primary ring-offset-1" : ""}`}>
       <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-slate-400" />
@@ -46,9 +73,10 @@ function IniciоFinNode({ data, selected }: { data: NodeData; selected?: boolean
 function ProcesoNode({ data, selected }: { data: NodeData; selected?: boolean }) {
   return (
     <div className={`px-4 py-3 rounded-lg border-2 text-sm min-w-[140px] max-w-[200px] select-none bg-white
-      ${selected ? "border-primary ring-2 ring-primary/20" : "border-blue-300"}
-      shadow-sm`}>
+      ${selected ? "border-primary ring-2 ring-primary/20" : "border-blue-300"} shadow-sm`}>
       <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-blue-400" />
+      <Handle type="target" position={Position.Left} id="left-in" className="!w-2 !h-2 !bg-blue-400" />
+      <Handle type="target" position={Position.Right} id="right-in" className="!w-2 !h-2 !bg-blue-400" />
       <p className="font-medium text-slate-800 text-center leading-tight">{data.nombre}</p>
       {data.sector_nombres && data.sector_nombres.length > 0 && (
         <div className="flex flex-wrap gap-0.5 justify-center mt-1.5">
@@ -58,6 +86,8 @@ function ProcesoNode({ data, selected }: { data: NodeData; selected?: boolean })
         </div>
       )}
       <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-blue-400" />
+      <Handle type="source" position={Position.Right} id="right-out" className="!w-2 !h-2 !bg-blue-400" />
+      <Handle type="source" position={Position.Left} id="left-out" className="!w-2 !h-2 !bg-blue-400" />
     </div>
   );
 }
@@ -66,7 +96,6 @@ function DecisionNode({ data, selected }: { data: NodeData; selected?: boolean }
   return (
     <div style={{ width: 130, height: 90 }} className="relative select-none flex items-center justify-center">
       <Handle type="target" position={Position.Top} style={{ top: 0 }} className="!w-2 !h-2 !bg-amber-500" />
-      {/* Diamond shape via SVG */}
       <svg width="130" height="90" className="absolute inset-0">
         <polygon
           points="65,4 126,45 65,86 4,45"
@@ -75,10 +104,9 @@ function DecisionNode({ data, selected }: { data: NodeData; selected?: boolean }
           strokeWidth={selected ? 2.5 : 2}
         />
       </svg>
-      <div className="relative z-10 text-center px-5">
+      <div className="relative z-10 text-center px-6">
         <p className="text-[11px] font-semibold text-amber-900 leading-tight">{data.nombre}</p>
       </div>
-      {/* Sí right, No left */}
       <Handle type="source" position={Position.Right} id="si" style={{ right: -4, top: "50%" }}
         className="!w-2 !h-2 !bg-green-500" />
       <Handle type="source" position={Position.Left} id="no" style={{ left: -4, top: "50%" }}
@@ -90,19 +118,22 @@ function DecisionNode({ data, selected }: { data: NodeData; selected?: boolean }
 }
 
 const nodeTypes = {
-  inicio: IniciоFinNode,
+  lane: LaneNode,
+  inicio: InicioFinNode,
   proceso: ProcesoNode,
   decision: DecisionNode,
-  fin: IniciоFinNode,
+  fin: InicioFinNode,
 };
 
-// ─── Helper ────────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function laneX(index: number): number {
+  return index * LANE_WIDTH + LANE_WIDTH / 2 - 65;
+}
 
 function makeNode(id: string, tipo: NodeData["tipo"], nombre: string, x: number, y: number): Node<NodeData> {
   return {
-    id,
-    type: tipo,
-    position: { x, y },
+    id, type: tipo, position: { x, y },
     data: { nombre, tipo, sectores: [], instructivo_id: null, sector_nombres: [] },
   };
 }
@@ -124,7 +155,6 @@ export function pasosToFlow(pasos: Array<{
       instructivo_nombre: p.instructivo?.nombre,
     },
   }));
-  // Connect sequentially
   const edges: Edge[] = nodes.slice(0, -1).map((n, i) => ({
     id: `e-${n.id}-${nodes[i + 1].id}`,
     source: n.id,
@@ -135,48 +165,112 @@ export function pasosToFlow(pasos: Array<{
   return { nodes, edges };
 }
 
-// ─── Edit panel ────────────────────────────────────────────────────────────────
+// ─── Lanes Config Panel ───────────────────────────────────────────────────────
+
+interface LanesConfigProps {
+  allSectores: Sector[];
+  lanes: string[];
+  onChange: (lanes: string[]) => void;
+  onClose: () => void;
+}
+
+function LanesConfigPanel({ allSectores, lanes, onChange, onClose }: LanesConfigProps) {
+  const [selected, setSelected] = useState<string[]>(lanes);
+
+  function toggle(id: string) {
+    setSelected((prev) =>
+      prev.includes(id)
+        ? prev.filter((s) => s !== id)
+        : [...prev, id]
+    );
+  }
+
+  return (
+    <div className="w-64 border-l bg-white flex flex-col overflow-hidden shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b">
+        <span className="font-semibold text-sm">Configurar carriles</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4">
+        <p className="text-xs text-muted-foreground mb-3">
+          Seleccioná los sectores que aparecen como columnas del diagrama. El orden de la lista es el orden de las columnas.
+        </p>
+        <div className="space-y-0.5">
+          {allSectores.map((s) => (
+            <label key={s.id} className="flex items-center gap-2 cursor-pointer text-sm py-1.5 hover:bg-slate-50 px-1 rounded">
+              <input type="checkbox" className="rounded"
+                checked={selected.includes(s.id)}
+                onChange={() => toggle(s.id)} />
+              <span className="flex-1">{s.nombre}</span>
+              {selected.includes(s.id) && (
+                <span className="text-[10px] text-slate-400 font-medium">
+                  col. {selected.indexOf(s.id) + 1}
+                </span>
+              )}
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="border-t px-4 py-3 flex gap-2">
+        <Button className="flex-1 h-8 text-sm" onClick={() => { onChange(selected); onClose(); }}>
+          Aplicar
+        </Button>
+        <Button variant="outline" className="h-8 text-sm" onClick={onClose}>
+          Cancelar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit Panel ────────────────────────────────────────────────────────────────
 
 interface PanelProps {
   node: Node<NodeData>;
   allSectores: Sector[];
   instructivos: Instructivo[];
+  lanes: string[];
   onSave: (id: string, data: Partial<NodeData>) => void;
   onClose: () => void;
   onDelete: (id: string) => void;
   canDelete: boolean;
 }
 
-function EditPanel({ node, allSectores, instructivos, onSave, onClose, onDelete, canDelete }: PanelProps) {
+function EditPanel({ node, allSectores, instructivos, lanes, onSave, onClose, onDelete, canDelete }: PanelProps) {
   const [nombre, setNombre] = useState(node.data.nombre);
   const [tipo, setTipo] = useState(node.data.tipo);
   const [descripcion, setDescripcion] = useState(node.data.descripcion ?? "");
   const [sectores, setSectores] = useState<string[]>(node.data.sectores ?? []);
   const [instructivoId, setInstructivoId] = useState(node.data.instructivo_id ?? "__none__");
+  const [laneSectorId, setLaneSectorId] = useState(node.data.lane_sector_id ?? "__none__");
 
-  // Reset when node changes
   useEffect(() => {
     setNombre(node.data.nombre);
     setTipo(node.data.tipo);
     setDescripcion(node.data.descripcion ?? "");
     setSectores(node.data.sectores ?? []);
     setInstructivoId(node.data.instructivo_id ?? "__none__");
+    setLaneSectorId(node.data.lane_sector_id ?? "__none__");
   }, [node.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSave() {
     const sectorNombres = allSectores.filter((s) => sectores.includes(s.id)).map((s) => s.nombre);
     const inst = instructivos.find((i) => i.id === instructivoId);
     onSave(node.id, {
-      nombre,
-      tipo,
+      nombre, tipo,
       descripcion: descripcion || undefined,
       sectores,
       instructivo_id: instructivoId === "__none__" ? null : instructivoId,
+      lane_sector_id: laneSectorId === "__none__" ? undefined : laneSectorId,
       sector_nombres: sectorNombres,
       instructivo_nombre: inst?.nombre,
     });
     onClose();
   }
+
+  const activeLaneSectors = allSectores.filter((s) => lanes.includes(s.id));
 
   return (
     <div className="w-72 border-l bg-white flex flex-col overflow-hidden shrink-0">
@@ -194,6 +288,7 @@ function EditPanel({ node, allSectores, instructivos, onSave, onClose, onDelete,
           </Button>
         </div>
       </div>
+
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div>
           <label className="text-xs font-medium text-muted-foreground">Tipo</label>
@@ -207,18 +302,38 @@ function EditPanel({ node, allSectores, instructivos, onSave, onClose, onDelete,
             </SelectContent>
           </Select>
         </div>
+
         <div>
           <label className="text-xs font-medium text-muted-foreground">Nombre *</label>
           <Input className="mt-1 h-8 text-sm" value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSave()} />
         </div>
+
         <div>
           <label className="text-xs font-medium text-muted-foreground">Descripción</label>
           <textarea className="mt-1 w-full border rounded-md px-3 py-2 text-sm resize-none h-16 focus:outline-none focus:ring-1 focus:ring-ring"
             value={descripcion} onChange={(e) => setDescripcion(e.target.value)}
             placeholder="Opcional..." />
         </div>
+
+        {activeLaneSectors.length > 0 && (
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Columna (carril)</label>
+            <Select value={laneSectorId} onValueChange={setLaneSectorId}>
+              <SelectTrigger className="mt-1 h-8 text-sm">
+                <SelectValue placeholder="Sin carril asignado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sin carril</SelectItem>
+                {activeLaneSectors.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <div>
           <label className="text-xs font-medium text-muted-foreground">Sectores participantes</label>
           <div className="mt-1 border rounded-md p-2 space-y-0.5 max-h-44 overflow-y-auto">
@@ -235,10 +350,13 @@ function EditPanel({ node, allSectores, instructivos, onSave, onClose, onDelete,
             ))}
           </div>
         </div>
+
         <div>
           <label className="text-xs font-medium text-muted-foreground">Instructivo vinculado</label>
           <Select value={instructivoId} onValueChange={setInstructivoId}>
-            <SelectTrigger className="mt-1 h-8 text-sm"><SelectValue placeholder="Sin instructivo" /></SelectTrigger>
+            <SelectTrigger className="mt-1 h-8 text-sm">
+              <SelectValue placeholder="Sin instructivo" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">Sin instructivo</SelectItem>
               {instructivos.map((inst) => (
@@ -248,6 +366,7 @@ function EditPanel({ node, allSectores, instructivos, onSave, onClose, onDelete,
           </Select>
         </div>
       </div>
+
       <div className="border-t px-4 py-3">
         <Button className="w-full h-8 text-sm" onClick={handleSave} disabled={!nombre.trim()}>
           Aplicar cambios
@@ -263,6 +382,7 @@ interface Props {
   flujogramaId: string;
   initialNodes: Node<NodeData>[];
   initialEdges: Edge[];
+  initialLanes?: string[];
   allSectores: Sector[];
   instructivos: Instructivo[];
   canEdit: boolean;
@@ -271,19 +391,52 @@ interface Props {
 }
 
 export function FlujogramaEditor({
-  flujogramaId, initialNodes, initialEdges,
+  flujogramaId, initialNodes, initialEdges, initialLanes,
   allSectores, instructivos, canEdit, isAdmin, onSaved,
 }: Props) {
   const [nodes, setNodes] = useState<Node<NodeData>[]>(initialNodes);
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
+  const [lanes, setLanes] = useState<string[]>(initialLanes ?? []);
   const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
+  const [showLanesConfig, setShowLanesConfig] = useState(false);
+  const [addLaneSectorId, setAddLaneSectorId] = useState<string>("__none__");
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const idCounter = useRef(0);
 
+  // Dynamic lane height: enough to cover all nodes
+  const laneHeight = Math.max(
+    nodes.reduce((max, n) => Math.max(max, n.position.y + 250), LANE_HEADER + 400),
+    600
+  );
+
+  // Build lane background nodes (derived, not stored in `nodes`)
+  const laneNodes: Node[] = lanes.map((sectorId, index) => {
+    const sector = allSectores.find((s) => s.id === sectorId);
+    return {
+      id: `__lane__${sectorId}`,
+      type: "lane",
+      position: { x: index * LANE_WIDTH, y: 0 },
+      data: { nombre: sector?.nombre ?? sectorId, height: laneHeight },
+      draggable: false,
+      selectable: false,
+      connectable: false,
+      deletable: false,
+      zIndex: -1,
+    };
+  });
+
+  const allNodes = [...laneNodes, ...nodes];
+
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    setNodes((nds) => applyNodeChanges(changes, nds) as Node<NodeData>[]);
-    setDirty(true);
+    const processChanges = changes.filter((c) => {
+      const id = (c as { id?: string }).id ?? "";
+      return !id.startsWith("__lane__");
+    });
+    if (processChanges.length === 0) return;
+    setNodes((nds) => applyNodeChanges(processChanges, nds) as Node<NodeData>[]);
+    const moved = processChanges.some((c) => c.type === "position" || c.type === "remove");
+    if (moved) setDirty(true);
   }, []);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
@@ -297,8 +450,9 @@ export function FlujogramaEditor({
       id: `e-${connection.source}-${connection.target}-${Date.now()}`,
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { strokeWidth: 1.5 },
-      // Label Sí/No based on handle
-      label: connection.sourceHandle === "si" ? "Sí" : connection.sourceHandle === "no" ? "No" : undefined,
+      label: connection.sourceHandle === "si" ? "Sí"
+        : connection.sourceHandle === "no" ? "No"
+        : undefined,
     };
     setEdges((eds) => addEdge(edge, eds));
     setDirty(true);
@@ -307,15 +461,34 @@ export function FlujogramaEditor({
   function addNode(tipo: NodeData["tipo"]) {
     idCounter.current += 1;
     const id = crypto.randomUUID();
-    const nombre = tipo === "inicio" ? "Inicio" : tipo === "fin" ? "Fin" :
-      tipo === "decision" ? "¿Decisión?" : `Paso ${idCounter.current}`;
-    const y = nodes.length > 0
-      ? Math.max(...nodes.map((n) => n.position.y)) + 160
-      : 40;
-    const newNode = makeNode(id, tipo, nombre, 250, y);
+    const nombre = tipo === "inicio" ? "Inicio"
+      : tipo === "fin" ? "Fin"
+      : tipo === "decision" ? "¿Decisión?"
+      : `Paso ${idCounter.current}`;
+
+    const laneIndex = lanes.indexOf(addLaneSectorId);
+    let x = 250;
+    let y = 80;
+
+    if (laneIndex >= 0) {
+      x = laneX(laneIndex);
+      const nodesInLane = nodes.filter((n) => n.data.lane_sector_id === addLaneSectorId);
+      y = nodesInLane.length > 0
+        ? Math.max(...nodesInLane.map((n) => n.position.y)) + 160
+        : LANE_HEADER + 40;
+    } else if (nodes.length > 0) {
+      y = Math.max(...nodes.map((n) => n.position.y)) + 160;
+    }
+
+    const newNode: Node<NodeData> = {
+      ...makeNode(id, tipo, nombre, x, y),
+      data: {
+        ...makeNode(id, tipo, nombre, x, y).data,
+        lane_sector_id: laneIndex >= 0 ? addLaneSectorId : undefined,
+      },
+    };
     setNodes((nds) => [...nds, newNode]);
     setDirty(true);
-    // Auto-select for editing
     setSelectedNode(newNode);
   }
 
@@ -323,7 +496,13 @@ export function FlujogramaEditor({
     setNodes((nds) => nds.map((n) => {
       if (n.id !== id) return n;
       const newData = { ...n.data, ...data };
-      return { ...n, type: newData.tipo, data: newData };
+      let pos = n.position;
+      // If lane changed, snap x to that lane's center
+      if (data.lane_sector_id !== undefined && data.lane_sector_id !== n.data.lane_sector_id) {
+        const laneIdx = lanes.indexOf(data.lane_sector_id ?? "");
+        if (laneIdx >= 0) pos = { x: laneX(laneIdx), y: n.position.y };
+      }
+      return { ...n, type: newData.tipo, data: newData, position: pos };
     }));
     setDirty(true);
   }
@@ -334,9 +513,15 @@ export function FlujogramaEditor({
     setDirty(true);
   }
 
+  function handleLanesChange(newLanes: string[]) {
+    setLanes(newLanes);
+    setDirty(true);
+    if (!newLanes.includes(addLaneSectorId)) setAddLaneSectorId("__none__");
+  }
+
   async function handleSave() {
     setSaving(true);
-    const flow_data = { nodes, edges };
+    const flow_data = { nodes, edges, lanes };
     const nodesPayload = nodes.map((n, i) => ({
       id: n.id,
       nombre: n.data.nombre,
@@ -354,60 +539,85 @@ export function FlujogramaEditor({
     });
 
     setSaving(false);
-    if (res.ok) {
-      setDirty(false);
-      onSaved?.();
-    }
+    if (res.ok) { setDirty(false); onSaved?.(); }
   }
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    if ((node.id as string).startsWith("__lane__")) return;
     if (canEdit) setSelectedNode(node as Node<NodeData>);
   }, [canEdit]);
 
-  const onPaneClick = useCallback(() => setSelectedNode(null), []);
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+    setShowLanesConfig(false);
+  }, []);
+
+  const activeLaneSectors = allSectores.filter((s) => lanes.includes(s.id));
 
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <div className="border-b bg-white px-4 py-2 flex items-center gap-2 shrink-0 flex-wrap">
-        {canEdit && (
+        {canEdit ? (
           <>
-            <span className="text-xs text-muted-foreground font-medium mr-1">Agregar:</span>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5"
-              onClick={() => addNode("inicio")}>
+            <Button
+              size="sm"
+              variant={lanes.length > 0 ? "secondary" : "outline"}
+              className="h-7 text-xs gap-1.5"
+              onClick={() => { setShowLanesConfig((v) => !v); setSelectedNode(null); }}
+            >
+              <LayoutGrid className="h-3 w-3" />
+              {lanes.length > 0 ? `Carriles (${lanes.length})` : "Carriles"}
+            </Button>
+
+            <div className="w-px h-4 bg-border mx-0.5" />
+
+            {lanes.length > 0 && (
+              <Select value={addLaneSectorId} onValueChange={setAddLaneSectorId}>
+                <SelectTrigger className="h-7 text-xs w-40">
+                  <SelectValue placeholder="En columna…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sin columna</SelectItem>
+                  {activeLaneSectors.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <span className="text-xs text-muted-foreground font-medium">Agregar:</span>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => addNode("inicio")}>
               <Circle className="h-3 w-3 fill-green-400 text-green-600" />Inicio
             </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5"
-              onClick={() => addNode("proceso")}>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => addNode("proceso")}>
               <Square className="h-3 w-3 fill-blue-100 text-blue-600" />Proceso
             </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5"
-              onClick={() => addNode("decision")}>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => addNode("decision")}>
               <Diamond className="h-3 w-3 fill-amber-100 text-amber-600" />Decisión
             </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5"
-              onClick={() => addNode("fin")}>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => addNode("fin")}>
               <Circle className="h-3 w-3 fill-slate-300 text-slate-500" />Fin
             </Button>
+
             <div className="flex-1" />
-            <Button size="sm" onClick={handleSave} disabled={saving || !dirty}
-              className={dirty ? "" : "opacity-50"}>
+
+            <Button size="sm" onClick={handleSave} disabled={saving || !dirty} className={dirty ? "" : "opacity-50"}>
               {saving
-                ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Guardando...</>
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Guardando…</>
                 : <><Save className="h-3.5 w-3.5 mr-1.5" />Guardar</>}
             </Button>
           </>
-        )}
-        {!canEdit && (
+        ) : (
           <span className="text-xs text-muted-foreground">Vista de solo lectura</span>
         )}
       </div>
 
-      {/* Canvas + panel */}
+      {/* Canvas + side panels */}
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 relative" style={{ background: "#f8fafc" }}>
+        <div className="flex-1 relative" style={{ background: lanes.length > 0 ? "#f1f5f9" : "#f8fafc" }}>
           <ReactFlow
-            nodes={nodes}
+            nodes={allNodes}
             edges={edges}
             onNodesChange={canEdit ? onNodesChange : undefined}
             onEdgesChange={canEdit ? onEdgesChange : undefined}
@@ -416,7 +626,7 @@ export function FlujogramaEditor({
             onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
             fitView
-            fitViewOptions={{ padding: 0.3 }}
+            fitViewOptions={{ padding: 0.25 }}
             deleteKeyCode={canEdit ? "Delete" : null}
             edgesReconnectable={canEdit}
             nodesDraggable={canEdit}
@@ -430,19 +640,34 @@ export function FlujogramaEditor({
             <Background color="#e2e8f0" gap={20} />
             <Controls />
           </ReactFlow>
+
           {nodes.length === 0 && canEdit && (
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <Plus className="h-10 w-10 text-muted-foreground/20 mb-2" />
-              <p className="text-sm text-muted-foreground/50">Usá los botones de arriba para agregar pasos</p>
+              <p className="text-sm text-muted-foreground/50">
+                {lanes.length > 0
+                  ? "Elegí una columna y hacé clic en Inicio / Proceso / Decisión / Fin"
+                  : "Usá los botones de arriba para agregar pasos"}
+              </p>
             </div>
           )}
         </div>
 
-        {selectedNode && canEdit && (
+        {showLanesConfig && canEdit && (
+          <LanesConfigPanel
+            allSectores={allSectores}
+            lanes={lanes}
+            onChange={handleLanesChange}
+            onClose={() => setShowLanesConfig(false)}
+          />
+        )}
+
+        {selectedNode && !showLanesConfig && canEdit && (
           <EditPanel
             node={selectedNode}
             allSectores={allSectores}
             instructivos={instructivos}
+            lanes={lanes}
             onSave={(id, data) => {
               updateNodeData(id, data);
               setSelectedNode(null);
