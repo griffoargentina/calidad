@@ -27,6 +27,8 @@ export interface NodeData {
   nombre: string;
   tipo: "inicio" | "proceso" | "decision" | "fin";
   descripcion?: string;
+  comentario?: string;
+  checklist?: string[];
   sectores: string[];
   instructivo_id: string | null;
   lane_sector_id?: string;
@@ -71,18 +73,43 @@ function InicioFinNode({ data, selected }: { data: NodeData; selected?: boolean 
 }
 
 function ProcesoNode({ data, selected }: { data: NodeData; selected?: boolean }) {
+  const hasComentario = !!(data.comentario || (data.checklist && data.checklist.length > 0));
+  const hasInstructivo = !!data.instructivo_id;
   return (
-    <div className={`px-4 py-3 rounded-lg border-2 text-sm min-w-[140px] max-w-[200px] select-none bg-white
-      ${selected ? "border-primary ring-2 ring-primary/20" : "border-blue-300"} shadow-sm`}>
+    <div className={`rounded-lg border-2 text-sm min-w-[140px] max-w-[200px] select-none bg-white overflow-hidden
+      ${selected ? "border-primary ring-2 ring-primary/20" : hasComentario ? "border-amber-400" : "border-blue-300"} shadow-sm`}>
       <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-blue-400" />
       <Handle type="target" position={Position.Left} id="left-in" className="!w-2 !h-2 !bg-blue-400" />
       <Handle type="target" position={Position.Right} id="right-in" className="!w-2 !h-2 !bg-blue-400" />
-      <p className="font-medium text-slate-800 text-center leading-tight">{data.nombre}</p>
-      {data.sector_nombres && data.sector_nombres.length > 0 && (
-        <div className="flex flex-wrap gap-0.5 justify-center mt-1.5">
-          {data.sector_nombres.map((s, i) => (
-            <span key={i} className="text-[9px] px-1 py-0.5 rounded bg-blue-50 text-blue-700 font-medium">{s}</span>
-          ))}
+      <div className="px-4 pt-3 pb-2">
+        <p className="font-medium text-slate-800 text-center leading-tight">{data.nombre}</p>
+        {data.sector_nombres && data.sector_nombres.length > 0 && (
+          <div className="flex flex-wrap gap-0.5 justify-center mt-1.5">
+            {data.sector_nombres.map((s, i) => (
+              <span key={i} className="text-[9px] px-1 py-0.5 rounded bg-blue-50 text-blue-700 font-medium">{s}</span>
+            ))}
+          </div>
+        )}
+      </div>
+      {(hasComentario || hasInstructivo) && (
+        <div className={`flex items-center gap-2 px-3 py-1 border-t text-[10px] font-medium
+          ${hasComentario ? "bg-amber-50 border-amber-100" : "bg-blue-50 border-blue-100"}`}>
+          {hasComentario && (
+            <span className="flex items-center gap-0.5 text-amber-700">
+              <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M2 2h12v9H9l-3 3v-3H2V2z"/>
+              </svg>
+              {data.checklist && data.checklist.length > 0 ? `${data.checklist.length} ítem${data.checklist.length !== 1 ? "s" : ""}` : "Nota"}
+            </span>
+          )}
+          {hasInstructivo && (
+            <span className="flex items-center gap-0.5 text-blue-700 ml-auto">
+              <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M4 2h6l3 3v9H4V2z"/><path d="M10 2v3h3"/>
+              </svg>
+              Instructivo
+            </span>
+          )}
         </div>
       )}
       <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-blue-400" />
@@ -93,6 +120,8 @@ function ProcesoNode({ data, selected }: { data: NodeData; selected?: boolean })
 }
 
 function DecisionNode({ data, selected }: { data: NodeData; selected?: boolean }) {
+  const hasComentario = !!(data.comentario || (data.checklist && data.checklist.length > 0));
+  const hasInstructivo = !!data.instructivo_id;
   return (
     <div style={{ width: 130, height: 90 }} className="relative select-none flex items-center justify-center">
       <Handle type="target" position={Position.Top} style={{ top: 0 }} className="!w-2 !h-2 !bg-amber-500" />
@@ -107,6 +136,13 @@ function DecisionNode({ data, selected }: { data: NodeData; selected?: boolean }
       <div className="relative z-10 text-center px-6">
         <p className="text-[11px] font-semibold text-amber-900 leading-tight">{data.nombre}</p>
       </div>
+      {/* Indicator dots top-right */}
+      {(hasComentario || hasInstructivo) && (
+        <div className="absolute top-1 right-4 flex gap-1">
+          {hasComentario && <span className="w-2 h-2 rounded-full bg-amber-500 opacity-80" />}
+          {hasInstructivo && <span className="w-2 h-2 rounded-full bg-blue-500 opacity-80" />}
+        </div>
+      )}
       <Handle type="source" position={Position.Right} id="si" style={{ right: -4, top: "50%" }}
         className="!w-2 !h-2 !bg-green-500" />
       <Handle type="source" position={Position.Left} id="no" style={{ left: -4, top: "50%" }}
@@ -246,14 +282,14 @@ function EditPanel({
   const [nombre, setNombre] = useState(node.data.nombre);
   const [tipo, setTipo] = useState(node.data.tipo);
   const [descripcion, setDescripcion] = useState(node.data.descripcion ?? "");
+  const [comentario, setComentario] = useState(node.data.comentario ?? "");
+  const [checklist, setChecklist] = useState<string[]>(node.data.checklist ?? []);
+  const [newItem, setNewItem] = useState("");
   const [sectores, setSectores] = useState<string[]>(node.data.sectores ?? []);
   const [instructivoId, setInstructivoId] = useState(node.data.instructivo_id ?? "__none__");
   const [laneSectorId, setLaneSectorId] = useState(node.data.lane_sector_id ?? "__none__");
 
-  // Extra instructivos created inline (not yet in the parent list)
   const [localInstructivos, setLocalInstructivos] = useState<Instructivo[]>([]);
-
-  // Inline create-instructivo form
   const [creatingInst, setCreatingInst] = useState(false);
   const [instNombre, setInstNombre] = useState("");
   const [instFile, setInstFile] = useState<File | null>(null);
@@ -265,12 +301,16 @@ function EditPanel({
     setNombre(node.data.nombre);
     setTipo(node.data.tipo);
     setDescripcion(node.data.descripcion ?? "");
+    setComentario(node.data.comentario ?? "");
+    setChecklist(node.data.checklist ?? []);
+    setNewItem("");
     setSectores(node.data.sectores ?? []);
     setInstructivoId(node.data.instructivo_id ?? "__none__");
     setLaneSectorId(node.data.lane_sector_id ?? "__none__");
     setCreatingInst(false);
     setInstNombre("");
     setInstFile(null);
+    setInstSectores([]);
   }, [node.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSave() {
@@ -280,6 +320,8 @@ function EditPanel({
     onSave(node.id, {
       nombre, tipo,
       descripcion: descripcion || undefined,
+      comentario: comentario || undefined,
+      checklist: checklist.length > 0 ? checklist : undefined,
       sectores,
       instructivo_id: instructivoId === "__none__" ? null : instructivoId,
       lane_sector_id: laneSectorId === "__none__" ? undefined : laneSectorId,
@@ -378,9 +420,56 @@ function EditPanel({
 
         <div>
           <label className="text-xs font-medium text-muted-foreground">Descripción</label>
-          <textarea className="mt-1 w-full border rounded-md px-3 py-2 text-sm resize-none h-16 focus:outline-none focus:ring-1 focus:ring-ring"
+          <textarea className="mt-1 w-full border rounded-md px-3 py-2 text-sm resize-none h-14 focus:outline-none focus:ring-1 focus:ring-ring"
             value={descripcion} onChange={(e) => setDescripcion(e.target.value)}
             placeholder="Opcional..." />
+        </div>
+
+        {/* Nota / Checklist */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted-foreground">Nota</label>
+          <textarea className="w-full border rounded-md px-3 py-2 text-sm resize-none h-14 focus:outline-none focus:ring-1 focus:ring-ring"
+            value={comentario} onChange={(e) => setComentario(e.target.value)}
+            placeholder="Observación, aclaración, referencia normativa..." />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted-foreground">Checklist</label>
+          {checklist.length > 0 && (
+            <div className="space-y-1">
+              {checklist.map((item, i) => (
+                <div key={i} className="flex items-center gap-2 group">
+                  <span className="text-muted-foreground/40 text-xs">☐</span>
+                  <span className="flex-1 text-sm text-slate-700">{item}</span>
+                  <button
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                    onClick={() => setChecklist(checklist.filter((_, j) => j !== i))}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-1">
+            <Input
+              className="h-7 text-xs flex-1"
+              placeholder="Nuevo ítem…"
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newItem.trim()) {
+                  setChecklist([...checklist, newItem.trim()]);
+                  setNewItem("");
+                  e.preventDefault();
+                }
+              }}
+            />
+            <Button size="sm" variant="outline" className="h-7 px-2"
+              disabled={!newItem.trim()}
+              onClick={() => { if (newItem.trim()) { setChecklist([...checklist, newItem.trim()]); setNewItem(""); } }}>
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
 
         {activeLaneSectors.length > 0 && (
