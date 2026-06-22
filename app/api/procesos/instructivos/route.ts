@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
+import { generarCodigo } from "@/lib/procesos/generar-codigo";
 
 export async function GET(req: Request) {
   const supabase = await createClient();
@@ -34,9 +35,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
-  const { sector_id, nombre, responsable_id, url_archivo, nombre_archivo, es_publico, estado } = await req.json();
+  const { sector_id, nombre, responsable_id, url_archivo, nombre_archivo, es_publico, estado, tipo_doc_id } = await req.json();
   if (!sector_id || !nombre?.trim()) {
     return NextResponse.json({ error: "sector_id y nombre son requeridos" }, { status: 400 });
+  }
+
+  let codigo: string | null = null;
+  if (tipo_doc_id) {
+    const { data: tipDoc } = await admin
+      .from("proc_tipos_documento")
+      .select("prefijo")
+      .eq("id", tipo_doc_id)
+      .single();
+    if (tipDoc?.prefijo) {
+      codigo = await generarCodigo(sector_id, tipDoc.prefijo);
+    }
   }
 
   const { data, error } = await admin
@@ -49,6 +62,8 @@ export async function POST(req: Request) {
       nombre_archivo: nombre_archivo || null,
       es_publico: es_publico ?? false,
       estado: estado ?? "borrador",
+      tipo_doc_id: tipo_doc_id || null,
+      codigo,
     })
     .select("*, responsable:usuarios!responsable_id(id, nombre)")
     .single();

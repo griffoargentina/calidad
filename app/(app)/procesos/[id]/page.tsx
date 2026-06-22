@@ -21,14 +21,17 @@ import Link from "next/link";
 interface Responsable { id: string; nombre: string }
 interface Flujograma {
   id: string; nombre: string; version: number; estado: string; created_at: string; updated_at: string;
+  codigo?: string | null; tipo_doc_id?: string | null;
 }
 interface Instructivo {
   id: string; nombre: string; version: number; estado: string;
   responsable_id: string | null; ultima_revision: string | null; proxima_revision: string | null;
   es_publico: boolean; url_archivo: string | null; nombre_archivo: string | null;
+  codigo?: string | null; tipo_doc_id?: string | null;
 }
 interface Sector {
   id: string; nombre: string; descripcion: string | null; privado: boolean; orden: number;
+  abreviatura?: string | null;
   responsables: Responsable[];
   flujogramas: Flujograma[];
   instructivos: Instructivo[];
@@ -249,6 +252,7 @@ export default function SectorDetailPage() {
                     <div key={f.id} className="border rounded-lg p-4 bg-white space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div>
+                          {f.codigo && <span className="font-mono text-xs text-blue-600 font-medium">{f.codigo}</span>}
                           <p className="font-medium text-sm">{f.nombre}</p>
                           <p className="text-xs text-muted-foreground">v{f.version}</p>
                         </div>
@@ -294,7 +298,10 @@ export default function SectorDetailPage() {
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-1.5">
                             <EstadoInstIcon estado={inst.estado} />
-                            <span className="font-medium">{inst.nombre}</span>
+                            <div>
+                              {inst.codigo && <span className="font-mono text-xs text-blue-600 font-medium block">{inst.codigo}</span>}
+                              <span className="font-medium">{inst.nombre}</span>
+                            </div>
                           </div>
                         </td>
                         <td className="px-3 py-3 text-xs text-muted-foreground font-mono">v{inst.version}</td>
@@ -395,12 +402,14 @@ export default function SectorDetailPage() {
         onOpenChange={setShowAddFlujograma}
         onSuccess={load}
         sectorId={sectorId}
+        sectorAbreviatura={sector?.abreviatura ?? null}
       />
       <InstructivoFormDialog
         open={showAddInstructivo}
         onOpenChange={setShowAddInstructivo}
         onSuccess={load}
         sectorId={sectorId}
+        sectorAbreviatura={sector?.abreviatura ?? null}
         usuarios={usuarios}
       />
       {revisarInstructivo && (
