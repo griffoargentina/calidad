@@ -71,20 +71,21 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
 
   // Semáforos
   const meta = (item.metadata ?? {}) as Record<string, unknown>;
-  const docNa = meta.documento_na === true;
+  const docNa  = meta.documento_na    === true;
+  const procNa = meta.procedimiento_na === true;
 
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const en30 = new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000);
 
   // Vencimiento documento
   const fechaVencDoc  = item.fecha_vencimiento ? new Date(item.fecha_vencimiento) : null;
-  const docVencOk    = fechaVencDoc ? fechaVencDoc >= hoy : false;
-  const docVencWarn  = fechaVencDoc ? fechaVencDoc >= hoy && fechaVencDoc <= en30 : false;
+  const docVencOk    = docNa  || (fechaVencDoc  ? fechaVencDoc  >= hoy : false);
+  const docVencWarn  = !docNa && (fechaVencDoc  ? fechaVencDoc  >= hoy && fechaVencDoc  <= en30 : false);
 
   // Vencimiento procedimiento
   const fechaVencProc = item.proc_fecha_vencimiento ? new Date(item.proc_fecha_vencimiento) : null;
-  const procVencOk   = fechaVencProc ? fechaVencProc >= hoy : false;
-  const procVencWarn = fechaVencProc ? fechaVencProc >= hoy && fechaVencProc <= en30 : false;
+  const procVencOk   = procNa || (fechaVencProc ? fechaVencProc >= hoy : false);
+  const procVencWarn = !procNa && (fechaVencProc ? fechaVencProc >= hoy && fechaVencProc <= en30 : false);
 
   return (
     <div className="flex flex-col h-full">
@@ -130,7 +131,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
             label="Venc. Procedimiento"
             ok={procVencOk}
             warn={procVencWarn}
-            okText={item.proc_fecha_vencimiento ? (formatFecha(item.proc_fecha_vencimiento) ?? "") : ""}
+            okText={procNa ? "No corresponde" : (item.proc_fecha_vencimiento ? (formatFecha(item.proc_fecha_vencimiento) ?? "") : "")}
             failText={item.proc_fecha_vencimiento ? `Venció ${formatFecha(item.proc_fecha_vencimiento)}` : "Sin fecha"}
             icon={BookOpen}
           />
@@ -138,7 +139,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
             label="Venc. Documento"
             ok={docVencOk}
             warn={docVencWarn}
-            okText={item.fecha_vencimiento ? (formatFecha(item.fecha_vencimiento) ?? "") : ""}
+            okText={docNa ? "No corresponde" : (item.fecha_vencimiento ? (formatFecha(item.fecha_vencimiento) ?? "") : "")}
             failText={item.fecha_vencimiento ? `Venció ${formatFecha(item.fecha_vencimiento)}` : "Sin fecha"}
             icon={Calendar}
           />
