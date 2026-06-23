@@ -44,7 +44,6 @@ export default async function NuevoItemPage({ searchParams }: { searchParams: { 
           usuarios={usuarios ?? []}
           plantillas={plantillas ?? []}
           usuarioActual={{ rol: usuario?.rol, area_id: usuario?.area_id, tipos_habilitados: usuario?.tipos_habilitados }}
-          tipoInicial={searchParams.tipo}
           clausulaInicial={searchParams.clausula}
         />
       </div>
