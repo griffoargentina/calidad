@@ -6,9 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { TIPO_ITEM_LABELS, ESTADO_LABELS } from "@/lib/constants/items";
-import { TipoItem, EstadoItem } from "@/types/database";
+import { ESTADO_LABELS } from "@/lib/constants/items";
+import { EstadoItem } from "@/types/database";
 import { X, SlidersHorizontal } from "lucide-react";
+
+const TIPO_DOCUMENTO_OPTIONS = [
+  { value: "MA", label: "MA — Manual" },
+  { value: "PR", label: "PR — Procedimiento" },
+  { value: "IT", label: "IT — Instructivo de Trabajo" },
+  { value: "FO", label: "FO — Formato / Formulario" },
+  { value: "RE", label: "RE — Registro" },
+];
 
 interface FiltersProps {
   areas: { id: string; nombre: string }[];
@@ -73,15 +81,15 @@ export function ItemsFilters({ areas, clausulas, searchParams }: FiltersProps) {
           </SelectContent>
         </Select>
 
-        {/* Tipo */}
-        <Select value={searchParams.tipo ?? ALL} onValueChange={(v) => setFilter("tipo", v)}>
+        {/* Tipo de documento */}
+        <Select value={searchParams.tipo_documento ?? ALL} onValueChange={(v) => setFilter("tipo_documento", v)}>
           <SelectTrigger className="w-52 h-9">
             <SelectValue placeholder="Tipo de documento" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>Todos los tipos</SelectItem>
-            {(Object.entries(TIPO_ITEM_LABELS) as [TipoItem, string][]).map(([k, v]) => (
-              <SelectItem key={k} value={k}>{v}</SelectItem>
+            {TIPO_DOCUMENTO_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>

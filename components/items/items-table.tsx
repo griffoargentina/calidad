@@ -10,9 +10,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EstadoBadge } from "@/components/shared/estado-badge";
-import { TIPO_ITEM_LABELS, ESTADO_LABELS } from "@/lib/constants/items";
+import { ESTADO_LABELS } from "@/lib/constants/items";
 import { formatFecha } from "@/lib/utils/format";
-import { TipoItem, EstadoItem } from "@/types/database";
+import { EstadoItem } from "@/types/database";
 import { FileText, ArrowUpDown, ArrowUp, ArrowDown, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -20,8 +20,8 @@ interface ItemRow {
   id: string;
   codigo: string;
   codigo_completo: string;
-  codigo_formal?: string | null;
-  tipo: TipoItem;
+  tipo_documento?: string | null;
+  tipo: string;
   clausula_iso: string;
   titulo: string;
   estado: string;
@@ -77,8 +77,8 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
       cell: ({ row }) => (
         <Link href={`/items/${row.original.id}`} className="block">
           <span className="font-mono text-xs font-semibold text-primary">{row.original.codigo}</span>
-          {row.original.codigo_formal && (
-            <span className="text-[10px] text-muted-foreground block mt-0.5">{row.original.codigo_formal}</span>
+          {row.original.tipo_documento && (
+            <span className="text-[10px] text-muted-foreground block mt-0.5">{row.original.tipo_documento}</span>
           )}
         </Link>
       ),
@@ -101,12 +101,12 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
       ),
     },
     {
-      accessorKey: "tipo",
+      accessorKey: "tipo_documento",
       header: "Tipo",
-      size: 160,
+      size: 80,
       cell: ({ getValue }) => (
-        <span className="text-xs text-muted-foreground">
-          {TIPO_ITEM_LABELS[getValue() as TipoItem]}
+        <span className="text-xs font-mono font-medium text-muted-foreground">
+          {(getValue() as string) ?? "—"}
         </span>
       ),
     },
@@ -253,9 +253,8 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
       const estadoReal: EstadoItem = (!compliant || isExpired) ? "vencido" : row.original.estado as EstadoItem;
       const base = {
         "Código": row.original.codigo,
-        "Código formal": row.original.codigo_formal ?? "",
+        "Tipo documento": row.original.tipo_documento ?? "",
         "Título": row.original.titulo,
-        Tipo: TIPO_ITEM_LABELS[row.original.tipo],
         "Cláusula": row.original.clausula_iso,
         "Área": getAreaNombre(row.original.areas),
         Responsable: getUsuarioNombre(row.original.usuarios),

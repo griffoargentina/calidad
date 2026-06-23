@@ -34,7 +34,7 @@ export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
       .from("items")
       .select("*")
       .or(
-        `titulo.ilike.%${q}%,codigo.ilike.%${q}%,codigo_completo.ilike.%${q}%,codigo_formal.ilike.%${q}%,descripcion.ilike.%${q}%`
+        `titulo.ilike.%${q}%,codigo.ilike.%${q}%,codigo_completo.ilike.%${q}%,descripcion.ilike.%${q}%`
       )
       .eq("es_borrador", false)
       .limit(8);

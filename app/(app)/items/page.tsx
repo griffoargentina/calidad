@@ -9,7 +9,7 @@ import { Plus } from "lucide-react";
 interface PageProps {
   searchParams: {
     estado?: string;
-    tipo?: string;
+    tipo_documento?: string;
     area?: string;
     clausula?: string;
     etiqueta?: string;
@@ -32,7 +32,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
   let query = supabase
     .from("items")
     .select(`
-      id, codigo, codigo_completo, codigo_formal, tipo, clausula_iso, titulo, estado,
+      id, codigo, codigo_completo, tipo_documento, tipo, clausula_iso, titulo, estado,
       fecha_vencimiento, version_actual, etiquetas, es_borrador, responsable_id,
       area_id, created_at, updated_at, metadata,
       usuarios!responsable_id(nombre),
@@ -43,7 +43,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
   query = query.neq("estado", "obsoleto");
 
   if (searchParams.estado) query = query.eq("estado", searchParams.estado);
-  if (searchParams.tipo) query = query.eq("tipo", searchParams.tipo);
+  if (searchParams.tipo_documento) query = query.eq("tipo_documento", searchParams.tipo_documento);
   if (searchParams.area) query = query.eq("area_id", searchParams.area);
   if (searchParams.clausula) query = query.eq("clausula_iso", searchParams.clausula);
   if (searchParams.etiqueta) query = query.contains("etiquetas", [searchParams.etiqueta]);

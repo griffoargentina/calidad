@@ -28,7 +28,7 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
   const [{ data: clausula }, { data: items }] = await Promise.all([
     admin.from("clausulas_iso").select("*").eq("id", params.id).single(),
     admin.from("items")
-      .select("id, codigo, codigo_formal, titulo, tipo, estado, fecha_vencimiento, metadata")
+      .select("id, codigo, titulo, tipo, estado, fecha_vencimiento, metadata")
       .eq("clausula_iso", params.id)
       .neq("estado", "obsoleto")
       .order("updated_at", { ascending: false }),
@@ -162,9 +162,6 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
                       <p className="text-sm font-medium truncate">{item.titulo}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="font-mono text-xs text-muted-foreground">{item.codigo}</span>
-                        {item.codigo_formal && (
-                          <span className="text-xs text-muted-foreground">· {item.codigo_formal}</span>
-                        )}
                         <Badge variant="outline" className="text-[10px] py-0 px-1.5">
                           {TIPO_ITEM_LABELS[item.tipo as keyof typeof TIPO_ITEM_LABELS]}
                         </Badge>
