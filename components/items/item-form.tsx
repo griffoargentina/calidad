@@ -126,11 +126,13 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
   const [etiquetaInput, setEtiquetaInput] = useState("");
 
   // Procedimiento
+  const [sinProc, setSinProc] = useState(false);
   const [tipoProc, setTipoProc] = useState("");
   const [vencProc, setVencProc] = useState(sumarDias(365));
   const [archivoProc, setArchivoProc] = useState<File | null>(null);
 
   // Documento
+  const [sinDoc, setSinDoc] = useState(false);
   const [tipoDoc, setTipoDoc] = useState("");
   const [frecDoc, setFrecDoc] = useState("__none__");
   const [vencDoc, setVencDoc] = useState("");
@@ -269,75 +271,101 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
       {/* PROCEDIMIENTO */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-purple-500" />
-            Procedimiento <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+          <CardTitle className="text-sm font-medium flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-purple-500" />
+              Procedimiento
+            </div>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={sinProc} onChange={e => setSinProc(e.target.checked)} className="rounded" />
+              <span className="text-xs font-normal text-muted-foreground">No corresponde</span>
+            </label>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo de documento</Label>
-              <Select value={tipoProc} onValueChange={setTipoProc}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar tipo..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sin tipo</SelectItem>
-                  {TIPO_DOCUMENTO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {tipoProc && tipoProc !== "__none__" && <CodigoPreview tipo={tipoProc} />}
+        {!sinProc && (
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tipo de documento</Label>
+                <Select value={tipoProc} onValueChange={setTipoProc}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar tipo..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin tipo</SelectItem>
+                    {TIPO_DOCUMENTO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {tipoProc && tipoProc !== "__none__" && <CodigoPreview tipo={tipoProc} />}
+              </div>
+              <div className="space-y-2">
+                <Label>Frecuencia</Label>
+                <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">Anual</div>
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Frecuencia</Label>
-              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">Anual</div>
+              <Label>Vencimiento</Label>
+              <Input type="date" value={vencProc} onChange={e => setVencProc(e.target.value)} />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Vencimiento</Label>
-            <Input type="date" value={vencProc} onChange={e => setVencProc(e.target.value)} />
-          </div>
-          <ArchivoInput label="Adjuntar procedimiento" icon={BookOpen} archivo={archivoProc} setArchivo={setArchivoProc} />
-        </CardContent>
+            <ArchivoInput label="Adjuntar procedimiento" icon={BookOpen} archivo={archivoProc} setArchivo={setArchivoProc} />
+          </CardContent>
+        )}
+        {sinProc && (
+          <CardContent>
+            <p className="text-sm text-muted-foreground italic">Este ítem no requiere procedimiento.</p>
+          </CardContent>
+        )}
       </Card>
 
       {/* DOCUMENTO */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <FileText className="h-4 w-4 text-blue-500" />
-            Documento <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+          <CardTitle className="text-sm font-medium flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-blue-500" />
+              Documento
+            </div>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={sinDoc} onChange={e => setSinDoc(e.target.checked)} className="rounded" />
+              <span className="text-xs font-normal text-muted-foreground">No corresponde</span>
+            </label>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo de documento</Label>
-              <Select value={tipoDoc} onValueChange={setTipoDoc}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar tipo..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sin tipo</SelectItem>
-                  {TIPO_DOCUMENTO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {tipoDoc && tipoDoc !== "__none__" && <CodigoPreview tipo={tipoDoc} />}
+        {!sinDoc && (
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tipo de documento</Label>
+                <Select value={tipoDoc} onValueChange={setTipoDoc}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar tipo..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin tipo</SelectItem>
+                    {TIPO_DOCUMENTO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {tipoDoc && tipoDoc !== "__none__" && <CodigoPreview tipo={tipoDoc} />}
+              </div>
+              <div className="space-y-2">
+                <Label>Frecuencia</Label>
+                <Select value={frecDoc} onValueChange={v => { setFrecDoc(v); if (v !== "__none__") setVencDoc(sumarDias(parseInt(v))); }}>
+                  <SelectTrigger><SelectValue placeholder="Sin frecuencia" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin frecuencia</SelectItem>
+                    {FRECUENCIAS.map(f => <SelectItem key={f.dias} value={f.dias.toString()}>{f.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Frecuencia</Label>
-              <Select value={frecDoc} onValueChange={v => { setFrecDoc(v); if (v !== "__none__") setVencDoc(sumarDias(parseInt(v))); }}>
-                <SelectTrigger><SelectValue placeholder="Sin frecuencia" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sin frecuencia</SelectItem>
-                  {FRECUENCIAS.map(f => <SelectItem key={f.dias} value={f.dias.toString()}>{f.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Label>Vencimiento</Label>
+              <Input type="date" value={vencDoc} onChange={e => setVencDoc(e.target.value)} />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Vencimiento</Label>
-            <Input type="date" value={vencDoc} onChange={e => setVencDoc(e.target.value)} />
-          </div>
-          <ArchivoInput label="Adjuntar documento" icon={FileText} archivo={archivoDoc} setArchivo={setArchivoDoc} />
-        </CardContent>
+            <ArchivoInput label="Adjuntar documento" icon={FileText} archivo={archivoDoc} setArchivo={setArchivoDoc} />
+          </CardContent>
+        )}
+        {sinDoc && (
+          <CardContent>
+            <p className="text-sm text-muted-foreground italic">Este ítem no requiere documento.</p>
+          </CardContent>
+        )}
       </Card>
 
       {error && <p className="text-sm text-destructive bg-destructive/10 px-4 py-3 rounded-lg">{error}</p>}
