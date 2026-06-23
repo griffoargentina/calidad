@@ -12,11 +12,13 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
   const admin = createAdminClient();
 
-  await Promise.all([
+  const childResults = await Promise.all([
     admin.from("archivos").delete().eq("item_id", params.id),
     admin.from("historial").delete().eq("item_id", params.id),
     admin.from("comentarios").delete().eq("item_id", params.id),
   ]);
+  const childError = childResults.find((r) => r.error)?.error;
+  if (childError) return NextResponse.json({ error: childError.message }, { status: 500 });
 
   const { error } = await admin.from("items").delete().eq("id", params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

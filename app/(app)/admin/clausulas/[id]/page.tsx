@@ -28,7 +28,7 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
   const [{ data: clausula }, { data: items }] = await Promise.all([
     admin.from("clausulas_iso").select("*").eq("id", params.id).single(),
     admin.from("items")
-      .select("id, codigo, codigo_formal, titulo, tipo, estado, fecha_vencimiento, metadata")
+      .select("id, codigo, titulo, tipo, estado, fecha_vencimiento, metadata")
       .eq("clausula_iso", params.id)
       .neq("estado", "obsoleto")
       .order("updated_at", { ascending: false }),
@@ -36,8 +36,9 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
 
   if (!clausula) redirect("/admin/clausulas");
 
-  // Para 7.1.5: semáforo basado en calibraciones
+  // Cláusulas con páginas propias
   if (params.id === "7.1.5") redirect("/calibracion");
+  if (params.id === "6.2")   redirect("/indicadores");
 
   // Fetch archivos for all items in this clause to build semáforos
   const itemIds = items?.map((i) => i.id) ?? [];
@@ -52,9 +53,8 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
     else tieneDoc[a.item_id] = true;
   }
 
-  // Top-level semáforo for the clause (usa fecha real, no campo estado)
   const hoyClausula = new Date(); hoyClausula.setHours(0, 0, 0, 0);
-  const en30dias = new Date(hoyClausula.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const en7dias = new Date(hoyClausula.getTime() + 7 * 24 * 60 * 60 * 1000);
   let semaforo = "sin_evidencia";
   if ((items?.length ?? 0) > 0) {
     const allItems = items ?? [];
@@ -67,7 +67,7 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
     });
     const anyPorVencer = !anyVencido && allItems.some((i) => {
       const fv = i.fecha_vencimiento ? new Date(i.fecha_vencimiento + "T00:00:00") : null;
-      return fv ? fv >= hoyClausula && fv <= en30dias : false;
+      return fv ? fv >= hoyClausula && fv <= en7dias : false;
     });
     if (anyVencido)        semaforo = "vencido";
     else if (anyPorVencer) semaforo = "por_vencer";
@@ -133,22 +133,6 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
           </div>
         </div>
 
-        {/* Sección especial para 7.1.5 — Calibración */}
-        {clausula.id === "7.1.5" && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-blue-800">Equipos de medición y calibración</p>
-              <p className="text-xs text-blue-600 mt-0.5">Gestión de equipos, certificados y procedimientos de calibración</p>
-            </div>
-            <Button asChild size="sm" variant="outline" className="shrink-0 border-blue-300 text-blue-700 hover:bg-blue-100">
-              <Link href="/calibracion">
-                <ChevronRight className="h-4 w-4 mr-1" />
-                Ir a Calibración
-              </Link>
-            </Button>
-          </div>
-        )}
-
         {/* Lista de documentos */}
         {(items?.length ?? 0) > 0 ? (
           <div className="space-y-2">
@@ -163,7 +147,7 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
                 const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
                 const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
                 const vencOk   = fv ? fv >= hoy : false;
-                const vencWarn = vencOk && fv ? fv <= new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000) : false;
+                const vencWarn = vencOk && fv ? fv <= new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000) : false;
                 const vencColor: "ok" | "warn" | "fail" = vencOk ? (vencWarn ? "warn" : "ok") : "fail";
 
                 return (
@@ -178,9 +162,6 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
                       <p className="text-sm font-medium truncate">{item.titulo}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="font-mono text-xs text-muted-foreground">{item.codigo}</span>
-                        {item.codigo_formal && (
-                          <span className="text-xs text-muted-foreground">· {item.codigo_formal}</span>
-                        )}
                         <Badge variant="outline" className="text-[10px] py-0 px-1.5">
                           {TIPO_ITEM_LABELS[item.tipo as keyof typeof TIPO_ITEM_LABELS]}
                         </Badge>

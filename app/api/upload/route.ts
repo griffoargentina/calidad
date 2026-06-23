@@ -32,6 +32,9 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+  const { data: us } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
+  if (us?.rol === "lector") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+
   const formData = await req.formData();
   const file      = formData.get("file") as File | null;
   const itemId    = formData.get("item_id") as string;
@@ -68,10 +71,18 @@ export async function POST(req: Request) {
       nombre_archivo: file.name,
       tamaño_bytes: file.size,
       categoria,
+      subido_por: user.id,
       ...(comentario ? { comentario } : {}),
     });
 
     if (dbError) return NextResponse.json({ error: `[DB] ${dbError.message}` }, { status: 500 });
+
+    // Sincronizar version_actual en items para evitar conflicto con fn_renovar_item
+    await admin
+      .from("items")
+      .update({ version_actual: version })
+      .eq("id", itemId)
+      .lt("version_actual", version);
 
     return NextResponse.json({ url: publicUrl });
   } catch (err) {

@@ -35,7 +35,6 @@ export async function POST(req: Request) {
   const formData = await req.formData();
   const file             = formData.get("file") as File | null;
   const itemId           = formData.get("item_id") as string;
-  const version          = parseInt(formData.get("version") as string) || 1;
   const comentario       = formData.get("comentario") as string | null;
   const fechaVencimiento = formData.get("fecha_vencimiento") as string | null;
 
@@ -43,13 +42,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
   }
 
+  const admin = createAdminClient();
+
+  // Sync version_actual with MAX(archivos.version) before calling fn_renovar_item.
+  // fn_renovar_item uses version_actual+1 — if it's stale (e.g. a procedure was uploaded
+  // after the last renewal), the insert would violate the unique constraint.
+  const { data: latestArchivo } = await admin
+    .from("archivos")
+    .select("version")
+    .eq("item_id", itemId)
+    .order("version", { ascending: false })
+    .limit(1);
+
+  if (latestArchivo?.[0]) {
+    await admin
+      .from("items")
+      .update({ version_actual: latestArchivo[0].version })
+      .eq("id", itemId)
+      .lt("version_actual", latestArchivo[0].version);
+  }
+
   const ext = file.name.split(".").pop();
-  const path = `items/${itemId}/v${version}_${Date.now()}.${ext}`;
+  const path = `items/${itemId}/v${Date.now()}.${ext}`;
 
   try {
     const publicUrl = await uploadToStorage(path, file);
 
-    const admin = createAdminClient();
     const { error: rpcError } = await admin.rpc("fn_renovar_item", {
       p_item_id: itemId,
       p_archivo_url: publicUrl,
@@ -60,7 +78,6 @@ export async function POST(req: Request) {
 
     if (rpcError) return NextResponse.json({ error: `[RPC] ${rpcError.message}` }, { status: 500 });
 
-    // Aplicar fecha de vencimiento personalizada si fue enviada
     if (fechaVencimiento) {
       const { error: updateError } = await admin
         .from("items")

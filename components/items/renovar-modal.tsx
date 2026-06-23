@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { RefreshCw, Upload, FileText, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { RefreshCw, Upload, FileText, Loader2, CheckCircle2 } from "lucide-react";
 
 interface RenovarModalProps {
   item: {
@@ -25,7 +25,7 @@ interface RenovarModalProps {
 function calcVencimiento(frecuenciaDias: number): string {
   const d = new Date();
   d.setDate(d.getDate() + frecuenciaDias);
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD para el input type="date"
+  return d.toISOString().slice(0, 10);
 }
 
 export function RenovarModal({ item }: RenovarModalProps) {
@@ -51,6 +51,7 @@ export function RenovarModal({ item }: RenovarModalProps) {
 
   async function handleRenovar() {
     if (!file) { setError("Seleccioná un archivo antes de renovar."); return; }
+    if (!fechaVenc) { setError("Ingresá una fecha de vencimiento."); return; }
     setLoading(true);
     setError(null);
 
@@ -60,7 +61,7 @@ export function RenovarModal({ item }: RenovarModalProps) {
       fd.append("item_id", item.id);
       fd.append("version", String(item.version_actual + 1));
       if (comentario)  fd.append("comentario", comentario);
-      if (fechaVenc)   fd.append("fecha_vencimiento", fechaVenc);
+      fd.append("fecha_vencimiento", fechaVenc);
 
       const res = await fetch("/api/renovar", { method: "POST", body: fd });
       const data = await res.json();
@@ -110,30 +111,27 @@ export function RenovarModal({ item }: RenovarModalProps) {
               <p className="font-semibold">¡Documento renovado!</p>
               <p className="text-sm text-muted-foreground">v{item.version_actual + 1} generada correctamente</p>
             </div>
-          ) : !item.frecuencia_dias ? (
-            <div className="flex flex-col items-center py-8 gap-3 text-center">
-              <AlertTriangle className="h-10 w-10 text-yellow-500" />
-              <p className="font-semibold text-yellow-700">Configurá la periodicidad primero</p>
-              <p className="text-sm text-muted-foreground">
-                Para subir un archivo necesitás definir la frecuencia de revisión del documento.<br />
-                Hacé clic en el ícono de edición junto a &ldquo;Frecuencia de revisión&rdquo; y guardá.
-              </p>
-            </div>
           ) : (
             <div className="space-y-4">
 
-              {/* Fecha de vencimiento editable */}
+              {/* Fecha de vencimiento */}
               <div className="space-y-1.5">
-                <Label>Fecha de vencimiento</Label>
+                <Label>Fecha de vencimiento <span className="text-destructive">*</span></Label>
                 <Input
                   type="date"
                   value={fechaVenc}
                   onChange={(e) => setFechaVenc(e.target.value)}
                   min={new Date().toISOString().slice(0, 10)}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Sugerida según periodicidad ({item.frecuencia_dias} días). Podés cambiarla.
-                </p>
+                {item.frecuencia_dias ? (
+                  <p className="text-xs text-muted-foreground">
+                    Sugerida según periodicidad ({item.frecuencia_dias} días). Podés cambiarla.
+                  </p>
+                ) : (
+                  <p className="text-xs text-yellow-600">
+                    No hay periodicidad configurada. Ingresá la fecha manualmente.
+                  </p>
+                )}
               </div>
 
               {/* Selector de archivo */}
@@ -182,12 +180,12 @@ export function RenovarModal({ item }: RenovarModalProps) {
             </div>
           )}
 
-          {!done && !!item.frecuencia_dias && (
+          {!done && (
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
                 Cancelar
               </Button>
-              <Button onClick={handleRenovar} disabled={loading || !file}>
+              <Button onClick={handleRenovar} disabled={loading || !file || !fechaVenc}>
                 {loading ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Renovando...</>
                 ) : (

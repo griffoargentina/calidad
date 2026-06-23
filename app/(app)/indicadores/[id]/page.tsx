@@ -22,7 +22,6 @@ export default async function IndicadorPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Get current user profile
   const { data: usuario } = await admin
     .from("usuarios")
     .select("*")
@@ -31,7 +30,6 @@ export default async function IndicadorPage({
 
   if (!usuario) redirect("/login");
 
-  // Fetch indicador with responsable
   const { data: indicador, error } = await admin
     .from("indicadores")
     .select(
@@ -51,7 +49,6 @@ export default async function IndicadorPage({
     notFound();
   }
 
-  // Fetch ALL registros with cargado_por info
   const { data: registros } = await admin
     .from("indicador_registros")
     .select(

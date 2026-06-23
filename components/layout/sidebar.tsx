@@ -13,13 +13,13 @@ import {
   BookOpen,
   LogOut,
   ShieldCheck,
-  Upload,
-  LayoutTemplate,
   BarChart3,
   BarChart2,
   CalendarClock,
   ChevronRight,
   Gauge,
+  ClipboardList,
+  ClipboardCheck,
 } from "lucide-react";
 import { Usuario } from "@/types/database";
 
@@ -33,20 +33,17 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/items", label: "Documentos", icon: FileText },
+  { href: "/procesos", label: "Procesos", icon: ClipboardList },
+  { href: "/auditorias", label: "Auditorías", icon: ClipboardCheck },
   { href: "/vencimientos", label: "Vencimientos", icon: CalendarClock },
   { href: "/calibracion", label: "Calibración", icon: Gauge },
   { href: "/indicadores", label: "Indicadores", icon: BarChart2 },
-  { href: "/items/importar", label: "Importar Excel", icon: Upload },
 ];
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/admin/usuarios", label: "Usuarios", icon: Users, adminOnly: true },
   { href: "/admin/clausulas", label: "Cláusulas ISO", icon: BookOpen, adminOnly: true },
   { href: "/admin/reportes", label: "Reportes", icon: BarChart3, adminOnly: true },
-];
-
-const CONFIG_NAV_ITEMS: NavItem[] = [
-  { href: "/configuracion/plantillas", label: "Plantillas", icon: LayoutTemplate },
 ];
 
 interface SidebarProps {
@@ -68,7 +65,6 @@ export function Sidebar({ usuario }: SidebarProps) {
 
   return (
     <aside className="flex flex-col w-64 min-h-screen bg-slate-900 text-slate-100 border-r border-slate-800">
-      {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-800">
         <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary shrink-0">
           <ShieldCheck className="w-5 h-5 text-white" />
@@ -79,7 +75,6 @@ export function Sidebar({ usuario }: SidebarProps) {
         </div>
       </div>
 
-      {/* Nav principal */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         <NavSection items={NAV_ITEMS} pathname={pathname} />
 
@@ -92,15 +87,8 @@ export function Sidebar({ usuario }: SidebarProps) {
             <NavSection items={ADMIN_NAV_ITEMS} pathname={pathname} />
           </>
         )}
-
-        <Separator className="my-3 bg-slate-800" />
-        <p className="px-2 py-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-          Configuración
-        </p>
-        <NavSection items={CONFIG_NAV_ITEMS} pathname={pathname} />
       </nav>
 
-      {/* Usuario actual + logout */}
       <div className="px-3 py-4 border-t border-slate-800 space-y-2">
         <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-slate-800">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white text-xs font-semibold shrink-0">

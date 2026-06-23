@@ -11,22 +11,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  TIPO_ITEM_LABELS, TIPO_ITEM_CLAUSULA_PRINCIPAL, FRECUENCIAS_COMUNES,
+  FRECUENCIAS_COMUNES,
 } from "@/lib/constants/items";
-import { TipoItem } from "@/types/database";
 import { Loader2, X, Plus, LayoutTemplate, Upload, FileText } from "lucide-react";
 import { useRef } from "react";
+
+const TIPO_DOCUMENTO_OPTIONS = [
+  { value: "MA", label: "MA — Manual" },
+  { value: "PR", label: "PR — Procedimiento" },
+  { value: "IT", label: "IT — Instructivo de Trabajo" },
+  { value: "FO", label: "FO — Formato / Formulario" },
+  { value: "RE", label: "RE — Registro" },
+];
 
 interface Plantilla {
   id: string;
   nombre: string;
-  tipo: TipoItem;
+  tipo: string;
   valores_default: Record<string, unknown>;
 }
 
 interface ItemInicial {
   id: string;
-  tipo: TipoItem;
+  tipo?: string | null;
+  tipo_documento?: string | null;
   titulo: string;
   descripcion: string | null;
   clausula_iso: string;
@@ -38,7 +46,7 @@ interface ItemInicial {
   requiere_aprobacion: boolean;
   es_borrador: boolean;
   etiquetas: string[];
-  codigo_formal?: string | null;
+  version_actual?: number;
 }
 
 interface ItemFormProps {
@@ -56,10 +64,10 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const router = useRouter();
   const supabase = createClient();
 
-  const [tipo, setTipo] = useState<TipoItem | "">(itemInicial?.tipo ?? (tipoInicial as TipoItem) ?? "");
+  const [tipoDocumento, setTipoDocumento] = useState(itemInicial?.tipo_documento ?? "");
   const [titulo, setTitulo] = useState(itemInicial?.titulo ?? "");
   const [descripcion, setDescripcion] = useState(itemInicial?.descripcion ?? "");
-  const [clausulaIso, setClausulaIso] = useState(itemInicial?.clausula_iso ?? clausulaInicial ?? (tipoInicial ? (TIPO_ITEM_CLAUSULA_PRINCIPAL[tipoInicial as TipoItem] ?? "") : ""));
+  const [clausulaIso, setClausulaIso] = useState(itemInicial?.clausula_iso ?? clausulaInicial ?? "");
   const [areaId, setAreaId] = useState(itemInicial?.area_id ?? usuarioActual.area_id ?? "__none__");
   const [responsableId, setResponsableId] = useState(itemInicial?.responsable_id ?? "__none__");
   const [fechaEmision] = useState(itemInicial?.fecha_emision ?? new Date().toISOString().split("T")[0]);
@@ -67,7 +75,7 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [frecuenciaDias, setFrecuenciaDias] = useState<string>(itemInicial?.frecuencia_dias?.toString() ?? "__none__");
   const [etiquetas, setEtiquetas] = useState<string[]>(itemInicial?.etiquetas ?? []);
   const [etiquetaInput, setEtiquetaInput] = useState("");
-  const [codigoFormal, setCodigoFormal] = useState(itemInicial?.codigo_formal ?? "");
+  const [versionActual, setVersionActual] = useState<string>(itemInicial?.version_actual?.toString() ?? "0");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,20 +83,11 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [archivo, setArchivo] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Cuando cambia el tipo, auto-sugiere la cláusula ISO
-  function handleTipoChange(t: TipoItem) {
-    setTipo(t);
-    if (!clausulaIso) {
-      setClausulaIso(TIPO_ITEM_CLAUSULA_PRINCIPAL[t] ?? "");
-    }
-  }
-
   // Aplicar plantilla
   function aplicarPlantilla(id: string) {
     const p = plantillas.find((pl) => pl.id === id);
     if (!p) return;
     const v = p.valores_default ?? {};
-    if (typeof v.tipo === "string") handleTipoChange(v.tipo as TipoItem);
     if (typeof v.clausula_iso === "string") setClausulaIso(v.clausula_iso);
     if (typeof v.area_id === "string") setAreaId(v.area_id);
     if (typeof v.frecuencia_dias === "number") setFrecuenciaDias(v.frecuencia_dias.toString());
@@ -114,15 +113,16 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!tipo || !titulo || !clausulaIso) {
-      setError("Tipo, título y cláusula ISO son obligatorios.");
+    if (!tipoDocumento || !titulo || !clausulaIso) {
+      setError("Tipo de documento, título y cláusula ISO son obligatorios.");
       return;
     }
     setLoading(true);
     setError(null);
 
     const payload: Record<string, unknown> = {
-      tipo,
+      tipo: "documento",
+      tipo_documento: tipoDocumento,
       titulo: titulo.trim(),
       descripcion: descripcion.trim() || null,
       clausula_iso: clausulaIso,
@@ -134,7 +134,7 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
       requiere_aprobacion: false,
       es_borrador: false,
       etiquetas,
-      codigo_formal: codigoFormal.trim() || null,
+      version_actual: parseInt(versionActual) || 0,
       estado: "vigente",
     };
 
@@ -199,23 +199,17 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Tipo <span className="text-destructive">*</span></Label>
-              {tipoInicial ? (
-                <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground cursor-not-allowed">
-                  {TIPO_ITEM_LABELS[tipo as TipoItem] ?? tipo}
-                </div>
-              ) : (
-                <Select value={tipo} onValueChange={(v) => handleTipoChange(v as TipoItem)} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar tipo..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.entries(TIPO_ITEM_LABELS) as [TipoItem, string][]).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <Label>Tipo de documento <span className="text-destructive">*</span></Label>
+              <Select value={tipoDocumento} onValueChange={setTipoDocumento} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar tipo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPO_DOCUMENTO_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Cláusula ISO <span className="text-destructive">*</span></Label>
@@ -249,13 +243,15 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
           </div>
 
           <div className="space-y-2">
-            <Label>Código formal</Label>
+            <Label>Nº de revisión</Label>
             <Input
-              value={codigoFormal}
-              onChange={(e) => setCodigoFormal(e.target.value)}
-              placeholder="Ej. DS GEN 05, PGC PRO 01"
+              type="number"
+              min={0}
+              value={versionActual}
+              onChange={(e) => setVersionActual(e.target.value)}
+              placeholder="0"
+              className="max-w-xs"
             />
-            <p className="text-xs text-muted-foreground">Nomenclatura interna de Griffo (opcional)</p>
           </div>
 
           <div className="space-y-2">

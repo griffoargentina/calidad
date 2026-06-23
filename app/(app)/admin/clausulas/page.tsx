@@ -27,7 +27,8 @@ export default async function ClausulasPage() {
     return 0;
   });
 
-  const [{ data: todosItems }, { data: todosArchivos }, { data: ultimasCalibraciones }, { data: activeEquiposData }] = await Promise.all([
+  const currentYear = new Date().getFullYear();
+  const [{ data: todosItems }, { data: todosArchivos }, { data: ultimasCalibraciones }, { data: indicadores }, { data: indicadorRegistros }] = await Promise.all([
     supabase
       .from("items")
       .select("id, clausula_iso, estado, fecha_vencimiento, metadata")
@@ -40,28 +41,51 @@ export default async function ClausulasPage() {
       .select("equipo_id, fecha_vencimiento")
       .order("fecha_calibracion", { ascending: false }),
     supabase
-      .from("equipos_calibracion")
-      .select("id")
+      .from("indicadores")
+      .select("id, frecuencia")
       .eq("activo", true),
+    supabase
+      .from("indicador_registros")
+      .select("indicador_id, anio, mes")
+      .eq("anio", currentYear),
   ]);
 
-  // Semáforo de calibración para 7.1.5 — solo equipos activos
+  // Semáforo de calibración para 7.1.5
   const hoyCalib = new Date(); hoyCalib.setHours(0, 0, 0, 0);
-  const activeEquipoIds = new Set((activeEquiposData ?? []).map((e) => e.id));
+  const en7diasCalib = new Date(hoyCalib.getTime() + 7 * 24 * 60 * 60 * 1000);
   const seenEquipos = new Set<string>();
   let calibVencidos = 0;
+  let calibPorVencer = 0;
   for (const c of ultimasCalibraciones ?? []) {
-    if (!activeEquipoIds.has(c.equipo_id)) continue;
     if (seenEquipos.has(c.equipo_id)) continue;
     seenEquipos.add(c.equipo_id);
     const fv = c.fecha_vencimiento ? new Date(c.fecha_vencimiento + "T00:00:00") : null;
     if (!fv || fv < hoyCalib) calibVencidos++;
-  }
-  // Equipos activos sin ninguna calibración también cuentan como vencidos
-  for (const eq of activeEquiposData ?? []) {
-    if (!seenEquipos.has(eq.id)) calibVencidos++;
+    else if (fv <= en7diasCalib) calibPorVencer++;
   }
 
+  // Semáforo de indicadores para 6.2
+  const hoyInd = new Date();
+  const mesActual = hoyInd.getMonth() + 1;
+  const diaActual = hoyInd.getDate();
+  const mesPrevio = mesActual === 1 ? 12 : mesActual - 1;
+  const anioPrevio = mesActual === 1 ? currentYear - 1 : currentYear;
+  const regSet = new Set((indicadorRegistros ?? []).map((r) => `${r.indicador_id}|${r.anio}|${r.mes ?? "null"}`));
+  let indVencidos = 0;
+  let indPendientes = 0;
+  for (const ind of indicadores ?? []) {
+    const key = ind.frecuencia === "anual"
+      ? `${ind.id}|${currentYear}|null`
+      : `${ind.id}|${anioPrevio}|${mesPrevio}`;
+    if (regSet.has(key)) continue;
+    if (ind.frecuencia === "anual") {
+      if (mesActual === 1) indPendientes++; else indVencidos++;
+    } else {
+      if (diaActual <= 10) indPendientes++; else indVencidos++;
+    }
+  }
+
+  // Qué items tienen al menos un documento (categoria != procedimiento)
   const itemsConDoc = new Set(
     (todosArchivos ?? [])
       .filter((a) => a.categoria !== "procedimiento")
@@ -87,14 +111,24 @@ export default async function ClausulasPage() {
       const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
       if (!fv || fv < hoy) {
         s.vencidos++;
-      } else if (fv <= new Date(hoy.getTime() + 30 * 24 * 60 * 60 * 1000)) {
+      } else if (fv <= new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000)) {
         s.porVencer++;
       }
     }
   }
 
   function getSemaforo(clausulaId: string) {
-    if (clausulaId === "7.1.5") return calibVencidos > 0 ? "rojo" : "verde";
+    if (clausulaId === "7.1.5") {
+      if (calibVencidos > 0)   return "rojo";
+      if (calibPorVencer > 0)  return "amarillo";
+      return "verde";
+    }
+    if (clausulaId === "6.2") {
+      if ((indicadores?.length ?? 0) === 0) return "rojo";
+      if (indVencidos > 0)   return "rojo";
+      if (indPendientes > 0) return "amarillo";
+      return "verde";
+    }
     const s = clausulaStats[clausulaId];
     if (!s || s.total === 0)      return "rojo";
     if (s.sinArchivo > 0)         return "rojo";
@@ -149,7 +183,20 @@ export default async function ClausulasPage() {
                       <p className="text-xs text-muted-foreground">
                         {calibVencidos > 0
                           ? <span className="text-red-600 font-medium">{calibVencidos} equipo{calibVencidos !== 1 ? "s" : ""} vencido{calibVencidos !== 1 ? "s" : ""}</span>
+                          : calibPorVencer > 0
+                          ? <span className="text-yellow-600 font-medium">{calibPorVencer} equipo{calibPorVencer !== 1 ? "s" : ""} por vencer</span>
                           : <span className="text-green-600 font-medium">Todos los equipos al día</span>
+                        }
+                      </p>
+                    ) : c.id === "6.2" ? (
+                      <p className="text-xs text-muted-foreground">
+                        {(indicadores?.length ?? 0) === 0
+                          ? <span className="text-red-600 font-medium">Sin indicadores configurados</span>
+                          : indVencidos > 0
+                          ? <span className="text-red-600 font-medium">{indVencidos} indicador{indVencidos !== 1 ? "es" : ""} sin datos</span>
+                          : indPendientes > 0
+                          ? <span className="text-yellow-600 font-medium">{indPendientes} indicador{indPendientes !== 1 ? "es" : ""} pendiente{indPendientes !== 1 ? "s" : ""}</span>
+                          : <span className="text-green-600 font-medium">Todos los indicadores al día</span>
                         }
                       </p>
                     ) : !stats || stats.total === 0 ? (
