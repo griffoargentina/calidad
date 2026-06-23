@@ -128,12 +128,14 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
   // Procedimiento
   const [sinProc, setSinProc] = useState(false);
   const [tipoProc, setTipoProc] = useState("");
+  const [revisionProc, setRevisionProc] = useState("1");
   const [vencProc, setVencProc] = useState(sumarDias(365));
   const [archivoProc, setArchivoProc] = useState<File | null>(null);
 
   // Documento
   const [sinDoc, setSinDoc] = useState(false);
   const [tipoDoc, setTipoDoc] = useState("");
+  const [revisionDoc, setRevisionDoc] = useState("1");
   const [frecDoc, setFrecDoc] = useState("__none__");
   const [vencDoc, setVencDoc] = useState("");
   const [archivoDoc, setArchivoDoc] = useState<File | null>(null);
@@ -147,12 +149,12 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
     setEtiquetaInput("");
   }
 
-  async function uploadArchivo(itemId: string, file: File, categoria: string, tipo: string) {
+  async function uploadArchivo(itemId: string, file: File, categoria: string, tipo: string, revision: string) {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("item_id", itemId);
     fd.append("categoria", categoria);
-    fd.append("version", "1");
+    fd.append("version", revision || "1");
     if (tipo) fd.append("tipo_documento", tipo);
     await fetch("/api/upload", { method: "POST", body: fd });
   }
@@ -190,8 +192,8 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
     if (result.error) { setError(result.error.message); setLoading(false); return; }
 
     const itemId = result.data.id;
-    if (archivoProc) await uploadArchivo(itemId, archivoProc, "procedimiento", tipoProc);
-    if (archivoDoc)  await uploadArchivo(itemId, archivoDoc,  "documento",     tipoDoc);
+    if (archivoProc) await uploadArchivo(itemId, archivoProc, "procedimiento", tipoProc, revisionProc);
+    if (archivoDoc)  await uploadArchivo(itemId, archivoDoc,  "documento",     tipoDoc,  revisionDoc);
 
     router.push(`/items/${itemId}`);
     router.refresh();
@@ -297,13 +299,19 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
                 {tipoProc && tipoProc !== "__none__" && <CodigoPreview tipo={tipoProc} />}
               </div>
               <div className="space-y-2">
+                <Label>Revisión</Label>
+                <Input value={revisionProc} onChange={e => setRevisionProc(e.target.value)} placeholder="Ej: 1, 2, A..." />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label>Frecuencia</Label>
                 <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">Anual</div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Vencimiento</Label>
-              <Input type="date" value={vencProc} onChange={e => setVencProc(e.target.value)} />
+              <div className="space-y-2">
+                <Label>Vencimiento</Label>
+                <Input type="date" value={vencProc} onChange={e => setVencProc(e.target.value)} />
+              </div>
             </div>
             <ArchivoInput label="Adjuntar procedimiento" icon={BookOpen} archivo={archivoProc} setArchivo={setArchivoProc} />
           </CardContent>
@@ -344,6 +352,12 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
                 {tipoDoc && tipoDoc !== "__none__" && <CodigoPreview tipo={tipoDoc} />}
               </div>
               <div className="space-y-2">
+                <Label>Revisión</Label>
+                <Input value={revisionDoc} onChange={e => setRevisionDoc(e.target.value)} placeholder="Ej: 1, 2, A..." />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label>Frecuencia</Label>
                 <Select value={frecDoc} onValueChange={v => { setFrecDoc(v); if (v !== "__none__") setVencDoc(sumarDias(parseInt(v))); }}>
                   <SelectTrigger><SelectValue placeholder="Sin frecuencia" /></SelectTrigger>
@@ -353,10 +367,10 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Vencimiento</Label>
-              <Input type="date" value={vencDoc} onChange={e => setVencDoc(e.target.value)} />
+              <div className="space-y-2">
+                <Label>Vencimiento</Label>
+                <Input type="date" value={vencDoc} onChange={e => setVencDoc(e.target.value)} />
+              </div>
             </div>
             <ArchivoInput label="Adjuntar documento" icon={FileText} archivo={archivoDoc} setArchivo={setArchivoDoc} />
           </CardContent>
