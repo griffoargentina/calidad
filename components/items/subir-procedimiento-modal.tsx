@@ -22,9 +22,10 @@ const TIPO_DOCUMENTO_OPTIONS = [
 
 interface Props {
   item: { id: string; codigo: string; titulo: string };
+  nextVersion?: number;
 }
 
-export function SubirProcedimientoModal({ item }: Props) {
+export function SubirProcedimientoModal({ item, nextVersion = 1 }: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -58,7 +59,7 @@ export function SubirProcedimientoModal({ item }: Props) {
       fd.append("file", file);
       fd.append("item_id", item.id);
       fd.append("categoria", "procedimiento");
-      fd.append("version", "1");
+      fd.append("version", String(nextVersion));
       if (comentario) fd.append("comentario", comentario);
       if (tipoDocumento) fd.append("tipo_documento", tipoDocumento);
 
@@ -107,7 +108,7 @@ export function SubirProcedimientoModal({ item }: Props) {
             <DialogDescription>
               <span className="font-mono font-semibold">{item.codigo}</span> — {item.titulo}
               <br />
-              Subí el documento de procedimiento asociado a este item.
+              Se registrará como <span className="font-semibold">Rev. {nextVersion}</span>.
             </DialogDescription>
           </DialogHeader>
 

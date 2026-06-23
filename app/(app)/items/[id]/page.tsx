@@ -54,6 +54,9 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
   const documentos    = archivos?.filter((a) => (a.categoria ?? "documento") === "documento") ?? [];
   const procedimientos = archivos?.filter((a) => a.categoria === "procedimiento") ?? [];
 
+  const procNextVersion = (procedimientos[0]?.version ?? 0) + 1;
+  const docNextVersion  = (documentos[0]?.version ?? 0) + 1;
+
   const canEdit = usuario?.rol === "admin" || (
     usuario?.rol === "editor" && (
       item.responsable_id === user.id ||
@@ -223,7 +226,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                   <p className="text-xs text-muted-foreground">Sin procedimiento cargado</p>
                   {canEdit && (
                     <div className="w-full space-y-2 px-2">
-                      <SubirProcedimientoModal item={item} />
+                      <SubirProcedimientoModal item={item} nextVersion={procNextVersion} />
                       <ProcNaToggle itemId={params.id} value={meta.procedimiento_na === true} />
                     </div>
                   )}
@@ -254,7 +257,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                   </ul>
                   {canEdit && (
                     <div className="pt-1">
-                      <SubirProcedimientoModal item={item} />
+                      <SubirProcedimientoModal item={item} nextVersion={procNextVersion} />
                     </div>
                   )}
                 </div>
@@ -315,7 +318,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                   <p className="text-xs text-muted-foreground">Sin documento cargado</p>
                   {canEdit && (
                     <div className="w-full space-y-2 px-2">
-                      <RenovarModal item={item} />
+                      <RenovarModal item={item} nextVersion={docNextVersion} />
                       <DocNaToggle itemId={params.id} value={docNa} />
                     </div>
                   )}
@@ -346,7 +349,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           {idx === 0 && canEdit && (
-                            <RenovarModal item={item} />
+                            <RenovarModal item={item} nextVersion={docNextVersion} />
                           )}
                           <Button variant="ghost" size="icon" asChild>
                             <a href={`/api/download?url=${encodeURIComponent(archivo.archivo_url)}`} download={archivo.nombre_archivo}>

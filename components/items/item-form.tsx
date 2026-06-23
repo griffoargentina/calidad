@@ -128,14 +128,12 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
   // Procedimiento
   const [sinProc, setSinProc] = useState(false);
   const [tipoProc, setTipoProc] = useState("");
-  const [revisionProc, setRevisionProc] = useState("1");
   const [vencProc, setVencProc] = useState(sumarDias(365));
   const [archivoProc, setArchivoProc] = useState<File | null>(null);
 
   // Documento
   const [sinDoc, setSinDoc] = useState(false);
   const [tipoDoc, setTipoDoc] = useState("");
-  const [revisionDoc, setRevisionDoc] = useState("1");
   const [frecDoc, setFrecDoc] = useState("__none__");
   const [vencDoc, setVencDoc] = useState("");
   const [archivoDoc, setArchivoDoc] = useState<File | null>(null);
@@ -149,12 +147,12 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
     setEtiquetaInput("");
   }
 
-  async function uploadArchivo(itemId: string, file: File, categoria: string, tipo: string, revision: string) {
+  async function uploadArchivo(itemId: string, file: File, categoria: string, tipo: string) {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("item_id", itemId);
     fd.append("categoria", categoria);
-    fd.append("version", revision || "1");
+    fd.append("version", "1");
     if (tipo) fd.append("tipo_documento", tipo);
     await fetch("/api/upload", { method: "POST", body: fd });
   }
@@ -192,8 +190,8 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
     if (result.error) { setError(result.error.message); setLoading(false); return; }
 
     const itemId = result.data.id;
-    if (archivoProc) await uploadArchivo(itemId, archivoProc, "procedimiento", tipoProc, revisionProc);
-    if (archivoDoc)  await uploadArchivo(itemId, archivoDoc,  "documento",     tipoDoc,  revisionDoc);
+    if (archivoProc) await uploadArchivo(itemId, archivoProc, "procedimiento", tipoProc);
+    if (archivoDoc)  await uploadArchivo(itemId, archivoDoc,  "documento",     tipoDoc);
 
     router.push(`/items/${itemId}`);
     router.refresh();
@@ -300,7 +298,7 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
               </div>
               <div className="space-y-2">
                 <Label>Revisión</Label>
-                <Input value={revisionProc} onChange={e => setRevisionProc(e.target.value)} placeholder="Ej: 1, 2, A..." />
+                <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground font-mono font-semibold">Rev. 1</div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -353,7 +351,7 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
               </div>
               <div className="space-y-2">
                 <Label>Revisión</Label>
-                <Input value={revisionDoc} onChange={e => setRevisionDoc(e.target.value)} placeholder="Ej: 1, 2, A..." />
+                <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground font-mono font-semibold">Rev. 1</div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

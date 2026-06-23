@@ -30,6 +30,7 @@ interface RenovarModalProps {
     requiere_aprobacion: boolean;
     frecuencia_dias?: number | null;
   };
+  nextVersion?: number;
 }
 
 function calcVencimiento(frecuenciaDias: number): string {
@@ -38,7 +39,8 @@ function calcVencimiento(frecuenciaDias: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function RenovarModal({ item }: RenovarModalProps) {
+export function RenovarModal({ item, nextVersion }: RenovarModalProps) {
+  const versionNueva = nextVersion ?? versionNueva;
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -78,7 +80,7 @@ export function RenovarModal({ item }: RenovarModalProps) {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("item_id", item.id);
-      fd.append("version", String(item.version_actual + 1));
+      fd.append("version", String(versionNueva));
       if (comentario) fd.append("comentario", comentario);
       fd.append("fecha_vencimiento", fechaVenc);
       if (tipoDocumento) fd.append("tipo_documento", tipoDocumento);
@@ -118,7 +120,7 @@ export function RenovarModal({ item }: RenovarModalProps) {
             <DialogDescription>
               <span className="font-mono font-semibold">{item.codigo}</span> — {item.titulo}
               <br />
-              Esta acción creará la versión {item.version_actual + 1} y actualizará la fecha de vencimiento.
+              Esta acción creará la versión {versionNueva} y actualizará la fecha de vencimiento.
               {item.requiere_aprobacion && (
                 <span className="block mt-1 text-yellow-600 font-medium">
                   Este documento requiere aprobación del administrador antes de quedar vigente.
@@ -131,7 +133,7 @@ export function RenovarModal({ item }: RenovarModalProps) {
             <div className="flex flex-col items-center py-8 gap-2 text-green-600">
               <CheckCircle2 className="h-12 w-12" />
               <p className="font-semibold">¡Documento renovado!</p>
-              <p className="text-sm text-muted-foreground">v{item.version_actual + 1} generada correctamente</p>
+              <p className="text-sm text-muted-foreground">v{versionNueva} generada correctamente</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -231,7 +233,7 @@ export function RenovarModal({ item }: RenovarModalProps) {
                 {loading ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Renovando...</>
                 ) : (
-                  <><RefreshCw className="mr-2 h-4 w-4" />Renovar v{item.version_actual + 1}</>
+                  <><RefreshCw className="mr-2 h-4 w-4" />Renovar v{versionNueva}</>
                 )}
               </Button>
             </DialogFooter>
