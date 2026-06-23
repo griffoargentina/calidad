@@ -111,7 +111,6 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
           <div className="flex items-center gap-2">
             <span className="font-mono text-sm font-bold text-primary">{item.codigo}</span>
             <span className="text-xs text-muted-foreground font-mono">({item.codigo_completo})</span>
-            <Badge variant="outline" className="text-xs">v{item.version_actual}</Badge>
           </div>
         </div>
 
@@ -236,11 +235,14 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                       <li key={p.id} className="flex items-center gap-3 p-3 rounded-lg bg-purple-50 border border-purple-100">
                         <FileText className="h-5 w-5 text-purple-400 shrink-0" />
                         <div className="flex-1 min-w-0">
-                          {p.codigo && (
-                            <p className="text-xs font-mono font-semibold text-blue-600 mb-0.5">{p.codigo}</p>
-                          )}
+                          <div className="flex items-center gap-2 mb-0.5">
+                            {p.codigo && (
+                              <span className="text-xs font-mono font-semibold text-blue-600">{p.codigo}</span>
+                            )}
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0 font-mono">Rev. {p.version}</Badge>
+                          </div>
                           <p className="text-sm font-medium truncate">{p.nombre_archivo}</p>
-                          <p className="text-xs text-muted-foreground">v{p.version} · {formatBytes(p.tamaño_bytes)} · {formatFecha(p.subido_at)}</p>
+                          <p className="text-xs text-muted-foreground">{formatBytes(p.tamaño_bytes)} · {formatFecha(p.subido_at)}</p>
                         </div>
                         <Button variant="ghost" size="icon" asChild>
                           <a href={`/api/download?url=${encodeURIComponent(p.archivo_url)}`} download={p.nombre_archivo}>
@@ -325,11 +327,14 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                       <li key={archivo.id} className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
                         <FileText className="h-5 w-5 text-blue-400 shrink-0" />
                         <div className="flex-1 min-w-0">
-                          {archivo.codigo && (
-                            <p className="text-xs font-mono font-semibold text-blue-600 mb-0.5">{archivo.codigo}</p>
-                          )}
+                          <div className="flex items-center gap-2 mb-0.5">
+                            {archivo.codigo && (
+                              <span className="text-xs font-mono font-semibold text-blue-600">{archivo.codigo}</span>
+                            )}
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0 font-mono">Rev. {archivo.version}</Badge>
+                          </div>
                           <p className="text-sm font-medium truncate">{archivo.nombre_archivo}</p>
-                          <p className="text-xs text-muted-foreground">v{archivo.version} · {formatBytes(archivo.tamaño_bytes)} · {formatFecha(archivo.subido_at)}</p>
+                          <p className="text-xs text-muted-foreground">{formatBytes(archivo.tamaño_bytes)} · {formatFecha(archivo.subido_at)}</p>
                           {archivo.comentario && (
                             <p className="text-xs text-muted-foreground italic mt-0.5">{archivo.comentario}</p>
                           )}
