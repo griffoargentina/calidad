@@ -37,6 +37,7 @@ export async function POST(req: Request) {
   const itemId           = formData.get("item_id") as string;
   const comentario       = formData.get("comentario") as string | null;
   const fechaVencimiento = formData.get("fecha_vencimiento") as string | null;
+  const tipoDoc          = formData.get("tipo_documento") as string | null;
 
   if (!file || !itemId) {
     return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
@@ -84,6 +85,34 @@ export async function POST(req: Request) {
         .update({ fecha_vencimiento: fechaVencimiento })
         .eq("id", itemId);
       if (updateError) return NextResponse.json({ error: `[FECHA] ${updateError.message}` }, { status: 500 });
+    }
+
+    // Actualizar el archivo recién insertado con tipo_documento y codigo generado
+    if (tipoDoc) {
+      const { data: codigosExistentes } = await admin
+        .from("archivos")
+        .select("codigo")
+        .like("codigo", `${tipoDoc}-%`);
+      const max = (codigosExistentes ?? []).reduce((acc: number, row: { codigo: string | null }) => {
+        const n = parseInt((row.codigo ?? "").split("-")[1] ?? "0");
+        return isNaN(n) ? acc : Math.max(acc, n);
+      }, 0);
+      const codigoArchivo = `${tipoDoc}-${String(max + 1).padStart(2, "0")}`;
+
+      // Obtener el archivo más reciente del item
+      const { data: latestFile } = await admin
+        .from("archivos")
+        .select("id")
+        .eq("item_id", itemId)
+        .order("version", { ascending: false })
+        .limit(1);
+
+      if (latestFile?.[0]) {
+        await admin
+          .from("archivos")
+          .update({ tipo_documento: tipoDoc, codigo: codigoArchivo })
+          .eq("id", latestFile[0].id);
+      }
     }
 
     return NextResponse.json({ ok: true });

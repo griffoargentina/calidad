@@ -227,10 +227,13 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
               ) : (
                 <div className="space-y-2">
                   <ul className="space-y-2">
-                    {(procedimientos as Array<Record<string, unknown> & { id: string; nombre_archivo: string; tamaño_bytes: number | null; subido_at: string; archivo_url: string; version: number }>).map((p) => (
+                    {(procedimientos as Array<Record<string, unknown> & { id: string; nombre_archivo: string; tamaño_bytes: number | null; subido_at: string; archivo_url: string; version: number; codigo?: string | null; tipo_documento?: string | null }>).map((p) => (
                       <li key={p.id} className="flex items-center gap-3 p-3 rounded-lg bg-purple-50 border border-purple-100">
                         <FileText className="h-5 w-5 text-purple-400 shrink-0" />
                         <div className="flex-1 min-w-0">
+                          {p.codigo && (
+                            <p className="text-xs font-mono font-semibold text-blue-600 mb-0.5">{p.codigo}</p>
+                          )}
                           <p className="text-sm font-medium truncate">{p.nombre_archivo}</p>
                           <p className="text-xs text-muted-foreground">v{p.version} · {formatBytes(p.tamaño_bytes)} · {formatFecha(p.subido_at)}</p>
                         </div>
@@ -294,10 +297,13 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
               ) : (
                 <div className="space-y-2">
                   <ul className="space-y-2">
-                    {(documentos as Array<Record<string, unknown> & { id: string; nombre_archivo: string; tamaño_bytes: number | null; subido_at: string; comentario: string | null; aprobado_at: string | null; version: number; archivo_url: string; subidor?: { nombre: string } | null; aprobador?: { nombre: string } | null }>).map((archivo, idx) => (
+                    {(documentos as Array<Record<string, unknown> & { id: string; nombre_archivo: string; tamaño_bytes: number | null; subido_at: string; comentario: string | null; aprobado_at: string | null; version: number; archivo_url: string; subidor?: { nombre: string } | null; aprobador?: { nombre: string } | null; codigo?: string | null; tipo_documento?: string | null }>).map((archivo, idx) => (
                       <li key={archivo.id} className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
                         <FileText className="h-5 w-5 text-blue-400 shrink-0" />
                         <div className="flex-1 min-w-0">
+                          {archivo.codigo && (
+                            <p className="text-xs font-mono font-semibold text-blue-600 mb-0.5">{archivo.codigo}</p>
+                          )}
                           <p className="text-sm font-medium truncate">{archivo.nombre_archivo}</p>
                           <p className="text-xs text-muted-foreground">v{archivo.version} · {formatBytes(archivo.tamaño_bytes)} · {formatFecha(archivo.subido_at)}</p>
                           {archivo.comentario && (

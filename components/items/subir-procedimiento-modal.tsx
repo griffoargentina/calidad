@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -8,7 +8,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookOpen, Upload, FileText, Loader2, CheckCircle2 } from "lucide-react";
+
+const TIPO_DOCUMENTO_OPTIONS = [
+  { value: "MA", label: "MA — Manual" },
+  { value: "PR", label: "PR — Procedimiento" },
+  { value: "IT", label: "IT — Instructivo de Trabajo" },
+  { value: "FO", label: "FO — Formato / Formulario" },
+  { value: "RE", label: "RE — Registro" },
+  { value: "DS", label: "DS — Documento de Soporte" },
+];
 
 interface Props {
   item: { id: string; codigo: string; titulo: string };
@@ -20,9 +30,18 @@ export function SubirProcedimientoModal({ item }: Props) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [comentario, setComentario] = useState("");
+  const [tipoDocumento, setTipoDocumento] = useState("");
+  const [codigoPreview, setCodigoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!tipoDocumento) { setCodigoPreview(null); return; }
+    fetch(`/api/items/preview-codigo?prefijo=${tipoDocumento}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.codigo) setCodigoPreview(d.codigo); });
+  }, [tipoDocumento]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -41,6 +60,7 @@ export function SubirProcedimientoModal({ item }: Props) {
       fd.append("categoria", "procedimiento");
       fd.append("version", "1");
       if (comentario) fd.append("comentario", comentario);
+      if (tipoDocumento) fd.append("tipo_documento", tipoDocumento);
 
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
@@ -62,6 +82,8 @@ export function SubirProcedimientoModal({ item }: Props) {
         setDone(false);
         setFile(null);
         setComentario("");
+        setTipoDocumento("");
+        setCodigoPreview(null);
         router.refresh();
       }, 1500);
     } catch (err) {
@@ -96,6 +118,25 @@ export function SubirProcedimientoModal({ item }: Props) {
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Tipo de documento</Label>
+                <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar tipo (opcional)..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIPO_DOCUMENTO_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {codigoPreview && (
+                  <p className="text-xs text-muted-foreground">
+                    Código asignado: <span className="font-mono font-semibold text-blue-600">{codigoPreview}</span>
+                  </p>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label>Archivo <span className="text-destructive">*</span></Label>
                 <div

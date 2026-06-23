@@ -10,11 +10,11 @@ export async function GET(req: Request) {
   if (!prefijo) return NextResponse.json({ error: "prefijo requerido" }, { status: 400 });
 
   const { data } = await supabase
-    .from("items")
+    .from("archivos")
     .select("codigo")
     .like("codigo", `${prefijo}-%`);
 
-  const max = (data ?? []).reduce((acc, row) => {
+  const max = (data ?? []).reduce((acc: number, row: { codigo: string | null }) => {
     const n = parseInt((row.codigo ?? "").split("-")[1] ?? "0");
     return isNaN(n) ? acc : Math.max(acc, n);
   }, 0);
