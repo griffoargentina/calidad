@@ -56,7 +56,6 @@ interface ItemFormProps {
   plantillas: Plantilla[];
   usuarioActual: { rol: string; area_id: string | null; tipos_habilitados: string[] };
   itemInicial?: ItemInicial;
-  tipoInicial?: string;
   clausulaInicial?: string;
 }
 
