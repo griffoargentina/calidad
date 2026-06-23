@@ -39,6 +39,7 @@ interface ItemInicial {
   es_borrador: boolean;
   etiquetas: string[];
   codigo_formal?: string | null;
+  version_actual?: number;
 }
 
 interface ItemFormProps {
@@ -68,6 +69,7 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [etiquetas, setEtiquetas] = useState<string[]>(itemInicial?.etiquetas ?? []);
   const [etiquetaInput, setEtiquetaInput] = useState("");
   const [codigoFormal, setCodigoFormal] = useState(itemInicial?.codigo_formal ?? "");
+  const [versionActual, setVersionActual] = useState<string>(itemInicial?.version_actual?.toString() ?? "0");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +137,7 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
       es_borrador: false,
       etiquetas,
       codigo_formal: codigoFormal.trim() || null,
+      version_actual: parseInt(versionActual) || 0,
       estado: "vigente",
     };
 
@@ -248,14 +251,26 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Código formal</Label>
-            <Input
-              value={codigoFormal}
-              onChange={(e) => setCodigoFormal(e.target.value)}
-              placeholder="Ej. DS GEN 05, PGC PRO 01"
-            />
-            <p className="text-xs text-muted-foreground">Nomenclatura interna de Griffo (opcional)</p>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2 space-y-2">
+              <Label>Código formal</Label>
+              <Input
+                value={codigoFormal}
+                onChange={(e) => setCodigoFormal(e.target.value)}
+                placeholder="Ej. DS GEN 05, PGC PRO 01"
+              />
+              <p className="text-xs text-muted-foreground">Nomenclatura interna de Griffo (opcional)</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Nº de revisión</Label>
+              <Input
+                type="number"
+                min={0}
+                value={versionActual}
+                onChange={(e) => setVersionActual(e.target.value)}
+                placeholder="0"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
