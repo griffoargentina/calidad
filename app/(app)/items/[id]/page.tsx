@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RenovarModal } from "@/components/items/renovar-modal";
 import { SubirProcedimientoModal } from "@/components/items/subir-procedimiento-modal";
-import { QuickEditPanel } from "@/components/items/quick-edit-panel";
+import { InlineField } from "@/components/items/inline-field";
 import { ProcNaToggle } from "@/components/items/proc-na-toggle";
 import { DocNaToggle } from "@/components/items/doc-na-toggle";
 import { ComentariosSection } from "@/components/items/comentarios-section";
@@ -34,14 +34,13 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: item }, { data: usuario }, { data: todosUsuarios }] = await Promise.all([
+  const [{ data: item }, { data: usuario }] = await Promise.all([
     supabase
       .from("items")
       .select(`*, clausulas_iso(id, titulo), areas(id, nombre), usuarios!responsable_id(id, nombre, email)`)
       .eq("id", params.id)
       .single(),
     supabase.from("usuarios").select("*").eq("id", user.id).single(),
-    supabase.from("usuarios").select("id, nombre").eq("activo", true).order("nombre"),
   ]);
 
   if (!item) notFound();
@@ -200,17 +199,23 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5" /> Vencimiento
                 </span>
-                <span className={`font-medium ${!item.proc_fecha_vencimiento ? "text-muted-foreground" : ""}`}>
-                  {item.proc_fecha_vencimiento
+                <InlineField
+                  itemId={params.id}
+                  field="proc_fecha_vencimiento"
+                  value={item.proc_fecha_vencimiento ?? null}
+                  displayValue={item.proc_fecha_vencimiento
                     ? new Date(item.proc_fecha_vencimiento + "T00:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
                     : "Sin fecha"}
-                </span>
+                  type="date"
+                  canEdit={canEdit}
+                  emptyClass="text-muted-foreground"
+                />
               </div>
               <div className="flex items-center justify-between text-sm border-b pb-3">
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5" /> Frecuencia
                 </span>
-                <span className="font-medium">Anual</span>
+                <span className="font-medium text-sm">Anual</span>
               </div>
 
               {procedimientos.length === 0 ? (
@@ -268,19 +273,38 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5" /> Vencimiento
                 </span>
-                <span className={`font-medium ${!item.fecha_vencimiento ? "text-muted-foreground" : ""}`}>
-                  {item.fecha_vencimiento
+                <InlineField
+                  itemId={params.id}
+                  field="fecha_vencimiento"
+                  value={item.fecha_vencimiento ?? null}
+                  displayValue={item.fecha_vencimiento
                     ? new Date(item.fecha_vencimiento + "T00:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
                     : "Sin fecha"}
-                </span>
+                  type="date"
+                  canEdit={canEdit}
+                  emptyClass="text-muted-foreground"
+                />
               </div>
               <div className="flex items-center justify-between text-sm border-b pb-3">
                 <span className="text-muted-foreground flex items-center gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5" /> Frecuencia
                 </span>
-                <span className={`font-medium ${!item.frecuencia_dias ? "text-muted-foreground" : ""}`}>
-                  {frecuenciaLabel(item.frecuencia_dias)}
-                </span>
+                <InlineField
+                  itemId={params.id}
+                  field="frecuencia_dias"
+                  value={item.frecuencia_dias?.toString() ?? null}
+                  displayValue={frecuenciaLabel(item.frecuencia_dias)}
+                  type="select"
+                  options={[
+                    { value: "30",  label: "Mensual" },
+                    { value: "90",  label: "Trimestral" },
+                    { value: "180", label: "Semestral" },
+                    { value: "365", label: "Anual" },
+                    { value: "730", label: "Bienal" },
+                  ]}
+                  canEdit={canEdit}
+                  emptyClass="text-muted-foreground"
+                />
               </div>
 
               {documentos.length === 0 ? (
@@ -334,32 +358,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
           </Card>
         </div>
 
-        {/* ── EDICIÓN RÁPIDA ── */}
-        {canEdit && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Layers className="h-4 w-4 text-blue-500" />
-                Edición rápida
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <QuickEditPanel
-                itemId={params.id}
-                descripcion={item.descripcion ?? null}
-                responsableId={responsable?.id ?? null}
-                responsableNombre={responsable?.nombre ?? null}
-                frecuenciaDias={item.frecuencia_dias ?? null}
-                fechaVencimiento={item.fecha_vencimiento ?? null}
-                procFechaVencimiento={item.proc_fecha_vencimiento ?? null}
-                usuarios={todosUsuarios ?? []}
-                canEdit={canEdit}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* ── COMENTARIOS ── */}
+{/* ── COMENTARIOS ── */}
         <ComentariosSection itemId={params.id} />
 
       </div>
