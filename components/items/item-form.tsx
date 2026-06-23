@@ -22,6 +22,7 @@ const TIPO_DOCUMENTO_OPTIONS = [
   { value: "IT", label: "IT — Instructivo de Trabajo" },
   { value: "FO", label: "FO — Formato / Formulario" },
   { value: "RE", label: "RE — Registro" },
+  { value: "DS", label: "DS — Documento de Soporte" },
 ];
 
 interface Plantilla {

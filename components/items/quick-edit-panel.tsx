@@ -25,20 +25,23 @@ interface Props {
   responsableNombre: string | null;
   frecuenciaDias: number | null;
   fechaVencimiento: string | null;
+  procFechaVencimiento: string | null;
   usuarios: Usuario[];
   canEdit: boolean;
 }
 
-export function QuickEditPanel({ itemId, descripcion, responsableId, responsableNombre, frecuenciaDias, fechaVencimiento, usuarios, canEdit }: Props) {
+export function QuickEditPanel({ itemId, descripcion, responsableId, responsableNombre, frecuenciaDias, fechaVencimiento, procFechaVencimiento, usuarios, canEdit }: Props) {
   const router = useRouter();
   const [editingDesc, setEditingDesc] = useState(false);
   const [editingResp, setEditingResp] = useState(false);
   const [editingFrec, setEditingFrec] = useState(false);
   const [editingVenc, setEditingVenc] = useState(false);
+  const [editingProcVenc, setEditingProcVenc] = useState(false);
   const [descVal, setDescVal] = useState(descripcion ?? "");
   const [respVal, setRespVal] = useState(responsableId ?? "");
   const [frecVal, setFrecVal] = useState(frecuenciaDias?.toString() ?? "");
   const [vencVal, setVencVal] = useState(fechaVencimiento ?? "");
+  const [procVencVal, setProcVencVal] = useState(procFechaVencimiento ?? "");
   const [saving, setSaving]   = useState(false);
 
   async function save(patch: Record<string, unknown>) {
@@ -53,6 +56,7 @@ export function QuickEditPanel({ itemId, descripcion, responsableId, responsable
     setEditingResp(false);
     setEditingFrec(false);
     setEditingVenc(false);
+    setEditingProcVenc(false);
     router.refresh();
   }
 
@@ -62,6 +66,10 @@ export function QuickEditPanel({ itemId, descripcion, responsableId, responsable
 
   const vencLabel = fechaVencimiento
     ? new Date(fechaVencimiento + "T00:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : "Sin fecha";
+
+  const procVencLabel = procFechaVencimiento
+    ? new Date(procFechaVencimiento + "T00:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
     : "Sin fecha";
 
   return (
@@ -178,9 +186,9 @@ export function QuickEditPanel({ itemId, descripcion, responsableId, responsable
         )}
       </div>
 
-      {/* Vencimiento */}
+      {/* Vencimiento documento */}
       <div>
-        <p className="text-xs text-muted-foreground mb-1">Vencimiento</p>
+        <p className="text-xs text-muted-foreground mb-1">Vencimiento documento</p>
         {editingVenc ? (
           <div className="flex items-center gap-2">
             <Input
@@ -204,6 +212,39 @@ export function QuickEditPanel({ itemId, descripcion, responsableId, responsable
             {canEdit && (
               <Button size="icon" variant="ghost" className="h-6 w-6 opacity-40 hover:opacity-100"
                 onClick={() => setEditingVenc(true)}>
+                <Pencil className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Vencimiento procedimiento */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-1">Vencimiento procedimiento</p>
+        {editingProcVenc ? (
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={procVencVal}
+              onChange={e => setProcVencVal(e.target.value)}
+              className="h-8 text-sm"
+            />
+            <Button size="icon" variant="ghost" className="h-7 w-7" disabled={saving}
+              onClick={() => save({ proc_fecha_vencimiento: procVencVal || null })}>
+              <Check className="h-3.5 w-3.5 text-green-600" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7"
+              onClick={() => { setEditingProcVenc(false); setProcVencVal(procFechaVencimiento ?? ""); }}>
+              <X className="h-3.5 w-3.5 text-red-500" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium">{procVencLabel}</p>
+            {canEdit && (
+              <Button size="icon" variant="ghost" className="h-6 w-6 opacity-40 hover:opacity-100"
+                onClick={() => setEditingProcVenc(true)}>
                 <Pencil className="h-3 w-3" />
               </Button>
             )}

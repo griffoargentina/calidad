@@ -46,6 +46,16 @@ export function SubirProcedimientoModal({ item }: Props) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al subir");
 
+      // Actualizar proc_fecha_vencimiento = hoy + 365 días
+      const procVenc = new Date();
+      procVenc.setDate(procVenc.getDate() + 365);
+      const procVencStr = procVenc.toISOString().slice(0, 10);
+      await fetch(`/api/items/${item.id}/quick-edit`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proc_fecha_vencimiento: procVencStr }),
+      });
+
       setDone(true);
       setTimeout(() => {
         setOpen(false);
