@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,7 @@ interface ItemInicial {
   es_borrador: boolean;
   etiquetas: string[];
   version_actual?: number;
+  codigo?: string | null;
 }
 
 interface ItemFormProps {
@@ -64,6 +65,7 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const supabase = createClient();
 
   const [tipoDocumento, setTipoDocumento] = useState(itemInicial?.tipo_documento ?? "");
+  const [codigoPreview, setCodigoPreview] = useState<string | null>(itemInicial?.codigo ?? null);
   const [titulo, setTitulo] = useState(itemInicial?.titulo ?? "");
   const [descripcion, setDescripcion] = useState(itemInicial?.descripcion ?? "");
   const [clausulaIso, setClausulaIso] = useState(itemInicial?.clausula_iso ?? clausulaInicial ?? "");
@@ -75,6 +77,13 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [etiquetas, setEtiquetas] = useState<string[]>(itemInicial?.etiquetas ?? []);
   const [etiquetaInput, setEtiquetaInput] = useState("");
   const [versionActual, setVersionActual] = useState<string>(itemInicial?.version_actual?.toString() ?? "0");
+
+  useEffect(() => {
+    if (!tipoDocumento || itemInicial?.codigo) return;
+    fetch(`/api/items/preview-codigo?prefijo=${tipoDocumento}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.codigo) setCodigoPreview(d.codigo); });
+  }, [tipoDocumento, itemInicial?.codigo]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -209,6 +218,11 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
                   ))}
                 </SelectContent>
               </Select>
+              {codigoPreview && (
+                <p className="text-xs text-muted-foreground">
+                  Código asignado: <span className="font-mono font-semibold text-slate-700">{codigoPreview}</span>
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Cláusula ISO <span className="text-destructive">*</span></Label>
