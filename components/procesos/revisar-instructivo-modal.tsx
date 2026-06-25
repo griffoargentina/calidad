@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Upload } from "lucide-react";
 
 interface Instructivo {
   id: string;
   nombre: string;
   version: number;
+  tipo_doc_prefijo?: string | null;
 }
+
+interface TipoDoc { id: string; prefijo: string; nombre: string }
 
 interface Props {
   open: boolean;
@@ -21,35 +25,52 @@ interface Props {
 export function RevisarInstructivoModal({ open, onOpenChange, onSuccess, instructivo }: Props) {
   const [huboCambio, setHuboCambio] = useState(false);
   const [observaciones, setObservaciones] = useState("");
-  const [uploadedFile, setUploadedFile] = useState<{ url: string; nombre: string } | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [tipoDoc, setTipoDoc] = useState("__none__");
+  const [tipos, setTipos] = useState<TipoDoc[]>([]);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("instructivo_id", instructivo.id);
-    const res = await fetch("/api/procesos/upload", { method: "POST", body: fd });
-    const data = await res.json();
-    if (data.url) setUploadedFile({ url: data.url, nombre: data.nombre });
-    setUploading(false);
-  }
+  useEffect(() => {
+    fetch("/api/procesos/tipos-documento")
+      .then(r => r.json())
+      .then(d => setTipos(Array.isArray(d) ? d : []));
+  }, []);
+
+  // Pre-select tipo if instructivo already has one
+  useEffect(() => {
+    if (open && instructivo.tipo_doc_prefijo) {
+      setTipoDoc(instructivo.tipo_doc_prefijo);
+    }
+  }, [open, instructivo.tipo_doc_prefijo]);
 
   async function handleSave() {
     setSaving(true);
     try {
+      let url_archivo: string | null = null;
+      let nombre_archivo: string | null = null;
+
+      if (huboCambio && pendingFile) {
+        const fd = new FormData();
+        fd.append("file", pendingFile);
+        fd.append("instructivo_id", instructivo.id);
+        if (tipoDoc !== "__none__") fd.append("tipo_documento", tipoDoc);
+        const uploadRes = await fetch("/api/procesos/instructivos/upload", { method: "POST", body: fd });
+        const uploadData = await uploadRes.json();
+        if (uploadData.url) {
+          url_archivo = uploadData.url;
+          nombre_archivo = uploadData.nombre_archivo ?? pendingFile.name;
+        }
+      }
+
       const res = await fetch(`/api/procesos/instructivos/${instructivo.id}/revisar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           hubo_cambio: huboCambio,
           observaciones: observaciones.trim() || null,
-          url_archivo: uploadedFile?.url ?? null,
-          nombre_archivo: uploadedFile?.nombre ?? null,
+          url_archivo,
+          nombre_archivo,
         }),
       });
       if (res.ok) {
@@ -64,7 +85,8 @@ export function RevisarInstructivoModal({ open, onOpenChange, onSuccess, instruc
   function handleClose() {
     setHuboCambio(false);
     setObservaciones("");
-    setUploadedFile(null);
+    setPendingFile(null);
+    setTipoDoc("__none__");
     onOpenChange(false);
   }
 
@@ -105,25 +127,41 @@ export function RevisarInstructivoModal({ open, onOpenChange, onSuccess, instruc
           </div>
 
           {huboCambio && (
-            <div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">Nuevo archivo</label>
-              <div className="mt-1 flex items-center gap-2">
+              {tipos.length > 0 && (
+                <Select value={tipoDoc} onValueChange={setTipoDoc}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Tipo de documento..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin código asignado</SelectItem>
+                    {tipos.map(t => (
+                      <SelectItem key={t.id} value={t.prefijo}>
+                        <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
+                        {t.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <div className="flex items-center gap-2">
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
                   className="hidden"
-                  onChange={handleFileChange}
+                  onChange={e => { setPendingFile(e.target.files?.[0] ?? null); e.target.value = ""; }}
                 />
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                  {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Upload className="h-4 w-4 mr-1.5" />}
-                  {uploading ? "Subiendo..." : "Seleccionar archivo"}
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="h-4 w-4 mr-1.5" />
+                  Seleccionar archivo
                 </Button>
-                {uploadedFile && (
-                  <span className="text-xs text-green-600 truncate max-w-[150px]">{uploadedFile.nombre}</span>
+                {pendingFile && (
+                  <span className="text-xs text-green-600 truncate max-w-[150px]">{pendingFile.name}</span>
                 )}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Se creará una nueva versión pendiente de aprobación.
               </p>
             </div>
@@ -141,7 +179,7 @@ export function RevisarInstructivoModal({ open, onOpenChange, onSuccess, instruc
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={handleClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving || uploading}>
+          <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar revisión"}
           </Button>
         </DialogFooter>

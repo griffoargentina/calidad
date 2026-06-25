@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, FileText, Pencil, Trash2, Upload, ExternalLink, Loader2 } from "lucide-react";
+
+interface TipoDoc { id: string; prefijo: string; nombre: string }
 
 interface Procedimiento {
   id: string;
@@ -36,10 +39,18 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [tipoDoc, setTipoDoc] = useState("__none__");
+  const [tipos, setTipos] = useState<TipoDoc[]>([]);
 
-  function openNew() { setEditTarget(null); setTitulo(""); setDescripcion(""); setPendingFile(null); setDialogOpen(true); }
-  function openEdit(p: Procedimiento) { setEditTarget(p); setTitulo(p.titulo); setDescripcion(p.descripcion ?? ""); setPendingFile(null); setDialogOpen(true); }
-  function closeDialog() { setDialogOpen(false); setEditTarget(null); setPendingFile(null); }
+  useEffect(() => {
+    fetch("/api/procesos/tipos-documento")
+      .then(r => r.json())
+      .then(d => setTipos(Array.isArray(d) ? d : []));
+  }, []);
+
+  function openNew() { setEditTarget(null); setTitulo(""); setDescripcion(""); setPendingFile(null); setTipoDoc("__none__"); setDialogOpen(true); }
+  function openEdit(p: Procedimiento) { setEditTarget(p); setTitulo(p.titulo); setDescripcion(p.descripcion ?? ""); setPendingFile(null); setTipoDoc("__none__"); setDialogOpen(true); }
+  function closeDialog() { setDialogOpen(false); setEditTarget(null); setPendingFile(null); setTipoDoc("__none__"); }
 
   async function handleSave() {
     if (!titulo.trim()) return;
@@ -49,6 +60,7 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
         const updates: Record<string, string> = { titulo: titulo.trim(), descripcion: descripcion.trim() };
         if (pendingFile) {
           const fd = new FormData(); fd.append("file", pendingFile); fd.append("folder", `procedimientos/${editTarget.id}`);
+          if (tipoDoc !== "__none__") fd.append("tipo_documento", tipoDoc);
           const uploadRes = await fetch("/api/calibracion/upload", { method: "POST", body: fd });
           if (!uploadRes.ok) throw new Error("Error al subir archivo");
           const { url, nombre } = await uploadRes.json();
@@ -65,6 +77,7 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
         setProcedimientos((prev) => [...prev, created]);
         if (pendingFile) {
           const fd = new FormData(); fd.append("file", pendingFile); fd.append("folder", `procedimientos/${created.id}`);
+          if (tipoDoc !== "__none__") fd.append("tipo_documento", tipoDoc);
           const uploadRes = await fetch("/api/calibracion/upload", { method: "POST", body: fd });
           if (uploadRes.ok) {
             const { url, nombre } = await uploadRes.json();
@@ -149,6 +162,22 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
             <div className="space-y-1.5"><Label htmlFor="proc-desc">Descripción</Label><Textarea id="proc-desc" placeholder="Descripción del procedimiento..." value={descripcion} onChange={(e) => setDescripcion(e.target.value)} rows={3} /></div>
             <div className="space-y-1.5">
               <Label>Archivo</Label>
+              {tipos.length > 0 && (
+                <Select value={tipoDoc} onValueChange={setTipoDoc}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Tipo de documento..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin código asignado</SelectItem>
+                    {tipos.map(t => (
+                      <SelectItem key={t.id} value={t.prefijo}>
+                        <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
+                        {t.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <div className="flex items-center gap-3">
                 <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => { setPendingFile(e.target.files?.[0] ?? null); }} />
                 <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-1.5" />{pendingFile ? "Cambiar archivo" : "Seleccionar archivo"}</Button>

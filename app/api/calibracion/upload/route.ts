@@ -1,30 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-async function uploadToStorage(path: string, file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const url = `${SUPABASE_URL}/storage/v1/object/documentos/${path}`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-      "Content-Type": file.type || "application/octet-stream",
-      "Cache-Control": "3600",
-    },
-    body: arrayBuffer,
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(body);
-  }
-
-  return `${SUPABASE_URL}/storage/v1/object/public/documentos/${path}`;
-}
+import { uploadArchivo } from "@/lib/server/upload-archivos";
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -34,22 +10,21 @@ export async function POST(req: Request) {
   const { data: us } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
   if (us?.rol === "lector") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-  const formData = await req.formData();
-  const file = formData.get("file") as File | null;
-  const folder = (formData.get("folder") as string) || "general";
+  const formData  = await req.formData();
+  const file      = formData.get("file") as File | null;
+  const folder    = (formData.get("folder") as string) || crypto.randomUUID();
+  const tipoDoc   = formData.get("tipo_documento") as string | null;
+  const categoria = (formData.get("categoria") as string) || "certificado";
 
   if (!file) return NextResponse.json({ error: "Archivo requerido" }, { status: 400 });
 
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `calibracion/${folder}/${Date.now()}_${safeName}`;
-
   try {
-    const url = await uploadToStorage(path, file);
-    return NextResponse.json({ url, nombre: file.name });
+    const result = await uploadArchivo({
+      file, modulo: "calibracion", referenciaId: folder,
+      categoria, tipoDoc, userId: user.id,
+    });
+    return NextResponse.json({ url: result.url, nombre: file.name, codigo: result.codigo });
   } catch (err) {
-    return NextResponse.json(
-      { error: `[Storage] ${err instanceof Error ? err.message : "Error"}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
   }
 }
