@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -180,16 +179,26 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
       estado: "vigente",
     };
 
-    let result;
+    let itemId: string;
     if (itemInicial) {
-      result = await supabase.from("items").update(payload).eq("id", itemInicial.id).select().single();
+      const res = await fetch("/api/items", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: itemInicial.id, ...payload }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Error al guardar"); setLoading(false); return; }
+      itemId = data.id;
     } else {
-      result = await supabase.from("items").insert(payload).select().single();
+      const res = await fetch("/api/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Error al crear"); setLoading(false); return; }
+      itemId = data.id;
     }
-
-    if (result.error) { setError(result.error.message); setLoading(false); return; }
-
-    const itemId = result.data.id;
     if (archivoProc) await uploadArchivo(itemId, archivoProc, "procedimiento", tipoProc);
     if (archivoDoc)  await uploadArchivo(itemId, archivoDoc,  "documento",     tipoDoc);
 
