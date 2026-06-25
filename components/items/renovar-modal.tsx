@@ -40,7 +40,7 @@ function calcVencimiento(frecuenciaDias: number): string {
 }
 
 export function RenovarModal({ item, nextVersion }: RenovarModalProps) {
-  const versionNueva = nextVersion ?? versionNueva;
+  const versionNueva = nextVersion ?? item.version_actual + 1;
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
