@@ -48,11 +48,12 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
 
-  // Versión global por item (el constraint UNIQUE es item_id+version sin categoría)
+  // Versión por item + categoria (procedimiento e instrucción independientes)
   const { data: existing } = await admin
     .from("archivos")
     .select("version")
     .eq("item_id", itemId)
+    .eq("categoria", categoria)
     .order("version", { ascending: false })
     .limit(1);
   const version = existing?.[0] ? existing[0].version + 1 : 1;

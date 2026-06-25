@@ -45,23 +45,21 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
 
-  // Sync version_actual with MAX(archivos.version) before calling fn_renovar_item.
-  // fn_renovar_item uses version_actual+1 — if it's stale (e.g. a procedure was uploaded
-  // after the last renewal), the insert would violate the unique constraint.
-  const { data: latestArchivo } = await admin
+  // Sync version_actual with MAX(archivos.version WHERE categoria='documento')
+  // fn_renovar_item uses version_actual+1 for the new documento version.
+  const { data: latestDoc } = await admin
     .from("archivos")
     .select("version")
     .eq("item_id", itemId)
+    .eq("categoria", "documento")
     .order("version", { ascending: false })
     .limit(1);
 
-  if (latestArchivo?.[0]) {
-    await admin
-      .from("items")
-      .update({ version_actual: latestArchivo[0].version })
-      .eq("id", itemId)
-      .lt("version_actual", latestArchivo[0].version);
-  }
+  const currentDocVersion = latestDoc?.[0]?.version ?? 0;
+  await admin
+    .from("items")
+    .update({ version_actual: currentDocVersion })
+    .eq("id", itemId);
 
   const ext = file.name.split(".").pop();
   const path = `items/${itemId}/v${Date.now()}.${ext}`;
