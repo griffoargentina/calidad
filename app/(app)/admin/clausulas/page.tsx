@@ -109,9 +109,10 @@ export default async function ClausulasPage() {
     } else {
       const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
       const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
-      if (!fv || fv < hoy) {
+      // Sin fecha de vencimiento pero con archivo = no es un error, solo no tiene fecha
+      if (fv && fv < hoy) {
         s.vencidos++;
-      } else if (fv <= new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000)) {
+      } else if (fv && fv <= new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000)) {
         s.porVencer++;
       }
     }
