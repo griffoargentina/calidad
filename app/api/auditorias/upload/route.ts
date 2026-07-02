@@ -15,8 +15,9 @@ export async function POST(req: Request) {
   const formData = await req.formData();
   const file      = formData.get("file") as File | null;
   const auditoriaId = formData.get("auditoriaId") as string | null;
-  const tipoDoc   = formData.get("tipo_documento") as string | null;
-  const categoria = (formData.get("categoria") as string) || "informe";
+  const tipoDoc      = formData.get("tipo_documento") as string | null;
+  const codigoManual = (formData.get("codigo_manual") as string | null) || null;
+  const categoria    = (formData.get("categoria") as string) || "informe";
 
   if (!file || !auditoriaId) {
     return NextResponse.json({ error: "Archivo e ID requeridos" }, { status: 400 });
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
   try {
     const result = await uploadArchivo({
       file, modulo: "auditorias", referenciaId: auditoriaId,
-      categoria, tipoDoc, userId: user.id,
+      categoria, tipoDoc, codigoManual, userId: user.id,
     });
     return NextResponse.json({ url: result.url, nombre: file.name, codigo: result.codigo });
   } catch (err) {

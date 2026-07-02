@@ -14,6 +14,7 @@ export async function POST(req: Request) {
   const file         = formData.get("file") as File | null;
   const instructivoId = (formData.get("instructivo_id") as string) || crypto.randomUUID();
   const tipoDoc      = formData.get("tipo_documento") as string | null;
+  const codigoManual = (formData.get("codigo_manual") as string | null) || null;
   const comentario   = formData.get("comentario") as string | null;
 
   if (!file) return NextResponse.json({ error: "Falta el archivo" }, { status: 400 });
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   try {
     const result = await uploadArchivo({
       file, modulo: "instructivos", referenciaId: instructivoId,
-      categoria: "documento", tipoDoc, comentario, userId: user.id,
+      categoria: "documento", tipoDoc, codigoManual, comentario, userId: user.id,
     });
     return NextResponse.json({ url: result.url, nombre_archivo: file.name, codigo: result.codigo });
   } catch (err) {

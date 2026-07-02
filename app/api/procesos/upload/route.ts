@@ -14,13 +14,14 @@ export async function POST(req: Request) {
   const file         = formData.get("file") as File | null;
   const instructivoId = (formData.get("instructivo_id") as string) || crypto.randomUUID();
   const tipoDoc      = formData.get("tipo_documento") as string | null;
+  const codigoManual = (formData.get("codigo_manual") as string | null) || null;
 
   if (!file) return NextResponse.json({ error: "Archivo requerido" }, { status: 400 });
 
   try {
     const result = await uploadArchivo({
       file, modulo: "flujogramas", referenciaId: instructivoId,
-      categoria: "flujograma", tipoDoc, userId: user.id,
+      categoria: "flujograma", tipoDoc, codigoManual, userId: user.id,
     });
     return NextResponse.json({ url: result.url, nombre: file.name, codigo: result.codigo });
   } catch (err) {

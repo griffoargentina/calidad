@@ -37,6 +37,8 @@ export async function POST(req: Request) {
   const itemId           = formData.get("item_id") as string;
   const comentario       = formData.get("comentario") as string | null;
   const fechaVencimiento = formData.get("fecha_vencimiento") as string | null;
+  const tipoDoc          = formData.get("tipo_documento") as string | null;
+  const codigoManual     = (formData.get("codigo_manual") as string | null) || null;
 
   if (!file || !itemId) {
     return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
@@ -77,6 +79,50 @@ export async function POST(req: Request) {
     });
 
     if (rpcError) return NextResponse.json({ error: `[RPC] ${rpcError.message}` }, { status: 500 });
+
+    // Asignar tipo_documento y codigo al archivo que acaba de insertar el RPC
+    if (tipoDoc || codigoManual) {
+      let codigoFinal = codigoManual;
+      if (!codigoFinal && tipoDoc) {
+        // Auto-generar si no se indicó manual
+        const { data: codigosExistentes } = await admin
+          .from("archivos")
+          .select("codigo")
+          .like("codigo", `${tipoDoc}-%`);
+        const max = (codigosExistentes ?? []).reduce((acc: number, row: { codigo: string | null }) => {
+          const n = parseInt((row.codigo ?? "").split("-")[1] ?? "0");
+          return isNaN(n) ? acc : Math.max(acc, n);
+        }, 0);
+        codigoFinal = `${tipoDoc}-${String(max + 1).padStart(2, "0")}`;
+      } else if (codigoFinal) {
+        // Validar que el código manual no exista
+        const { data: existe } = await admin
+          .from("archivos")
+          .select("id")
+          .eq("codigo", codigoFinal)
+          .limit(1);
+        if (existe && existe.length > 0) {
+          return NextResponse.json({ error: `El código ${codigoFinal} ya está en uso. Elegí otro número.` }, { status: 400 });
+        }
+      }
+      // Parchear el archivo recién insertado (el más nuevo del item con categoria=documento)
+      const { data: nuevoArchivo } = await admin
+        .from("archivos")
+        .select("id")
+        .eq("item_id", itemId)
+        .eq("categoria", "documento")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (nuevoArchivo?.[0]) {
+        await admin
+          .from("archivos")
+          .update({
+            ...(tipoDoc       ? { tipo_documento: tipoDoc } : {}),
+            ...(codigoFinal   ? { codigo: codigoFinal }     : {}),
+          })
+          .eq("id", nuevoArchivo[0].id);
+      }
+    }
 
     if (fechaVencimiento) {
       const { error: updateError } = await admin

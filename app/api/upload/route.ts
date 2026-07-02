@@ -17,7 +17,8 @@ export async function POST(req: Request) {
   const refId     = (formData.get("referencia_id") as string) || itemId;
   const categoria = (formData.get("categoria") as string) || "documento";
   const comentario = formData.get("comentario") as string | null;
-  const tipoDoc   = formData.get("tipo_documento") as string | null;
+  const tipoDoc      = formData.get("tipo_documento") as string | null;
+  const codigoManual = (formData.get("codigo_manual") as string | null) || null;
 
   if (!file || !refId) {
     return NextResponse.json({ error: "Faltan file y referencia_id (o item_id)" }, { status: 400 });
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
   try {
     const result = await uploadArchivo({
       file, modulo, referenciaId: refId, categoria,
-      tipoDoc, comentario, userId: user.id, itemId,
+      tipoDoc, codigoManual, comentario, userId: user.id, itemId,
     });
     return NextResponse.json(result);
   } catch (err) {

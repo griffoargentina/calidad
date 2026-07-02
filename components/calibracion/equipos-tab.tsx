@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Pencil, PowerOff, Download, ChevronRight, RotateCcw, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CodigoDocumentoInput } from "@/components/ui/codigo-documento-input";
 
 interface TipoDoc { id: string; prefijo: string; nombre: string }
 
@@ -84,6 +85,7 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
   const [calForm, setCalForm] = useState({ fecha_calibracion: "", fecha_vencimiento: "", observaciones: "" });
   const [calFile, setCalFile] = useState<File | null>(null);
   const [calTipoDoc, setCalTipoDoc] = useState("__none__");
+  const [calCodigoNum, setCalCodigoNum] = useState("");
   const [savingCal, setSavingCal] = useState(false);
   const calFileRef = useRef<HTMLInputElement>(null);
   const [tipos, setTipos] = useState<TipoDoc[]>([]);
@@ -183,6 +185,7 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
     setCalForm({ fecha_calibracion: "", fecha_vencimiento: "", observaciones: "" });
     setCalFile(null);
     setCalTipoDoc("__none__");
+    setCalCodigoNum("");
     setCalDialog(true);
   }
 
@@ -241,7 +244,10 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
       const fd = new FormData();
       fd.append("file", calFile);
       fd.append("folder", `calibraciones/${selectedEquipo.id}`);
-      if (calTipoDoc !== "__none__") fd.append("tipo_documento", calTipoDoc);
+      if (calTipoDoc !== "__none__") {
+        fd.append("tipo_documento", calTipoDoc);
+        if (calCodigoNum) fd.append("codigo_manual", `${calTipoDoc}-${calCodigoNum}`);
+      }
       const uploadRes = await fetch("/api/calibracion/upload", { method: "POST", body: fd });
       const uploaded = await uploadRes.json();
       archivo_url = uploaded.url;
@@ -501,20 +507,30 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
             <div>
               <label className="text-sm font-medium">Certificado (PDF/Word)</label>
               {tipos.length > 0 && (
-                <Select value={calTipoDoc} onValueChange={setCalTipoDoc}>
-                  <SelectTrigger className="mt-1 h-8 text-xs">
-                    <SelectValue placeholder="Tipo de documento..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin código asignado</SelectItem>
-                    {tipos.map(t => (
-                      <SelectItem key={t.id} value={t.prefijo}>
-                        <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
-                        {t.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <>
+                  <Select value={calTipoDoc} onValueChange={v => { setCalTipoDoc(v); setCalCodigoNum(""); }}>
+                    <SelectTrigger className="mt-1 h-8 text-xs">
+                      <SelectValue placeholder="Tipo de documento..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin código asignado</SelectItem>
+                      {tipos.map(t => (
+                        <SelectItem key={t.id} value={t.prefijo}>
+                          <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
+                          {t.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {calTipoDoc !== "__none__" && (
+                    <CodigoDocumentoInput
+                      prefijo={calTipoDoc}
+                      value={calCodigoNum}
+                      onChange={setCalCodigoNum}
+                      disabled={savingCal}
+                    />
+                  )}
+                </>
               )}
               <div className="mt-1 flex items-center gap-2">
                 <input ref={calFileRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e) => setCalFile(e.target.files?.[0] ?? null)} />

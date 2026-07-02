@@ -26,7 +26,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: item }, { data: usuario }, { data: todosUsuarios }] = await Promise.all([
+  const [{ data: item }, { data: usuario }, { data: todosUsuarios }, { data: tiposDocumento }] = await Promise.all([
     supabase
       .from("items")
       .select(`*, clausulas_iso(id, titulo), areas(id, nombre), usuarios!responsable_id(id, nombre, email)`)
@@ -34,6 +34,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
       .single(),
     supabase.from("usuarios").select("*").eq("id", user.id).single(),
     supabase.from("usuarios").select("id, nombre").eq("activo", true).order("nombre"),
+    supabase.from("proc_tipos_documento").select("id, prefijo, nombre").eq("activo", true).order("orden"),
   ]);
 
   if (!item) notFound();
@@ -181,7 +182,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                   <p className="text-xs text-muted-foreground">Sin procedimiento cargado</p>
                   {canEdit && (
                     <div className="w-full space-y-2 px-2">
-                      <SubirProcedimientoModal item={item} />
+                      <SubirProcedimientoModal item={item} tipos={tiposDocumento ?? []} />
                       <ProcNaToggle itemId={params.id} value={meta.procedimiento_na === true} />
                     </div>
                   )}
@@ -204,7 +205,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                   ))}
                   {canEdit && (
                     <li className="pt-1">
-                      <SubirProcedimientoModal item={item} />
+                      <SubirProcedimientoModal item={item} tipos={tiposDocumento ?? []} />
                     </li>
                   )}
                 </ul>
@@ -279,7 +280,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
           <TabsContent value="documento" className="mt-4 space-y-3">
             {canEdit && (
               <div className="flex justify-end">
-                <RenovarModal item={item} />
+                <RenovarModal item={item} tipos={tiposDocumento ?? []} />
               </div>
             )}
             <Card>

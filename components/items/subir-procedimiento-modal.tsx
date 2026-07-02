@@ -8,21 +8,39 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CodigoDocumentoInput } from "@/components/ui/codigo-documento-input";
 import { BookOpen, Upload, FileText, Loader2, CheckCircle2 } from "lucide-react";
+
+interface TipoDoc { id: string; prefijo: string; nombre: string }
 
 interface Props {
   item: { id: string; codigo: string; titulo: string };
+  tipos?: TipoDoc[];
 }
 
-export function SubirProcedimientoModal({ item }: Props) {
+export function SubirProcedimientoModal({ item, tipos = [] }: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [comentario, setComentario] = useState("");
+  const [tipoDocId, setTipoDocId] = useState("__none__");
+  const [codigoNum, setCodigoNum] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  const selectedTipo = tipos.find(t => t.id === tipoDocId) ?? null;
+
+  function handleOpen() {
+    setFile(null);
+    setComentario("");
+    setTipoDocId("__none__");
+    setCodigoNum("");
+    setError(null);
+    setOpen(true);
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -39,8 +57,11 @@ export function SubirProcedimientoModal({ item }: Props) {
       fd.append("file", file);
       fd.append("item_id", item.id);
       fd.append("categoria", "procedimiento");
-      fd.append("version", "1");
       if (comentario) fd.append("comentario", comentario);
+      if (selectedTipo) {
+        fd.append("tipo_documento", selectedTipo.prefijo);
+        if (codigoNum) fd.append("codigo_manual", `${selectedTipo.prefijo}-${codigoNum}`);
+      }
 
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
@@ -50,8 +71,6 @@ export function SubirProcedimientoModal({ item }: Props) {
       setTimeout(() => {
         setOpen(false);
         setDone(false);
-        setFile(null);
-        setComentario("");
         router.refresh();
       }, 1500);
     } catch (err) {
@@ -63,7 +82,7 @@ export function SubirProcedimientoModal({ item }: Props) {
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button size="sm" variant="outline" onClick={handleOpen}>
         <BookOpen className="h-4 w-4 mr-1.5" />
         Subir procedimiento
       </Button>
@@ -74,8 +93,6 @@ export function SubirProcedimientoModal({ item }: Props) {
             <DialogTitle>Subir procedimiento</DialogTitle>
             <DialogDescription>
               <span className="font-mono font-semibold">{item.codigo}</span> — {item.titulo}
-              <br />
-              Subí el documento de procedimiento asociado a este item.
             </DialogDescription>
           </DialogHeader>
 
@@ -86,6 +103,34 @@ export function SubirProcedimientoModal({ item }: Props) {
             </div>
           ) : (
             <div className="space-y-4">
+              {tipos.length > 0 && (
+                <div className="space-y-1">
+                  <Label>Tipo de documento</Label>
+                  <Select value={tipoDocId} onValueChange={v => { setTipoDocId(v); setCodigoNum(""); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sin código asignado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin código asignado</SelectItem>
+                      {tipos.map(t => (
+                        <SelectItem key={t.id} value={t.id}>
+                          <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
+                          {t.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedTipo && (
+                    <CodigoDocumentoInput
+                      prefijo={selectedTipo.prefijo}
+                      value={codigoNum}
+                      onChange={setCodigoNum}
+                      disabled={loading}
+                    />
+                  )}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Archivo <span className="text-destructive">*</span></Label>
                 <div

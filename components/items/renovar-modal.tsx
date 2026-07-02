@@ -9,7 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CodigoDocumentoInput } from "@/components/ui/codigo-documento-input";
 import { RefreshCw, Upload, FileText, Loader2, CheckCircle2 } from "lucide-react";
+
+interface TipoDoc { id: string; prefijo: string; nombre: string }
 
 interface RenovarModalProps {
   item: {
@@ -20,6 +24,7 @@ interface RenovarModalProps {
     requiere_aprobacion: boolean;
     frecuencia_dias?: number | null;
   };
+  tipos?: TipoDoc[];
 }
 
 function calcVencimiento(frecuenciaDias: number): string {
@@ -28,19 +33,28 @@ function calcVencimiento(frecuenciaDias: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function RenovarModal({ item }: RenovarModalProps) {
+export function RenovarModal({ item, tipos = [] }: RenovarModalProps) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [comentario, setComentario] = useState("");
   const [fechaVenc, setFechaVenc] = useState("");
+  const [tipoDocId, setTipoDocId] = useState("__none__");
+  const [codigoNum, setCodigoNum] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  const selectedTipo = tipos.find(t => t.id === tipoDocId) ?? null;
+
   function handleOpen() {
     if (item.frecuencia_dias) setFechaVenc(calcVencimiento(item.frecuencia_dias));
+    setFile(null);
+    setComentario("");
+    setTipoDocId("__none__");
+    setCodigoNum("");
+    setError(null);
     setOpen(true);
   }
 
@@ -59,9 +73,12 @@ export function RenovarModal({ item }: RenovarModalProps) {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("item_id", item.id);
-      fd.append("version", String(item.version_actual + 1));
-      if (comentario)  fd.append("comentario", comentario);
+      if (comentario) fd.append("comentario", comentario);
       fd.append("fecha_vencimiento", fechaVenc);
+      if (selectedTipo) {
+        fd.append("tipo_documento", selectedTipo.prefijo);
+        if (codigoNum) fd.append("codigo_manual", `${selectedTipo.prefijo}-${codigoNum}`);
+      }
 
       const res = await fetch("/api/renovar", { method: "POST", body: fd });
       const data = await res.json();
@@ -71,8 +88,6 @@ export function RenovarModal({ item }: RenovarModalProps) {
       setTimeout(() => {
         setOpen(false);
         setDone(false);
-        setFile(null);
-        setComentario("");
         router.refresh();
       }, 1500);
     } catch (err) {
@@ -113,8 +128,34 @@ export function RenovarModal({ item }: RenovarModalProps) {
             </div>
           ) : (
             <div className="space-y-4">
+              {tipos.length > 0 && (
+                <div className="space-y-1">
+                  <Label>Tipo de documento</Label>
+                  <Select value={tipoDocId} onValueChange={v => { setTipoDocId(v); setCodigoNum(""); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sin código asignado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin código asignado</SelectItem>
+                      {tipos.map(t => (
+                        <SelectItem key={t.id} value={t.id}>
+                          <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
+                          {t.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedTipo && (
+                    <CodigoDocumentoInput
+                      prefijo={selectedTipo.prefijo}
+                      value={codigoNum}
+                      onChange={setCodigoNum}
+                      disabled={loading}
+                    />
+                  )}
+                </div>
+              )}
 
-              {/* Fecha de vencimiento */}
               <div className="space-y-1.5">
                 <Label>Fecha de vencimiento <span className="text-destructive">*</span></Label>
                 <Input
@@ -134,7 +175,6 @@ export function RenovarModal({ item }: RenovarModalProps) {
                 )}
               </div>
 
-              {/* Selector de archivo */}
               <div className="space-y-2">
                 <Label>Nuevo archivo <span className="text-destructive">*</span></Label>
                 <div
@@ -163,7 +203,6 @@ export function RenovarModal({ item }: RenovarModalProps) {
                 </div>
               </div>
 
-              {/* Comentario */}
               <div className="space-y-2">
                 <Label>Comentario (opcional)</Label>
                 <Textarea

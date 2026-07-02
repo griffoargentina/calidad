@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, FileText, Pencil, Trash2, Upload, ExternalLink, Loader2 } from "lucide-react";
+import { CodigoDocumentoInput } from "@/components/ui/codigo-documento-input";
 
 interface TipoDoc { id: string; prefijo: string; nombre: string }
 
@@ -40,6 +41,7 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
   const [descripcion, setDescripcion] = useState("");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [tipoDoc, setTipoDoc] = useState("__none__");
+  const [codigoNum, setCodigoNum] = useState("");
   const [tipos, setTipos] = useState<TipoDoc[]>([]);
 
   useEffect(() => {
@@ -48,9 +50,9 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
       .then(d => setTipos(Array.isArray(d) ? d : []));
   }, []);
 
-  function openNew() { setEditTarget(null); setTitulo(""); setDescripcion(""); setPendingFile(null); setTipoDoc("__none__"); setDialogOpen(true); }
-  function openEdit(p: Procedimiento) { setEditTarget(p); setTitulo(p.titulo); setDescripcion(p.descripcion ?? ""); setPendingFile(null); setTipoDoc("__none__"); setDialogOpen(true); }
-  function closeDialog() { setDialogOpen(false); setEditTarget(null); setPendingFile(null); setTipoDoc("__none__"); }
+  function openNew() { setEditTarget(null); setTitulo(""); setDescripcion(""); setPendingFile(null); setTipoDoc("__none__"); setCodigoNum(""); setDialogOpen(true); }
+  function openEdit(p: Procedimiento) { setEditTarget(p); setTitulo(p.titulo); setDescripcion(p.descripcion ?? ""); setPendingFile(null); setTipoDoc("__none__"); setCodigoNum(""); setDialogOpen(true); }
+  function closeDialog() { setDialogOpen(false); setEditTarget(null); setPendingFile(null); setTipoDoc("__none__"); setCodigoNum(""); }
 
   async function handleSave() {
     if (!titulo.trim()) return;
@@ -60,7 +62,10 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
         const updates: Record<string, string> = { titulo: titulo.trim(), descripcion: descripcion.trim() };
         if (pendingFile) {
           const fd = new FormData(); fd.append("file", pendingFile); fd.append("folder", `procedimientos/${editTarget.id}`);
-          if (tipoDoc !== "__none__") fd.append("tipo_documento", tipoDoc);
+          if (tipoDoc !== "__none__") {
+            fd.append("tipo_documento", tipoDoc);
+            if (codigoNum) fd.append("codigo_manual", `${tipoDoc}-${codigoNum}`);
+          }
           const uploadRes = await fetch("/api/calibracion/upload", { method: "POST", body: fd });
           if (!uploadRes.ok) throw new Error("Error al subir archivo");
           const { url, nombre } = await uploadRes.json();
@@ -77,7 +82,10 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
         setProcedimientos((prev) => [...prev, created]);
         if (pendingFile) {
           const fd = new FormData(); fd.append("file", pendingFile); fd.append("folder", `procedimientos/${created.id}`);
-          if (tipoDoc !== "__none__") fd.append("tipo_documento", tipoDoc);
+          if (tipoDoc !== "__none__") {
+            fd.append("tipo_documento", tipoDoc);
+            if (codigoNum) fd.append("codigo_manual", `${tipoDoc}-${codigoNum}`);
+          }
           const uploadRes = await fetch("/api/calibracion/upload", { method: "POST", body: fd });
           if (uploadRes.ok) {
             const { url, nombre } = await uploadRes.json();
@@ -163,20 +171,30 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
             <div className="space-y-1.5">
               <Label>Archivo</Label>
               {tipos.length > 0 && (
-                <Select value={tipoDoc} onValueChange={setTipoDoc}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Tipo de documento..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin código asignado</SelectItem>
-                    {tipos.map(t => (
-                      <SelectItem key={t.id} value={t.prefijo}>
-                        <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
-                        {t.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <>
+                  <Select value={tipoDoc} onValueChange={v => { setTipoDoc(v); setCodigoNum(""); }}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Tipo de documento..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin código asignado</SelectItem>
+                      {tipos.map(t => (
+                        <SelectItem key={t.id} value={t.prefijo}>
+                          <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
+                          {t.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {tipoDoc !== "__none__" && (
+                    <CodigoDocumentoInput
+                      prefijo={tipoDoc}
+                      value={codigoNum}
+                      onChange={setCodigoNum}
+                      disabled={saving}
+                    />
+                  )}
+                </>
               )}
               <div className="flex items-center gap-3">
                 <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => { setPendingFile(e.target.files?.[0] ?? null); }} />

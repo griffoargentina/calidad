@@ -20,17 +20,18 @@ async function uploadToStorage(path: string, file: File): Promise<string> {
 
 interface UploadParams {
   file: File;
-  modulo: string;        // 'items' | 'instructivos' | 'flujogramas' | 'calibracion' | 'auditorias'
-  referenciaId: string;  // ID del registro padre
-  categoria?: string;    // 'documento' | 'procedimiento' | 'certificado' | etc.
+  modulo: string;          // 'items' | 'instructivos' | 'flujogramas' | 'calibracion' | 'auditorias'
+  referenciaId: string;    // ID del registro padre
+  categoria?: string;      // 'documento' | 'procedimiento' | 'certificado' | etc.
   tipoDoc?: string | null;
+  codigoManual?: string | null; // si el usuario eligió un código específico (ej: "PR-05")
   comentario?: string | null;
   userId: string;
-  itemId?: string | null; // solo para modulo='items'
+  itemId?: string | null;  // solo para modulo='items'
 }
 
 export async function uploadArchivo(params: UploadParams) {
-  const { file, modulo, referenciaId, categoria = "documento", tipoDoc, comentario, userId, itemId } = params;
+  const { file, modulo, referenciaId, categoria = "documento", tipoDoc, codigoManual, comentario, userId, itemId } = params;
   const admin = createAdminClient();
 
   // Versión correlativa por referencia + modulo + categoria
@@ -44,9 +45,21 @@ export async function uploadArchivo(params: UploadParams) {
     .limit(1);
   const version = existing?.[0] ? existing[0].version + 1 : 1;
 
-  // Código global único por tipo (PR-01 es único en todo el sistema)
+  // Código global único por tipo
   let codigoArchivo: string | null = null;
-  if (tipoDoc) {
+  if (codigoManual) {
+    // Validar que el código manual no exista ya
+    const { data: existe } = await admin
+      .from("archivos")
+      .select("id")
+      .eq("codigo", codigoManual)
+      .limit(1);
+    if (existe && existe.length > 0) {
+      throw new Error(`El código ${codigoManual} ya está en uso. Elegí otro número.`);
+    }
+    codigoArchivo = codigoManual;
+  } else if (tipoDoc) {
+    // Auto-generar: max + 1 global por prefijo
     const { data: codigosExistentes } = await admin
       .from("archivos")
       .select("codigo")
@@ -71,15 +84,15 @@ export async function uploadArchivo(params: UploadParams) {
   const publicUrl = await uploadToStorage(storagePath, file);
 
   const { error: dbError } = await admin.from("archivos").insert({
-    item_id:       modulo === "items" ? (itemId ?? referenciaId) : null,
+    item_id:        modulo === "items" ? (itemId ?? referenciaId) : null,
     modulo,
-    referencia_id: referenciaId,
+    referencia_id:  referenciaId,
     version,
-    archivo_url:   publicUrl,
+    archivo_url:    publicUrl,
     nombre_archivo: file.name,
-    tamaño_bytes:  file.size,
+    tamaño_bytes:   file.size,
     categoria,
-    subido_por:    userId,
+    subido_por:     userId,
     ...(comentario    ? { comentario }              : {}),
     ...(tipoDoc       ? { tipo_documento: tipoDoc } : {}),
     ...(codigoArchivo ? { codigo: codigoArchivo }   : {}),

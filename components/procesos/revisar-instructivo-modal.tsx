@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Upload } from "lucide-react";
+import { CodigoDocumentoInput } from "@/components/ui/codigo-documento-input";
 
 interface Instructivo {
   id: string;
@@ -27,6 +28,7 @@ export function RevisarInstructivoModal({ open, onOpenChange, onSuccess, instruc
   const [observaciones, setObservaciones] = useState("");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [tipoDoc, setTipoDoc] = useState("__none__");
+  const [codigoNum, setCodigoNum] = useState("");
   const [tipos, setTipos] = useState<TipoDoc[]>([]);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,6 +44,7 @@ export function RevisarInstructivoModal({ open, onOpenChange, onSuccess, instruc
     if (open && instructivo.tipo_doc_prefijo) {
       setTipoDoc(instructivo.tipo_doc_prefijo);
     }
+    setCodigoNum("");
   }, [open, instructivo.tipo_doc_prefijo]);
 
   async function handleSave() {
@@ -54,7 +57,10 @@ export function RevisarInstructivoModal({ open, onOpenChange, onSuccess, instruc
         const fd = new FormData();
         fd.append("file", pendingFile);
         fd.append("instructivo_id", instructivo.id);
-        if (tipoDoc !== "__none__") fd.append("tipo_documento", tipoDoc);
+        if (tipoDoc !== "__none__") {
+          fd.append("tipo_documento", tipoDoc);
+          if (codigoNum) fd.append("codigo_manual", `${tipoDoc}-${codigoNum}`);
+        }
         const uploadRes = await fetch("/api/procesos/instructivos/upload", { method: "POST", body: fd });
         const uploadData = await uploadRes.json();
         if (uploadData.url) {
@@ -87,6 +93,7 @@ export function RevisarInstructivoModal({ open, onOpenChange, onSuccess, instruc
     setObservaciones("");
     setPendingFile(null);
     setTipoDoc("__none__");
+    setCodigoNum("");
     onOpenChange(false);
   }
 
@@ -130,20 +137,30 @@ export function RevisarInstructivoModal({ open, onOpenChange, onSuccess, instruc
             <div className="space-y-2">
               <label className="text-sm font-medium">Nuevo archivo</label>
               {tipos.length > 0 && (
-                <Select value={tipoDoc} onValueChange={setTipoDoc}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Tipo de documento..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin código asignado</SelectItem>
-                    {tipos.map(t => (
-                      <SelectItem key={t.id} value={t.prefijo}>
-                        <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
-                        {t.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <>
+                  <Select value={tipoDoc} onValueChange={v => { setTipoDoc(v); setCodigoNum(""); }}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Tipo de documento..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin código asignado</SelectItem>
+                      {tipos.map(t => (
+                        <SelectItem key={t.id} value={t.prefijo}>
+                          <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
+                          {t.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {tipoDoc !== "__none__" && (
+                    <CodigoDocumentoInput
+                      prefijo={tipoDoc}
+                      value={codigoNum}
+                      onChange={setCodigoNum}
+                      disabled={saving}
+                    />
+                  )}
+                </>
               )}
               <div className="flex items-center gap-2">
                 <input
