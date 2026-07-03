@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, FileText, Pencil, Trash2, Upload, ExternalLink, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { CodigoDocumentoInput } from "@/components/ui/codigo-documento-input";
 
 interface TipoDoc { id: string; prefijo: string; nombre: string }
@@ -19,6 +20,7 @@ interface Procedimiento {
   descripcion: string | null;
   archivo_url: string | null;
   archivo_nombre: string | null;
+  codigo_doc?: string | null;  // código asignado al archivo (ej: PR-11)
   created_at: string;
   updated_at: string;
 }
@@ -61,36 +63,39 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
       if (editTarget) {
         const updates: Record<string, string> = { titulo: titulo.trim(), descripcion: descripcion.trim() };
         if (pendingFile) {
-          const fd = new FormData(); fd.append("file", pendingFile); fd.append("folder", `procedimientos/${editTarget.id}`);
+          const fd = new FormData(); fd.append("file", pendingFile); fd.append("folder", `procedimientos/${editTarget.id}`); fd.append("categoria", "procedimiento");
           if (tipoDoc !== "__none__") {
             fd.append("tipo_documento", tipoDoc);
             if (codigoNum) fd.append("codigo_manual", `${tipoDoc}-${codigoNum}`);
           }
           const uploadRes = await fetch("/api/calibracion/upload", { method: "POST", body: fd });
           if (!uploadRes.ok) throw new Error("Error al subir archivo");
-          const { url, nombre } = await uploadRes.json();
+          const { url, nombre, codigo } = await uploadRes.json();
           updates.archivo_url = url; updates.archivo_nombre = nombre;
+          if (codigo) (updates as Record<string, string>).codigo_doc = codigo;
         }
+        const codigoFromUpload = (updates as Record<string, string>).codigo_doc;
+        delete (updates as Record<string, string>).codigo_doc;
         const res = await fetch(`/api/calibracion/procedimientos/${editTarget.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates) });
         if (!res.ok) throw new Error("Error al guardar");
         const updated = await res.json();
-        setProcedimientos((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        setProcedimientos((prev) => prev.map((p) => (p.id === updated.id ? { ...updated, codigo_doc: codigoFromUpload ?? p.codigo_doc } : p)));
       } else {
         const res = await fetch("/api/calibracion/procedimientos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ titulo: titulo.trim(), descripcion: descripcion.trim() }) });
         if (!res.ok) throw new Error("Error al crear");
         const created: Procedimiento = await res.json();
         setProcedimientos((prev) => [...prev, created]);
         if (pendingFile) {
-          const fd = new FormData(); fd.append("file", pendingFile); fd.append("folder", `procedimientos/${created.id}`);
+          const fd = new FormData(); fd.append("file", pendingFile); fd.append("folder", `procedimientos/${created.id}`); fd.append("categoria", "procedimiento");
           if (tipoDoc !== "__none__") {
             fd.append("tipo_documento", tipoDoc);
             if (codigoNum) fd.append("codigo_manual", `${tipoDoc}-${codigoNum}`);
           }
           const uploadRes = await fetch("/api/calibracion/upload", { method: "POST", body: fd });
           if (uploadRes.ok) {
-            const { url, nombre } = await uploadRes.json();
+            const { url, nombre, codigo } = await uploadRes.json();
             const patchRes = await fetch(`/api/calibracion/procedimientos/${created.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ archivo_url: url, archivo_nombre: nombre }) });
-            if (patchRes.ok) { const patched = await patchRes.json(); setProcedimientos((prev) => prev.map((p) => (p.id === patched.id ? patched : p))); }
+            if (patchRes.ok) { const patched = await patchRes.json(); setProcedimientos((prev) => prev.map((p) => (p.id === patched.id ? { ...patched, codigo_doc: codigo ?? p.codigo_doc } : p))); }
           }
         }
       }
@@ -112,14 +117,14 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
   async function handleFileUploadInline(proc: Procedimiento, file: File) {
     setUploadingFor(proc.id);
     try {
-      const fd = new FormData(); fd.append("file", file); fd.append("folder", `procedimientos/${proc.id}`);
+      const fd = new FormData(); fd.append("file", file); fd.append("folder", `procedimientos/${proc.id}`); fd.append("categoria", "procedimiento");
       const uploadRes = await fetch("/api/calibracion/upload", { method: "POST", body: fd });
       if (!uploadRes.ok) throw new Error("Error al subir archivo");
-      const { url, nombre } = await uploadRes.json();
+      const { url, nombre, codigo } = await uploadRes.json();
       const patchRes = await fetch(`/api/calibracion/procedimientos/${proc.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ archivo_url: url, archivo_nombre: nombre }) });
       if (!patchRes.ok) throw new Error("Error al actualizar");
       const updated = await patchRes.json();
-      setProcedimientos((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setProcedimientos((prev) => prev.map((p) => (p.id === updated.id ? { ...updated, codigo_doc: codigo ?? p.codigo_doc } : p)));
     } catch (e) { alert(e instanceof Error ? e.message : "Error al subir"); } finally { setUploadingFor(null); }
   }
 
@@ -143,7 +148,10 @@ export function ProcedimientosTab({ procedimientosIniciales, canEdit }: Props) {
                   <TableCell className="text-sm text-muted-foreground">{proc.descripcion || <span className="italic text-muted-foreground/60">Sin descripción</span>}</TableCell>
                   <TableCell>
                     {proc.archivo_url ? (
-                      <a href={proc.archivo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"><ExternalLink className="h-3 w-3" />{proc.archivo_nombre ?? "Ver archivo"}</a>
+                      <div className="flex items-center gap-2">
+                        <a href={proc.archivo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"><ExternalLink className="h-3 w-3" />{proc.archivo_nombre ?? "Ver archivo"}</a>
+                        {proc.codigo_doc && <Badge variant="outline" className="font-mono text-xs bg-purple-50 text-purple-700 border-purple-200">{proc.codigo_doc}</Badge>}
+                      </div>
                     ) : canEdit ? (
                       <div>
                         <input type="file" className="hidden" id={`file-inline-${proc.id}`} accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUploadInline(proc, f); e.target.value = ""; }} />

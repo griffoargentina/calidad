@@ -193,7 +193,12 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                     <li key={p.id} className="flex items-center gap-3 p-3 rounded-lg bg-purple-50 border border-purple-100">
                       <FileText className="h-5 w-5 text-purple-400 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{p.nombre_archivo}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {typeof (p as Record<string, unknown>).codigo === "string" && (
+                            <Badge className="font-mono text-xs bg-purple-100 text-purple-700 border-purple-200">{(p as Record<string, string>).codigo}</Badge>
+                          )}
+                          <p className="text-sm font-medium truncate">{p.nombre_archivo}</p>
+                        </div>
                         <p className="text-xs text-muted-foreground">{formatBytes(p.tamaño_bytes)} · {formatFecha(p.subido_at)}</p>
                       </div>
                       <Button variant="ghost" size="icon" asChild>
@@ -306,7 +311,12 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                       <li key={archivo.id} className="flex items-center gap-4 px-6 py-4">
                         <FileText className="h-8 w-8 text-blue-400 shrink-0" />
                         <div className="flex-1 overflow-hidden">
-                          <p className="text-sm font-medium truncate">{archivo.nombre_archivo}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {typeof (archivo as Record<string, unknown>).codigo === "string" && (
+                              <Badge className="font-mono text-xs bg-blue-100 text-blue-700 border-blue-200">{(archivo as Record<string, string>).codigo}</Badge>
+                            )}
+                            <p className="text-sm font-medium truncate">{archivo.nombre_archivo}</p>
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             v{archivo.version} · {formatBytes(archivo.tamaño_bytes)} · {formatFecha(archivo.subido_at)} · por {archivo.subidor?.nombre ?? "—"}
                           </p>

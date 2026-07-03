@@ -16,6 +16,7 @@ export default async function CalibracionPage() {
     { data: equipos },
     { data: calibraciones },
     { data: usuarioData },
+    { data: archivosProc },
   ] = await Promise.all([
     admin.from("procedimientos_calibracion").select("*").order("titulo"),
     admin.from("equipos_calibracion").select(`
@@ -24,7 +25,17 @@ export default async function CalibracionPage() {
     `).order("nombre"),
     admin.from("calibraciones").select("*").order("fecha_calibracion", { ascending: false }),
     admin.from("usuarios").select("rol").eq("id", user?.id ?? "").single(),
+    admin.from("archivos").select("referencia_id, codigo").eq("modulo", "calibracion").eq("categoria", "procedimiento").not("codigo", "is", null),
   ]);
+
+  // Map archivos codes to procedimientos
+  const codigosProcMap = Object.fromEntries(
+    (archivosProc ?? []).map((a) => [(a as { referencia_id: string; codigo: string }).referencia_id, (a as { referencia_id: string; codigo: string }).codigo])
+  );
+  const procedimientosConCodigo = (procedimientos ?? []).map((p) => ({
+    ...p,
+    codigo_doc: codigosProcMap[(p as { id: string }).id] ?? null,
+  }));
 
   // Build latest calibracion map per equipo
   const calibracionesMap: Record<string, unknown> = Object.fromEntries(
@@ -47,7 +58,7 @@ export default async function CalibracionPage() {
       <Topbar title="Calibración" />
       <div className="flex-1 p-6 overflow-auto">
         <CalibracionTabs
-          procedimientosIniciales={procedimientos ?? []}
+          procedimientosIniciales={procedimientosConCodigo}
           equiposIniciales={equiposConCalib}
           canEdit={canEdit}
         />
