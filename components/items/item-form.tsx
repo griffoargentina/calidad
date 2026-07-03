@@ -16,13 +16,6 @@ import {
 import { Loader2, X, Plus, LayoutTemplate, Upload, FileText } from "lucide-react";
 import { useRef } from "react";
 
-const TIPO_DOCUMENTO_OPTIONS = [
-  { value: "MA", label: "MA — Manual" },
-  { value: "PR", label: "PR — Procedimiento" },
-  { value: "IT", label: "IT — Instructivo de Trabajo" },
-  { value: "FO", label: "FO — Formato / Formulario" },
-  { value: "RE", label: "RE — Registro" },
-];
 
 interface Plantilla {
   id: string;
@@ -64,7 +57,6 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const router = useRouter();
   const supabase = createClient();
 
-  const [tipoDocumento, setTipoDocumento] = useState(itemInicial?.tipo_documento ?? "");
   const [titulo, setTitulo] = useState(itemInicial?.titulo ?? "");
   const [descripcion, setDescripcion] = useState(itemInicial?.descripcion ?? "");
   const [clausulaIso, setClausulaIso] = useState(itemInicial?.clausula_iso ?? clausulaInicial ?? "");
@@ -75,8 +67,6 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [frecuenciaDias, setFrecuenciaDias] = useState<string>(itemInicial?.frecuencia_dias?.toString() ?? "__none__");
   const [etiquetas, setEtiquetas] = useState<string[]>(itemInicial?.etiquetas ?? []);
   const [etiquetaInput, setEtiquetaInput] = useState("");
-  const [versionActual, setVersionActual] = useState<string>(itemInicial?.version_actual?.toString() ?? "0");
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plantillaId, setPlantillaId] = useState("");
@@ -113,8 +103,8 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!tipoDocumento || !titulo || !clausulaIso) {
-      setError("Tipo de documento, título y cláusula ISO son obligatorios.");
+    if (!titulo || !clausulaIso) {
+      setError("Título y cláusula ISO son obligatorios.");
       return;
     }
     setLoading(true);
@@ -122,7 +112,6 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
 
     const payload: Record<string, unknown> = {
       tipo: "documento",
-      tipo_documento: tipoDocumento,
       titulo: titulo.trim(),
       descripcion: descripcion.trim() || null,
       clausula_iso: clausulaIso,
@@ -134,7 +123,6 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
       requiere_aprobacion: false,
       es_borrador: false,
       etiquetas,
-      version_actual: parseInt(versionActual) || 0,
       estado: "vigente",
     };
 
@@ -197,39 +185,24 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
           <CardTitle className="text-sm font-medium">Datos del documento</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo de documento <span className="text-destructive">*</span></Label>
-              <Select value={tipoDocumento} onValueChange={setTipoDocumento} required>
+          <div className="space-y-2">
+            <Label>Cláusula ISO <span className="text-destructive">*</span></Label>
+            {clausulaInicial ? (
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground cursor-not-allowed truncate">
+                {clausulaIso} — {clausulas.find(c => c.id === clausulaIso)?.titulo ?? ""}
+              </div>
+            ) : (
+              <Select value={clausulaIso} onValueChange={setClausulaIso} required>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar tipo..." />
+                  <SelectValue placeholder="Seleccionar cláusula..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIPO_DOCUMENTO_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  {clausulas.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.id} — {c.titulo}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Cláusula ISO <span className="text-destructive">*</span></Label>
-              {clausulaInicial ? (
-                <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground cursor-not-allowed truncate">
-                  {clausulaIso} — {clausulas.find(c => c.id === clausulaIso)?.titulo ?? ""}
-                </div>
-              ) : (
-                <Select value={clausulaIso} onValueChange={setClausulaIso} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar cláusula..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clausulas.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.id} — {c.titulo}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -239,18 +212,6 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
               onChange={(e) => setTitulo(e.target.value)}
               placeholder="Ej: Procedimiento de control de documentos"
               required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Nº de revisión</Label>
-            <Input
-              type="number"
-              min={0}
-              value={versionActual}
-              onChange={(e) => setVersionActual(e.target.value)}
-              placeholder="0"
-              className="max-w-xs"
             />
           </div>
 
