@@ -35,7 +35,8 @@ export async function uploadArchivo(params: UploadParams) {
   const admin = createAdminClient();
 
   // Versión correlativa por referencia + modulo + categoria
-  const { data: existing } = await admin
+  // Si las columnas aún no existen (migración 015 pendiente), fallback a versión 1
+  const { data: existingVersions, error: versionError } = await admin
     .from("archivos")
     .select("version")
     .eq("referencia_id", referenciaId)
@@ -43,7 +44,9 @@ export async function uploadArchivo(params: UploadParams) {
     .eq("categoria", categoria)
     .order("version", { ascending: false })
     .limit(1);
-  const version = existing?.[0] ? existing[0].version + 1 : 1;
+  const version = (!versionError && existingVersions?.[0])
+    ? existingVersions[0].version + 1
+    : 1;
 
   // Código global único por tipo
   let codigoArchivo: string | null = null;
@@ -83,7 +86,10 @@ export async function uploadArchivo(params: UploadParams) {
 
   const publicUrl = await uploadToStorage(storagePath, file);
 
-  const { error: dbError } = await admin.from("archivos").insert({
+  // Intentar insert con las columnas polimórficas (post-migración 015).
+  // Si falla por columnas inexistentes o item_id NOT NULL, reintentar sin ellas
+  // para que el sistema funcione aunque la migración todavía no haya corrido.
+  const insertPayload: Record<string, unknown> = {
     item_id:        modulo === "items" ? (itemId ?? referenciaId) : null,
     modulo,
     referencia_id:  referenciaId,
@@ -96,7 +102,27 @@ export async function uploadArchivo(params: UploadParams) {
     ...(comentario    ? { comentario }              : {}),
     ...(tipoDoc       ? { tipo_documento: tipoDoc } : {}),
     ...(codigoArchivo ? { codigo: codigoArchivo }   : {}),
-  });
+  };
+
+  let { error: dbError } = await admin.from("archivos").insert(insertPayload);
+
+  // Fallback pre-migración 015: modulo/referencia_id no existen e item_id es NOT NULL.
+  // Solo aplica a módulos no-items. Omitimos las columnas polimórficas nuevas.
+  if (dbError && modulo !== "items") {
+    const fallbackPayload: Record<string, unknown> = {
+      item_id:        referenciaId, // UUID del registro padre como item_id temporal
+      version,
+      archivo_url:    publicUrl,
+      nombre_archivo: file.name,
+      tamaño_bytes:   file.size,
+      categoria,
+      subido_por:     userId,
+      ...(comentario    ? { comentario }              : {}),
+      ...(tipoDoc       ? { tipo_documento: tipoDoc } : {}),
+      ...(codigoArchivo ? { codigo: codigoArchivo }   : {}),
+    };
+    ({ error: dbError } = await admin.from("archivos").insert(fallbackPayload));
+  }
 
   if (dbError) throw new Error(`[DB] ${dbError.message}`);
 

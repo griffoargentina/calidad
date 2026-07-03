@@ -12,7 +12,9 @@ export async function POST(req: Request) {
 
   const formData  = await req.formData();
   const file      = formData.get("file") as File | null;
-  const folder    = (formData.get("folder") as string) || crypto.randomUUID();
+  // folder may arrive as "procedimientos/uuid" or "calibraciones/uuid" — extract just the UUID
+  const rawFolder = (formData.get("folder") as string) || "";
+  const folder    = rawFolder.includes("/") ? (rawFolder.split("/").pop() || crypto.randomUUID()) : (rawFolder || crypto.randomUUID());
   const tipoDoc      = formData.get("tipo_documento") as string | null;
   const codigoManual = (formData.get("codigo_manual") as string | null) || null;
   const categoria    = (formData.get("categoria") as string) || "certificado";
