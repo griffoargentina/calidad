@@ -60,7 +60,7 @@ interface ItemFormProps {
   clausulaInicial?: string;
 }
 
-export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual, itemInicial, tipoInicial, clausulaInicial }: ItemFormProps) {
+export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual, itemInicial, clausulaInicial }: ItemFormProps) {
   const router = useRouter();
   const supabase = createClient();
 
