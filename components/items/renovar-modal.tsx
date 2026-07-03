@@ -66,6 +66,7 @@ export function RenovarModal({ item, tipos = [] }: RenovarModalProps) {
   async function handleRenovar() {
     if (!file) { setError("Seleccioná un archivo antes de renovar."); return; }
     if (!fechaVenc) { setError("Ingresá una fecha de vencimiento."); return; }
+    if (tipos.length > 0 && tipoDocId === "__none__") { setError("El tipo de documento es obligatorio."); return; }
     setLoading(true);
     setError(null);
 
@@ -130,13 +131,12 @@ export function RenovarModal({ item, tipos = [] }: RenovarModalProps) {
             <div className="space-y-4">
               {tipos.length > 0 && (
                 <div className="space-y-1">
-                  <Label>Tipo de documento</Label>
+                  <Label>Tipo de documento <span className="text-destructive">*</span></Label>
                   <Select value={tipoDocId} onValueChange={v => { setTipoDocId(v); setCodigoNum(""); }}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Sin código asignado" />
+                      <SelectValue placeholder="Seleccionar tipo..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Sin código asignado</SelectItem>
                       {tipos.map(t => (
                         <SelectItem key={t.id} value={t.id}>
                           <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
@@ -224,7 +224,7 @@ export function RenovarModal({ item, tipos = [] }: RenovarModalProps) {
               <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
                 Cancelar
               </Button>
-              <Button onClick={handleRenovar} disabled={loading || !file || !fechaVenc}>
+              <Button onClick={handleRenovar} disabled={loading || !file || !fechaVenc || (tipos.length > 0 && tipoDocId === "__none__")}>
                 {loading ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Renovando...</>
                 ) : (
