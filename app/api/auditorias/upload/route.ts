@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { NextResponse } from "next/server";
+import { uploadArchivo } from "@/lib/server/upload-archivos";
 
 export const dynamic = "force-dynamic";
 
@@ -9,25 +9,27 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+  const { data: us } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
+  if (us?.rol === "lector") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+
   const formData = await req.formData();
-  const file = formData.get("file") as File | null;
+  const file      = formData.get("file") as File | null;
   const auditoriaId = formData.get("auditoriaId") as string | null;
+  const tipoDoc      = formData.get("tipo_documento") as string | null;
+  const codigoManual = (formData.get("codigo_manual") as string | null) || null;
+  const categoria    = (formData.get("categoria") as string) || "informe";
 
   if (!file || !auditoriaId) {
     return NextResponse.json({ error: "Archivo e ID requeridos" }, { status: 400 });
   }
 
-  const ext = file.name.split(".").pop() ?? "bin";
-  const path = `${auditoriaId}/${Date.now()}.${ext}`;
-
-  const admin = createAdminClient();
-  const { error: uploadError } = await admin.storage
-    .from("auditorias")
-    .upload(path, file, { contentType: file.type, upsert: true });
-
-  if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
-
-  const { data: { publicUrl } } = admin.storage.from("auditorias").getPublicUrl(path);
-
-  return NextResponse.json({ url: publicUrl, nombre: file.name });
+  try {
+    const result = await uploadArchivo({
+      file, modulo: "auditorias", referenciaId: auditoriaId,
+      categoria, tipoDoc, codigoManual, userId: user.id,
+    });
+    return NextResponse.json({ url: result.url, nombre: file.name, codigo: result.codigo });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
+  }
 }

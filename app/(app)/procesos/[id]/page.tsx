@@ -409,7 +409,6 @@ export default function SectorDetailPage() {
         onOpenChange={setShowAddInstructivo}
         onSuccess={load}
         sectorId={sectorId}
-        sectorAbreviatura={sector?.abreviatura ?? null}
         usuarios={usuarios}
       />
       {revisarInstructivo && (

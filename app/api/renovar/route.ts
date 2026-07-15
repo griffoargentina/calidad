@@ -38,6 +38,7 @@ export async function POST(req: Request) {
   const comentario       = formData.get("comentario") as string | null;
   const fechaVencimiento = formData.get("fecha_vencimiento") as string | null;
   const tipoDoc          = formData.get("tipo_documento") as string | null;
+  const codigoManual     = (formData.get("codigo_manual") as string | null) || null;
 
   if (!file || !itemId) {
     return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
@@ -45,21 +46,23 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
 
-  // Sync version_actual with MAX(archivos.version WHERE categoria='documento')
-  // fn_renovar_item uses version_actual+1 for the new documento version.
-  const { data: latestDoc } = await admin
+  // Sync version_actual with MAX(archivos.version) before calling fn_renovar_item.
+  // fn_renovar_item uses version_actual+1 — if it's stale (e.g. a procedure was uploaded
+  // after the last renewal), the insert would violate the unique constraint.
+  const { data: latestArchivo } = await admin
     .from("archivos")
     .select("version")
     .eq("item_id", itemId)
-    .eq("categoria", "documento")
     .order("version", { ascending: false })
     .limit(1);
 
-  const currentDocVersion = latestDoc?.[0]?.version ?? 0;
-  await admin
-    .from("items")
-    .update({ version_actual: currentDocVersion })
-    .eq("id", itemId);
+  if (latestArchivo?.[0]) {
+    await admin
+      .from("items")
+      .update({ version_actual: latestArchivo[0].version })
+      .eq("id", itemId)
+      .lt("version_actual", latestArchivo[0].version);
+  }
 
   const ext = file.name.split(".").pop();
   const path = `items/${itemId}/v${Date.now()}.${ext}`;
@@ -77,40 +80,56 @@ export async function POST(req: Request) {
 
     if (rpcError) return NextResponse.json({ error: `[RPC] ${rpcError.message}` }, { status: 500 });
 
+    // Asignar tipo_documento y codigo al archivo que acaba de insertar el RPC
+    if (tipoDoc || codigoManual) {
+      let codigoFinal = codigoManual;
+      if (!codigoFinal && tipoDoc) {
+        // Auto-generar si no se indicó manual
+        const { data: codigosExistentes } = await admin
+          .from("archivos")
+          .select("codigo")
+          .like("codigo", `${tipoDoc}-%`);
+        const max = (codigosExistentes ?? []).reduce((acc: number, row: { codigo: string | null }) => {
+          const n = parseInt((row.codigo ?? "").split("-")[1] ?? "0");
+          return isNaN(n) ? acc : Math.max(acc, n);
+        }, 0);
+        codigoFinal = `${tipoDoc}-${String(max + 1).padStart(2, "0")}`;
+      } else if (codigoFinal) {
+        // Validar que el código manual no exista
+        const { data: existe } = await admin
+          .from("archivos")
+          .select("id")
+          .eq("codigo", codigoFinal)
+          .limit(1);
+        if (existe && existe.length > 0) {
+          return NextResponse.json({ error: `El código ${codigoFinal} ya está en uso. Elegí otro número.` }, { status: 400 });
+        }
+      }
+      // Parchear el archivo recién insertado (el más nuevo del item con categoria=documento)
+      const { data: nuevoArchivo } = await admin
+        .from("archivos")
+        .select("id")
+        .eq("item_id", itemId)
+        .eq("categoria", "documento")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (nuevoArchivo?.[0]) {
+        await admin
+          .from("archivos")
+          .update({
+            ...(tipoDoc       ? { tipo_documento: tipoDoc } : {}),
+            ...(codigoFinal   ? { codigo: codigoFinal }     : {}),
+          })
+          .eq("id", nuevoArchivo[0].id);
+      }
+    }
+
     if (fechaVencimiento) {
       const { error: updateError } = await admin
         .from("items")
         .update({ fecha_vencimiento: fechaVencimiento })
         .eq("id", itemId);
       if (updateError) return NextResponse.json({ error: `[FECHA] ${updateError.message}` }, { status: 500 });
-    }
-
-    // Actualizar el archivo recién insertado con tipo_documento y codigo generado
-    if (tipoDoc) {
-      const { data: codigosExistentes } = await admin
-        .from("archivos")
-        .select("codigo")
-        .like("codigo", `${tipoDoc}-%`);
-      const max = (codigosExistentes ?? []).reduce((acc: number, row: { codigo: string | null }) => {
-        const n = parseInt((row.codigo ?? "").split("-")[1] ?? "0");
-        return isNaN(n) ? acc : Math.max(acc, n);
-      }, 0);
-      const codigoArchivo = `${tipoDoc}-${String(max + 1).padStart(2, "0")}`;
-
-      // Obtener el archivo más reciente del item
-      const { data: latestFile } = await admin
-        .from("archivos")
-        .select("id")
-        .eq("item_id", itemId)
-        .order("version", { ascending: false })
-        .limit(1);
-
-      if (latestFile?.[0]) {
-        await admin
-          .from("archivos")
-          .update({ tipo_documento: tipoDoc, codigo: codigoArchivo })
-          .eq("id", latestFile[0].id);
-      }
     }
 
     return NextResponse.json({ ok: true });

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,33 +10,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, X, Plus, Upload, FileText, BookOpen } from "lucide-react";
+import {
+  FRECUENCIAS_COMUNES,
+} from "@/lib/constants/items";
+import { Loader2, X, Plus, LayoutTemplate } from "lucide-react";
 
-const TIPO_DOCUMENTO_OPTIONS = [
-  { value: "MA", label: "MA — Manual" },
-  { value: "PR", label: "PR — Procedimiento" },
-  { value: "IT", label: "IT — Instructivo de Trabajo" },
-  { value: "FO", label: "FO — Formato / Formulario" },
-  { value: "RE", label: "RE — Registro" },
-  { value: "DS", label: "DS — Documento de Soporte" },
-];
 
-const FRECUENCIAS = [
-  { label: "Mensual",    dias: 30 },
-  { label: "Trimestral", dias: 90 },
-  { label: "Semestral",  dias: 180 },
-  { label: "Anual",      dias: 365 },
-];
-
-function sumarDias(dias: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + dias);
-  return d.toISOString().split("T")[0];
+interface Plantilla {
+  id: string;
+  nombre: string;
+  tipo: string;
+  valores_default: Record<string, unknown>;
 }
 
 interface ItemInicial {
   id: string;
   tipo?: string | null;
+  tipo_documento?: string | null;
   titulo: string;
   descripcion: string | null;
   clausula_iso: string;
@@ -47,118 +38,72 @@ interface ItemInicial {
   requiere_aprobacion: boolean;
   es_borrador: boolean;
   etiquetas: string[];
-  codigo?: string | null;
+  version_actual?: number;
 }
 
 interface ItemFormProps {
   areas: { id: string; nombre: string }[];
   clausulas: { id: string; titulo: string }[];
   usuarios: { id: string; nombre: string }[];
-  plantillas: unknown[];
+  plantillas: Plantilla[];
   usuarioActual: { rol: string; area_id: string | null; tipos_habilitados: string[] };
   itemInicial?: ItemInicial;
+  tipoInicial?: string;
   clausulaInicial?: string;
 }
 
-function ArchivoInput({ label, icon: Icon, archivo, setArchivo }: {
-  label: string;
-  icon: React.ElementType;
-  archivo: File | null;
-  setArchivo: (f: File | null) => void;
-}) {
-  const ref = useRef<HTMLInputElement>(null);
-  return (
-    <div>
-      <div
-        onClick={() => ref.current?.click()}
-        className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors"
-      >
-        {archivo ? (
-          <div className="flex items-center justify-center gap-2 text-primary">
-            <Icon className="h-4 w-4" />
-            <span className="text-sm font-medium truncate max-w-xs">{archivo.name}</span>
-            <button type="button" onClick={(e) => { e.stopPropagation(); setArchivo(null); }} className="text-muted-foreground hover:text-destructive ml-1">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="text-muted-foreground">
-            <Upload className="h-6 w-6 mx-auto mb-1 opacity-40" />
-            <p className="text-sm">{label}</p>
-            <p className="text-xs mt-0.5 opacity-60">PDF, Excel, Word — opcional</p>
-          </div>
-        )}
-      </div>
-      <input ref={ref} type="file" className="hidden" accept=".pdf,.xlsx,.xls,.doc,.docx,.jpg,.jpeg,.png" onChange={(e) => { const f = e.target.files?.[0]; if (f) setArchivo(f); }} />
-    </div>
-  );
-}
-
-function CodigoPreview({ tipo }: { tipo: string }) {
-  const [codigo, setCodigo] = useState<string | null>(null);
-  useEffect(() => {
-    if (!tipo) { setCodigo(null); return; }
-    fetch(`/api/items/preview-codigo?prefijo=${tipo}`)
-      .then(r => r.json())
-      .then(d => setCodigo(d.codigo ?? null));
-  }, [tipo]);
-  if (!codigo) return null;
-  return (
-    <p className="text-xs text-muted-foreground mt-1">
-      Código: <span className="font-mono font-semibold text-slate-700">{codigo}</span>
-      <span className="opacity-60"> (se asigna al subir)</span>
-    </p>
-  );
-}
-
-export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicial, clausulaInicial }: ItemFormProps) {
+export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual, itemInicial, clausulaInicial }: ItemFormProps) {
   const router = useRouter();
   const supabase = createClient();
 
-  // General
   const [titulo, setTitulo] = useState(itemInicial?.titulo ?? "");
   const [descripcion, setDescripcion] = useState(itemInicial?.descripcion ?? "");
   const [clausulaIso, setClausulaIso] = useState(itemInicial?.clausula_iso ?? clausulaInicial ?? "");
   const [areaId, setAreaId] = useState(itemInicial?.area_id ?? usuarioActual.area_id ?? "__none__");
   const [responsableId, setResponsableId] = useState(itemInicial?.responsable_id ?? "__none__");
+  const [fechaEmision] = useState(itemInicial?.fecha_emision ?? new Date().toISOString().split("T")[0]);
+  const [fechaVencimiento, setFechaVencimiento] = useState(itemInicial?.fecha_vencimiento ?? "");
+  const [frecuenciaDias, setFrecuenciaDias] = useState<string>(itemInicial?.frecuencia_dias?.toString() ?? "__none__");
   const [etiquetas, setEtiquetas] = useState<string[]>(itemInicial?.etiquetas ?? []);
   const [etiquetaInput, setEtiquetaInput] = useState("");
-
-  // Procedimiento
-  const [sinProc, setSinProc] = useState(false);
-  const [tipoProc, setTipoProc] = useState("");
-  const [vencProc, setVencProc] = useState(sumarDias(365));
-  const [archivoProc, setArchivoProc] = useState<File | null>(null);
-
-  // Documento
-  const [sinDoc, setSinDoc] = useState(false);
-  const [tipoDoc, setTipoDoc] = useState("");
-  const [frecDoc, setFrecDoc] = useState("__none__");
-  const [vencDoc, setVencDoc] = useState("");
-  const [archivoDoc, setArchivoDoc] = useState<File | null>(null);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [plantillaId, setPlantillaId] = useState("");
+
+  // Aplicar plantilla
+  function aplicarPlantilla(id: string) {
+    const p = plantillas.find((pl) => pl.id === id);
+    if (!p) return;
+    const v = p.valores_default ?? {};
+    if (typeof v.clausula_iso === "string") setClausulaIso(v.clausula_iso);
+    if (typeof v.area_id === "string") setAreaId(v.area_id);
+    if (typeof v.frecuencia_dias === "number") setFrecuenciaDias(v.frecuencia_dias.toString());
+    if (Array.isArray(v.etiquetas)) setEtiquetas(v.etiquetas as string[]);
+    setPlantillaId(id);
+  }
+
+  // Calcular vencimiento desde frecuencia
+  function calcularVencimiento(dias: string) {
+    if (!dias || !fechaEmision) return;
+    const fecha = new Date(fechaEmision);
+    fecha.setDate(fecha.getDate() + parseInt(dias));
+    setFechaVencimiento(fecha.toISOString().split("T")[0]);
+  }
 
   function addEtiqueta() {
     const tag = etiquetaInput.trim();
-    if (tag && !etiquetas.includes(tag)) setEtiquetas([...etiquetas, tag]);
+    if (tag && !etiquetas.includes(tag)) {
+      setEtiquetas([...etiquetas, tag]);
+    }
     setEtiquetaInput("");
-  }
-
-  async function uploadArchivo(itemId: string, file: File, categoria: string, tipo: string) {
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("item_id", itemId);
-    fd.append("categoria", categoria);
-    fd.append("version", "1");
-    if (tipo) fd.append("tipo_documento", tipo);
-    await fetch("/api/upload", { method: "POST", body: fd });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!titulo || !clausulaIso) { setError("Título y cláusula ISO son obligatorios."); return; }
+    if (!titulo || !clausulaIso) {
+      setError("Título y cláusula ISO son obligatorios.");
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -167,52 +112,64 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
       titulo: titulo.trim(),
       descripcion: descripcion.trim() || null,
       clausula_iso: clausulaIso,
-      area_id: areaId !== "__none__" ? areaId : null,
-      responsable_id: responsableId !== "__none__" ? responsableId : null,
-      fecha_emision: new Date().toISOString().split("T")[0],
-      fecha_vencimiento: vencDoc || null,
-      proc_fecha_vencimiento: vencProc || null,
-      frecuencia_dias: frecDoc !== "__none__" ? parseInt(frecDoc) : null,
+      area_id: areaId && areaId !== "__none__" ? areaId : null,
+      responsable_id: responsableId && responsableId !== "__none__" ? responsableId : null,
+      fecha_emision: fechaEmision || null,
+      fecha_vencimiento: fechaVencimiento || null,
+      frecuencia_dias: frecuenciaDias && frecuenciaDias !== "__none__" ? parseInt(frecuenciaDias) : null,
       requiere_aprobacion: false,
       es_borrador: false,
       etiquetas,
       estado: "vigente",
     };
 
-    let itemId: string;
+    let result;
     if (itemInicial) {
-      const res = await fetch("/api/items", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: itemInicial.id, ...payload }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al guardar"); setLoading(false); return; }
-      itemId = data.id;
+      result = await supabase.from("items").update(payload).eq("id", itemInicial.id).select().single();
     } else {
-      const res = await fetch("/api/items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al crear"); setLoading(false); return; }
-      itemId = data.id;
+      result = await supabase.from("items").insert(payload).select().single();
     }
-    if (archivoProc) await uploadArchivo(itemId, archivoProc, "procedimiento", tipoProc);
-    if (archivoDoc)  await uploadArchivo(itemId, archivoDoc,  "documento",     tipoDoc);
 
-    router.push(`/items/${itemId}`);
+    if (result.error) {
+      setError(result.error.message);
+      setLoading(false);
+      return;
+    }
+
+    router.push(`/items/${result.data.id}`);
     router.refresh();
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Plantillas */}
+      {plantillas.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <LayoutTemplate className="h-4 w-4" />
+              Crear desde plantilla (opcional)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select value={plantillaId} onValueChange={aplicarPlantilla}>
+              <SelectTrigger>
+                <SelectValue placeholder="Elegir plantilla..." />
+              </SelectTrigger>
+              <SelectContent>
+                {plantillas.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* GENERAL */}
+      {/* Datos principales */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Información general</CardTitle>
+          <CardTitle className="text-sm font-medium">Datos del documento</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -222,179 +179,156 @@ export function ItemForm({ areas, clausulas, usuarios, usuarioActual, itemInicia
                 {clausulaIso} — {clausulas.find(c => c.id === clausulaIso)?.titulo ?? ""}
               </div>
             ) : (
-              <Select value={clausulaIso} onValueChange={setClausulaIso}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar cláusula..." /></SelectTrigger>
-                <SelectContent>{clausulas.map(c => <SelectItem key={c.id} value={c.id}>{c.id} — {c.titulo}</SelectItem>)}</SelectContent>
+              <Select value={clausulaIso} onValueChange={setClausulaIso} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar cláusula..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {clausulas.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.id} — {c.titulo}</SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             )}
           </div>
+
           <div className="space-y-2">
             <Label>Título <span className="text-destructive">*</span></Label>
-            <Input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ej: Procedimiento de control de documentos" required />
+            <Input
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              placeholder="Ej: Procedimiento de control de documentos"
+              required
+            />
           </div>
+
+          <div className="space-y-2">
+            <Label>Descripción</Label>
+            <Textarea
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              placeholder="Descripción o alcance del documento..."
+              rows={3}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Responsable y área */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Responsable y área</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Área</Label>
               <Select value={areaId} onValueChange={setAreaId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar área..." />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Sin área</SelectItem>
-                  {areas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}
+                  {areas.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label>Responsable</Label>
               <Select value={responsableId} onValueChange={setResponsableId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar responsable..." />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Sin responsable</SelectItem>
-                  {usuarios.map(u => <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>)}
+                  <SelectItem value="__none__">Sin responsable específico</SelectItem>
+                  {usuarios.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Descripción</Label>
-            <Textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Descripción o alcance..." rows={2} />
-          </div>
-          <div className="space-y-2">
-            <Label>Etiquetas</Label>
-            <div className="flex gap-2">
-              <Input value={etiquetaInput} onChange={e => setEtiquetaInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addEtiqueta(); } }} placeholder="Ej: crítico, auditoría 2026..." className="flex-1" />
-              <Button type="button" variant="outline" size="icon" onClick={addEtiqueta}><Plus className="h-4 w-4" /></Button>
-            </div>
-            {etiquetas.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {etiquetas.map(tag => (
-                  <Badge key={tag} variant="secondary" className="gap-1">{tag}
-                    <button type="button" onClick={() => setEtiquetas(etiquetas.filter(t => t !== tag))}><X className="h-3 w-3" /></button>
-                  </Badge>
+        </CardContent>
+      </Card>
+
+      {/* Frecuencia */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Frecuencia de revisión</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-w-xs space-y-2">
+            <Select
+              value={frecuenciaDias}
+              onValueChange={(v) => {
+                setFrecuenciaDias(v);
+                calcularVencimiento(v);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Elegir frecuencia..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sin frecuencia</SelectItem>
+                {FRECUENCIAS_COMUNES.map((f) => (
+                  <SelectItem key={f.dias} value={f.dias.toString()}>{f.label}</SelectItem>
                 ))}
-              </div>
-            )}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Cada cuánto debe revisarse este documento.</p>
           </div>
         </CardContent>
       </Card>
 
-      {/* PROCEDIMIENTO */}
+      {/* Etiquetas */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-purple-500" />
-              Procedimiento
-            </div>
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={sinProc} onChange={e => setSinProc(e.target.checked)} className="rounded" />
-              <span className="text-xs font-normal text-muted-foreground">No corresponde</span>
-            </label>
-          </CardTitle>
+          <CardTitle className="text-sm font-medium">Etiquetas</CardTitle>
         </CardHeader>
-        {!sinProc && (
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Tipo de documento</Label>
-                <Select value={tipoProc} onValueChange={setTipoProc}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar tipo..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin tipo</SelectItem>
-                    {TIPO_DOCUMENTO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {tipoProc && tipoProc !== "__none__" && <CodigoPreview tipo={tipoProc} />}
-              </div>
-              <div className="space-y-2">
-                <Label>Revisión</Label>
-                <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground font-mono font-semibold">Rev. 1</div>
-              </div>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              value={etiquetaInput}
+              onChange={(e) => setEtiquetaInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addEtiqueta(); } }}
+              placeholder="Ej: crítico, auditoría 2026..."
+              className="flex-1"
+            />
+            <Button type="button" variant="outline" onClick={addEtiqueta} size="icon">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          {etiquetas.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {etiquetas.map((tag) => (
+                <Badge key={tag} variant="secondary" className="gap-1">
+                  {tag}
+                  <button type="button" onClick={() => setEtiquetas(etiquetas.filter((t) => t !== tag))}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Frecuencia</Label>
-                <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">Anual</div>
-              </div>
-              <div className="space-y-2">
-                <Label>Vencimiento</Label>
-                <Input type="date" value={vencProc} onChange={e => setVencProc(e.target.value)} />
-              </div>
-            </div>
-            <ArchivoInput label="Adjuntar procedimiento" icon={BookOpen} archivo={archivoProc} setArchivo={setArchivoProc} />
-          </CardContent>
-        )}
-        {sinProc && (
-          <CardContent>
-            <p className="text-sm text-muted-foreground italic">Este ítem no requiere procedimiento.</p>
-          </CardContent>
-        )}
+          )}
+        </CardContent>
       </Card>
 
-      {/* DOCUMENTO */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-blue-500" />
-              Documento
-            </div>
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={sinDoc} onChange={e => setSinDoc(e.target.checked)} className="rounded" />
-              <span className="text-xs font-normal text-muted-foreground">No corresponde</span>
-            </label>
-          </CardTitle>
-        </CardHeader>
-        {!sinDoc && (
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Tipo de documento</Label>
-                <Select value={tipoDoc} onValueChange={setTipoDoc}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar tipo..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin tipo</SelectItem>
-                    {TIPO_DOCUMENTO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {tipoDoc && tipoDoc !== "__none__" && <CodigoPreview tipo={tipoDoc} />}
-              </div>
-              <div className="space-y-2">
-                <Label>Revisión</Label>
-                <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground font-mono font-semibold">Rev. 1</div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Frecuencia</Label>
-                <Select value={frecDoc} onValueChange={v => { setFrecDoc(v); if (v !== "__none__") setVencDoc(sumarDias(parseInt(v))); }}>
-                  <SelectTrigger><SelectValue placeholder="Sin frecuencia" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin frecuencia</SelectItem>
-                    {FRECUENCIAS.map(f => <SelectItem key={f.dias} value={f.dias.toString()}>{f.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Vencimiento</Label>
-                <Input type="date" value={vencDoc} onChange={e => setVencDoc(e.target.value)} />
-              </div>
-            </div>
-            <ArchivoInput label="Adjuntar documento" icon={FileText} archivo={archivoDoc} setArchivo={setArchivoDoc} />
-          </CardContent>
-        )}
-        {sinDoc && (
-          <CardContent>
-            <p className="text-sm text-muted-foreground italic">Este ítem no requiere documento.</p>
-          </CardContent>
-        )}
-      </Card>
-
-      {error && <p className="text-sm text-destructive bg-destructive/10 px-4 py-3 rounded-lg">{error}</p>}
+      {error && (
+        <p className="text-sm text-destructive bg-destructive/10 px-4 py-3 rounded-lg">{error}</p>
+      )}
 
       <div className="flex gap-3 justify-end pb-8">
-        <Button type="button" variant="outline" onClick={() => router.back()} disabled={loading}>Cancelar</Button>
+        <Button type="button" variant="outline" onClick={() => router.back()} disabled={loading}>
+          Cancelar
+        </Button>
         <Button type="submit" disabled={loading}>
-          {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</> : itemInicial ? "Guardar cambios" : "Crear documento"}
+          {loading ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+          ) : (
+            itemInicial ? "Guardar cambios" : "Crear documento"
+          )}
         </Button>
       </div>
     </form>

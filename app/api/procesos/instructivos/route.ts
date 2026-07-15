@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
-import { generarCodigo } from "@/lib/procesos/generar-codigo";
 
 export async function GET(req: Request) {
   const supabase = await createClient();
@@ -40,18 +39,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "sector_id y nombre son requeridos" }, { status: 400 });
   }
 
-  let codigo: string | null = null;
-  if (tipo_doc_id) {
-    const { data: tipDoc } = await admin
-      .from("proc_tipos_documento")
-      .select("prefijo")
-      .eq("id", tipo_doc_id)
-      .single();
-    if (tipDoc?.prefijo) {
-      codigo = await generarCodigo(sector_id, tipDoc.prefijo);
-    }
-  }
-
   const { data, error } = await admin
     .from("proc_instructivos")
     .insert({
@@ -63,7 +50,6 @@ export async function POST(req: Request) {
       es_publico: es_publico ?? false,
       estado: estado ?? "borrador",
       tipo_doc_id: tipo_doc_id || null,
-      codigo,
     })
     .select("*, responsable:usuarios!responsable_id(id, nombre)")
     .single();

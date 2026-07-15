@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -10,16 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CodigoDocumentoInput } from "@/components/ui/codigo-documento-input";
 import { RefreshCw, Upload, FileText, Loader2, CheckCircle2 } from "lucide-react";
 
-const TIPO_DOCUMENTO_OPTIONS = [
-  { value: "MA", label: "MA — Manual" },
-  { value: "PR", label: "PR — Procedimiento" },
-  { value: "IT", label: "IT — Instructivo de Trabajo" },
-  { value: "FO", label: "FO — Formato / Formulario" },
-  { value: "RE", label: "RE — Registro" },
-  { value: "DS", label: "DS — Documento de Soporte" },
-];
+interface TipoDoc { id: string; prefijo: string; nombre: string }
 
 interface RenovarModalProps {
   item: {
@@ -30,7 +24,7 @@ interface RenovarModalProps {
     requiere_aprobacion: boolean;
     frecuencia_dias?: number | null;
   };
-  nextVersion?: number;
+  tipos?: TipoDoc[];
 }
 
 function calcVencimiento(frecuenciaDias: number): string {
@@ -39,29 +33,28 @@ function calcVencimiento(frecuenciaDias: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function RenovarModal({ item, nextVersion }: RenovarModalProps) {
-  const versionNueva = nextVersion ?? item.version_actual + 1;
+export function RenovarModal({ item, tipos = [] }: RenovarModalProps) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [comentario, setComentario] = useState("");
   const [fechaVenc, setFechaVenc] = useState("");
-  const [tipoDocumento, setTipoDocumento] = useState("");
-  const [codigoPreview, setCodigoPreview] = useState<string | null>(null);
+  const [tipoDocId, setTipoDocId] = useState("__none__");
+  const [codigoNum, setCodigoNum] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  useEffect(() => {
-    if (!tipoDocumento) { setCodigoPreview(null); return; }
-    fetch(`/api/items/preview-codigo?prefijo=${tipoDocumento}`)
-      .then((r) => r.json())
-      .then((d) => { if (d.codigo) setCodigoPreview(d.codigo); });
-  }, [tipoDocumento]);
+  const selectedTipo = tipos.find(t => t.id === tipoDocId) ?? null;
 
   function handleOpen() {
     if (item.frecuencia_dias) setFechaVenc(calcVencimiento(item.frecuencia_dias));
+    setFile(null);
+    setComentario("");
+    setTipoDocId("__none__");
+    setCodigoNum("");
+    setError(null);
     setOpen(true);
   }
 
@@ -73,6 +66,7 @@ export function RenovarModal({ item, nextVersion }: RenovarModalProps) {
   async function handleRenovar() {
     if (!file) { setError("Seleccioná un archivo antes de renovar."); return; }
     if (!fechaVenc) { setError("Ingresá una fecha de vencimiento."); return; }
+    if (tipos.length > 0 && tipoDocId === "__none__") { setError("El tipo de documento es obligatorio."); return; }
     setLoading(true);
     setError(null);
 
@@ -80,10 +74,12 @@ export function RenovarModal({ item, nextVersion }: RenovarModalProps) {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("item_id", item.id);
-      fd.append("version", String(versionNueva));
       if (comentario) fd.append("comentario", comentario);
       fd.append("fecha_vencimiento", fechaVenc);
-      if (tipoDocumento) fd.append("tipo_documento", tipoDocumento);
+      if (selectedTipo) {
+        fd.append("tipo_documento", selectedTipo.prefijo);
+        if (codigoNum) fd.append("codigo_manual", `${selectedTipo.prefijo}-${codigoNum}`);
+      }
 
       const res = await fetch("/api/renovar", { method: "POST", body: fd });
       const data = await res.json();
@@ -93,10 +89,6 @@ export function RenovarModal({ item, nextVersion }: RenovarModalProps) {
       setTimeout(() => {
         setOpen(false);
         setDone(false);
-        setFile(null);
-        setComentario("");
-        setTipoDocumento("");
-        setCodigoPreview(null);
         router.refresh();
       }, 1500);
     } catch (err) {
@@ -120,7 +112,7 @@ export function RenovarModal({ item, nextVersion }: RenovarModalProps) {
             <DialogDescription>
               <span className="font-mono font-semibold">{item.codigo}</span> — {item.titulo}
               <br />
-              Esta acción creará la versión {versionNueva} y actualizará la fecha de vencimiento.
+              Esta acción creará la versión {item.version_actual + 1} y actualizará la fecha de vencimiento.
               {item.requiere_aprobacion && (
                 <span className="block mt-1 text-yellow-600 font-medium">
                   Este documento requiere aprobación del administrador antes de quedar vigente.
@@ -133,32 +125,37 @@ export function RenovarModal({ item, nextVersion }: RenovarModalProps) {
             <div className="flex flex-col items-center py-8 gap-2 text-green-600">
               <CheckCircle2 className="h-12 w-12" />
               <p className="font-semibold">¡Documento renovado!</p>
-              <p className="text-sm text-muted-foreground">v{versionNueva} generada correctamente</p>
+              <p className="text-sm text-muted-foreground">v{item.version_actual + 1} generada correctamente</p>
             </div>
           ) : (
             <div className="space-y-4">
+              {tipos.length > 0 && (
+                <div className="space-y-1">
+                  <Label>Tipo de documento <span className="text-destructive">*</span></Label>
+                  <Select value={tipoDocId} onValueChange={v => { setTipoDocId(v); setCodigoNum(""); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar tipo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tipos.map(t => (
+                        <SelectItem key={t.id} value={t.id}>
+                          <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
+                          {t.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedTipo && (
+                    <CodigoDocumentoInput
+                      prefijo={selectedTipo.prefijo}
+                      value={codigoNum}
+                      onChange={setCodigoNum}
+                      disabled={loading}
+                    />
+                  )}
+                </div>
+              )}
 
-              {/* Tipo de documento */}
-              <div className="space-y-2">
-                <Label>Tipo de documento</Label>
-                <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar tipo (opcional)..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIPO_DOCUMENTO_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {codigoPreview && (
-                  <p className="text-xs text-muted-foreground">
-                    Código asignado: <span className="font-mono font-semibold text-blue-600">{codigoPreview}</span>
-                  </p>
-                )}
-              </div>
-
-              {/* Fecha de vencimiento */}
               <div className="space-y-1.5">
                 <Label>Fecha de vencimiento <span className="text-destructive">*</span></Label>
                 <Input
@@ -178,7 +175,6 @@ export function RenovarModal({ item, nextVersion }: RenovarModalProps) {
                 )}
               </div>
 
-              {/* Selector de archivo */}
               <div className="space-y-2">
                 <Label>Nuevo archivo <span className="text-destructive">*</span></Label>
                 <div
@@ -207,7 +203,6 @@ export function RenovarModal({ item, nextVersion }: RenovarModalProps) {
                 </div>
               </div>
 
-              {/* Comentario */}
               <div className="space-y-2">
                 <Label>Comentario (opcional)</Label>
                 <Textarea
@@ -229,11 +224,11 @@ export function RenovarModal({ item, nextVersion }: RenovarModalProps) {
               <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
                 Cancelar
               </Button>
-              <Button onClick={handleRenovar} disabled={loading || !file || !fechaVenc}>
+              <Button onClick={handleRenovar} disabled={loading || !file || !fechaVenc || (tipos.length > 0 && tipoDocId === "__none__")}>
                 {loading ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Renovando...</>
                 ) : (
-                  <><RefreshCw className="mr-2 h-4 w-4" />Renovar v{versionNueva}</>
+                  <><RefreshCw className="mr-2 h-4 w-4" />Renovar v{item.version_actual + 1}</>
                 )}
               </Button>
             </DialogFooter>

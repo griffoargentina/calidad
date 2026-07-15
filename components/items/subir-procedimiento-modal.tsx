@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -9,40 +9,38 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CodigoDocumentoInput } from "@/components/ui/codigo-documento-input";
 import { BookOpen, Upload, FileText, Loader2, CheckCircle2 } from "lucide-react";
 
-const TIPO_DOCUMENTO_OPTIONS = [
-  { value: "MA", label: "MA — Manual" },
-  { value: "PR", label: "PR — Procedimiento" },
-  { value: "IT", label: "IT — Instructivo de Trabajo" },
-  { value: "FO", label: "FO — Formato / Formulario" },
-  { value: "RE", label: "RE — Registro" },
-  { value: "DS", label: "DS — Documento de Soporte" },
-];
+interface TipoDoc { id: string; prefijo: string; nombre: string }
 
 interface Props {
   item: { id: string; codigo: string; titulo: string };
-  nextVersion?: number;
+  tipos?: TipoDoc[];
 }
 
-export function SubirProcedimientoModal({ item, nextVersion = 1 }: Props) {
+export function SubirProcedimientoModal({ item, tipos = [] }: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [comentario, setComentario] = useState("");
-  const [tipoDocumento, setTipoDocumento] = useState("");
-  const [codigoPreview, setCodigoPreview] = useState<string | null>(null);
+  const [tipoDocId, setTipoDocId] = useState("__none__");
+  const [codigoNum, setCodigoNum] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  useEffect(() => {
-    if (!tipoDocumento) { setCodigoPreview(null); return; }
-    fetch(`/api/items/preview-codigo?prefijo=${tipoDocumento}`)
-      .then((r) => r.json())
-      .then((d) => { if (d.codigo) setCodigoPreview(d.codigo); });
-  }, [tipoDocumento]);
+  const selectedTipo = tipos.find(t => t.id === tipoDocId) ?? null;
+
+  function handleOpen() {
+    setFile(null);
+    setComentario("");
+    setTipoDocId("__none__");
+    setCodigoNum("");
+    setError(null);
+    setOpen(true);
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -51,6 +49,7 @@ export function SubirProcedimientoModal({ item, nextVersion = 1 }: Props) {
 
   async function handleSubir() {
     if (!file) { setError("Seleccioná un archivo."); return; }
+    if (tipos.length > 0 && tipoDocId === "__none__") { setError("El tipo de documento es obligatorio."); return; }
     setLoading(true);
     setError(null);
 
@@ -59,32 +58,20 @@ export function SubirProcedimientoModal({ item, nextVersion = 1 }: Props) {
       fd.append("file", file);
       fd.append("item_id", item.id);
       fd.append("categoria", "procedimiento");
-      fd.append("version", String(nextVersion));
       if (comentario) fd.append("comentario", comentario);
-      if (tipoDocumento) fd.append("tipo_documento", tipoDocumento);
+      if (selectedTipo) {
+        fd.append("tipo_documento", selectedTipo.prefijo);
+        if (codigoNum) fd.append("codigo_manual", `${selectedTipo.prefijo}-${codigoNum}`);
+      }
 
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al subir");
 
-      // Actualizar proc_fecha_vencimiento = hoy + 365 días
-      const procVenc = new Date();
-      procVenc.setDate(procVenc.getDate() + 365);
-      const procVencStr = procVenc.toISOString().slice(0, 10);
-      await fetch(`/api/items/${item.id}/quick-edit`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proc_fecha_vencimiento: procVencStr }),
-      });
-
       setDone(true);
       setTimeout(() => {
         setOpen(false);
         setDone(false);
-        setFile(null);
-        setComentario("");
-        setTipoDocumento("");
-        setCodigoPreview(null);
         router.refresh();
       }, 1500);
     } catch (err) {
@@ -96,7 +83,7 @@ export function SubirProcedimientoModal({ item, nextVersion = 1 }: Props) {
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button size="sm" variant="outline" onClick={handleOpen}>
         <BookOpen className="h-4 w-4 mr-1.5" />
         Subir procedimiento
       </Button>
@@ -107,8 +94,6 @@ export function SubirProcedimientoModal({ item, nextVersion = 1 }: Props) {
             <DialogTitle>Subir procedimiento</DialogTitle>
             <DialogDescription>
               <span className="font-mono font-semibold">{item.codigo}</span> — {item.titulo}
-              <br />
-              Se registrará como <span className="font-semibold">Rev. {nextVersion}</span>.
             </DialogDescription>
           </DialogHeader>
 
@@ -119,24 +104,32 @@ export function SubirProcedimientoModal({ item, nextVersion = 1 }: Props) {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Tipo de documento</Label>
-                <Select value={tipoDocumento} onValueChange={setTipoDocumento}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar tipo (opcional)..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIPO_DOCUMENTO_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {codigoPreview && (
-                  <p className="text-xs text-muted-foreground">
-                    Código asignado: <span className="font-mono font-semibold text-blue-600">{codigoPreview}</span>
-                  </p>
-                )}
-              </div>
+              {tipos.length > 0 && (
+                <div className="space-y-1">
+                  <Label>Tipo de documento <span className="text-destructive">*</span></Label>
+                  <Select value={tipoDocId} onValueChange={v => { setTipoDocId(v); setCodigoNum(""); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar tipo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tipos.map(t => (
+                        <SelectItem key={t.id} value={t.id}>
+                          <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
+                          {t.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedTipo && (
+                    <CodigoDocumentoInput
+                      prefijo={selectedTipo.prefijo}
+                      value={codigoNum}
+                      onChange={setCodigoNum}
+                      disabled={loading}
+                    />
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Archivo <span className="text-destructive">*</span></Label>
@@ -185,7 +178,7 @@ export function SubirProcedimientoModal({ item, nextVersion = 1 }: Props) {
           {!done && (
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Cancelar</Button>
-              <Button onClick={handleSubir} disabled={loading || !file}>
+              <Button onClick={handleSubir} disabled={loading || !file || (tipos.length > 0 && tipoDocId === "__none__")}>
                 {loading
                   ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Subiendo...</>
                   : <><BookOpen className="mr-2 h-4 w-4" />Subir procedimiento</>

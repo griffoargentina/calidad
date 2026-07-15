@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Upload, FileCheck, RefreshCw } from "lucide-react";
+import { CodigoDocumentoInput } from "@/components/ui/codigo-documento-input";
 import type { Auditoria } from "./auditoria-form-dialog";
+
+interface TipoDoc { id: string; prefijo: string; nombre: string }
 
 interface Props {
   open: boolean;
@@ -24,7 +28,16 @@ export function CompletarAuditoriaModal({ open, onOpenChange, onSuccess, auditor
   const [observaciones, setObservaciones] = useState("0");
   const [notas, setNotas] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [tipoDoc, setTipoDoc] = useState("__none__");
+  const [codigoNum, setCodigoNum] = useState("");
+  const [tipos, setTipos] = useState<TipoDoc[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch("/api/procesos/tipos-documento")
+      .then(r => r.json())
+      .then(d => setTipos(Array.isArray(d) ? d : []));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,6 +52,11 @@ export function CompletarAuditoriaModal({ open, onOpenChange, onSuccess, auditor
       const fd = new FormData();
       fd.append("file", file);
       fd.append("auditoriaId", auditoria.id);
+      const prefijo = tipoDoc !== "__none__" ? tipoDoc : null;
+      if (prefijo) {
+        fd.append("tipo_documento", prefijo);
+        if (codigoNum) fd.append("codigo_manual", `${prefijo}-${codigoNum}`);
+      }
       const uploadRes = await fetch("/api/auditorias/upload", { method: "POST", body: fd });
       if (!uploadRes.ok) {
         const d = await uploadRes.json();
@@ -70,7 +88,7 @@ export function CompletarAuditoriaModal({ open, onOpenChange, onSuccess, auditor
     if (!res.ok) { setError(data.error ?? "Error al completar"); return; }
 
     setNcMayores("0"); setNcMenores("0"); setObservaciones("0");
-    setNotas(""); setFile(null);
+    setNotas(""); setFile(null); setTipoDoc("__none__"); setCodigoNum("");
     onSuccess();
     onOpenChange(false);
   }
@@ -106,6 +124,32 @@ export function CompletarAuditoriaModal({ open, onOpenChange, onSuccess, auditor
 
           <div className="space-y-2">
             <Label>Informe (opcional)</Label>
+            {tipos.length > 0 && (
+              <>
+                <Select value={tipoDoc} onValueChange={v => { setTipoDoc(v); setCodigoNum(""); }}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Tipo de documento..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin código asignado</SelectItem>
+                    {tipos.map(t => (
+                      <SelectItem key={t.id} value={t.prefijo}>
+                        <span className="font-mono font-medium text-xs mr-2 text-blue-600">{t.prefijo}</span>
+                        {t.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {tipoDoc !== "__none__" && (
+                  <CodigoDocumentoInput
+                    prefijo={tipoDoc}
+                    value={codigoNum}
+                    onChange={setCodigoNum}
+                    disabled={loading}
+                  />
+                )}
+              </>
+            )}
             <div
               className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/30 transition-colors"
               onClick={() => fileRef.current?.click()}
