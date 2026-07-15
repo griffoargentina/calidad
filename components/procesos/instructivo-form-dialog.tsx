@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Upload, X } from "lucide-react";
+import { CodigoDocumentoInput } from "@/components/ui/codigo-documento-input";
 
 interface TipoDocumento {
   id: string;
@@ -28,6 +29,7 @@ export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId,
   const [responsableId, setResponsableId] = useState("__none__");
   const [esPublico, setEsPublico] = useState(false);
   const [tipoDocId, setTipoDocId] = useState("__none__");
+  const [codigoNum, setCodigoNum] = useState("");
   const [saving, setSaving] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [tipos, setTipos] = useState<TipoDocumento[]>([]);
@@ -45,6 +47,7 @@ export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId,
       setResponsableId("__none__");
       setEsPublico(false);
       setTipoDocId("__none__");
+      setCodigoNum("");
       setPendingFile(null);
     }
   }, [open]);
@@ -56,10 +59,7 @@ export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId,
     e.target.value = "";
   }
 
-  const selectedTipo = tipos.find((t) => t.id === tipoDocId);
-  const codigoPreview = selectedTipo && sectorAbreviatura
-    ? `${selectedTipo.prefijo}-${sectorAbreviatura}-??`
-    : null;
+  const selectedTipo = tipos.find((t) => t.id === tipoDocId) ?? null;
 
   async function handleSave() {
     if (!nombre.trim()) return;
@@ -86,7 +86,10 @@ export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId,
         const fd = new FormData();
         fd.append("file", pendingFile);
         fd.append("instructivo_id", instructivo.id);
-        if (selectedTipo) fd.append("tipo_documento", selectedTipo.prefijo);
+        if (selectedTipo) {
+          fd.append("tipo_documento", selectedTipo.prefijo);
+          if (codigoNum) fd.append("codigo_manual", `${selectedTipo.prefijo}-${codigoNum}`);
+        }
         await fetch("/api/procesos/instructivos/upload", { method: "POST", body: fd });
       }
 
@@ -128,11 +131,11 @@ export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId,
             </Select>
           </div>
           {tipos.length > 0 && (
-            <div>
+            <div className="space-y-1">
               <label className="text-sm font-medium">Tipo de documento</label>
-              <Select value={tipoDocId} onValueChange={setTipoDocId}>
+              <Select value={tipoDocId} onValueChange={v => { setTipoDocId(v); setCodigoNum(""); }}>
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Seleccionar tipo..." />
+                  <SelectValue placeholder="Sin código asignado" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Sin código asignado</SelectItem>
@@ -144,14 +147,13 @@ export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId,
                   ))}
                 </SelectContent>
               </Select>
-              {codigoPreview && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Código: <span className="font-mono font-semibold text-slate-700">{codigoPreview}</span>
-                  <span className="text-muted-foreground/60"> (se asigna al crear)</span>
-                </p>
-              )}
-              {selectedTipo && !sectorAbreviatura && (
-                <p className="text-xs text-amber-600 mt-1">Sector sin abreviatura. El código se generará cuando se configure.</p>
+              {selectedTipo && (
+                <CodigoDocumentoInput
+                  prefijo={selectedTipo.prefijo}
+                  value={codigoNum}
+                  onChange={setCodigoNum}
+                  disabled={saving}
+                />
               )}
             </div>
           )}
