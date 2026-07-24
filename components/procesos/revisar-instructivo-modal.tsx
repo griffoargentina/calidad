@@ -67,13 +67,18 @@ export function RevisarInstructivoModal({ open, onOpenChange, onSuccess, instruc
           url_archivo = uploadData.url;
           nombre_archivo = uploadData.nombre_archivo ?? pendingFile.name;
         }
-        // Write generated code back to the instructivo
-        if (uploadData.codigo) {
+        // Write URL, filename and code back to the instructivo
+        if (uploadData.url || uploadData.codigo) {
           const tipoId = tipos.find(t => t.prefijo === tipoDoc)?.id ?? null;
           await fetch(`/api/procesos/instructivos/${instructivo.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ codigo: uploadData.codigo, tipo_doc_id: tipoId }),
+            body: JSON.stringify({
+              codigo: uploadData.codigo ?? null,
+              tipo_doc_id: tipoId,
+              url_archivo: uploadData.url ?? null,
+              nombre_archivo: uploadData.nombre_archivo ?? pendingFile?.name ?? null,
+            }),
           });
         }
       }

@@ -91,12 +91,17 @@ export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId,
         }
         const uploadRes = await fetch("/api/procesos/instructivos/upload", { method: "POST", body: fd });
         const uploadData = uploadRes.ok ? await uploadRes.json() : null;
-        // Write the generated code back to the instructivo record
-        if (uploadData?.codigo) {
+        // Write URL, filename and code back to the instructivo record
+        if (uploadData) {
           await fetch(`/api/procesos/instructivos/${instructivo.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ codigo: uploadData.codigo, tipo_doc_id: selectedTipo?.id ?? null }),
+            body: JSON.stringify({
+              codigo: uploadData.codigo ?? null,
+              tipo_doc_id: selectedTipo?.id ?? null,
+              url_archivo: uploadData.url ?? null,
+              nombre_archivo: uploadData.nombre_archivo ?? pendingFile.name,
+            }),
           });
         }
       }

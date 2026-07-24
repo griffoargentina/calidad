@@ -334,7 +334,7 @@ export default function SectorDetailPage() {
                                 Revisar
                               </Button>
                             )}
-                            {isAdmin && inst.estado === "borrador" && inst.url_archivo && (
+                            {isAdmin && inst.estado === "borrador" && (
                               <Button size="sm" variant="outline"
                                 className="h-7 px-2 text-xs text-green-700 border-green-200 hover:bg-green-50"
                                 onClick={async () => {
