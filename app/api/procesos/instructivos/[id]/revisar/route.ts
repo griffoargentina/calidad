@@ -39,29 +39,24 @@ export async function POST(
     observaciones: observaciones || null,
   });
 
-  // Update ultima_revision on original
-  await admin.from("proc_instructivos").update({
-    ultima_revision: ahora,
-    updated_at: ahora,
-  }).eq("id", params.id);
-
-  let newInstructivo = null;
-
   if (hubo_cambio) {
-    // Create new version with estado=pendiente_aprobacion
-    const { data: created } = await admin.from("proc_instructivos").insert({
-      sector_id: instructivo.sector_id,
-      nombre: instructivo.nombre,
+    // Update in-place: new file goes directly to vigente, no approval step needed
+    const newEstado = url_archivo ? "vigente" : instructivo.estado;
+    await admin.from("proc_instructivos").update({
       version: instructivo.version + 1,
-      estado: "pendiente_aprobacion",
-      responsable_id: instructivo.responsable_id,
+      estado: newEstado,
       url_archivo: url_archivo || instructivo.url_archivo,
       nombre_archivo: nombre_archivo || instructivo.nombre_archivo,
-      es_publico: instructivo.es_publico,
-    }).select().single();
-
-    newInstructivo = created;
+      ultima_revision: ahora,
+      updated_at: ahora,
+    }).eq("id", params.id);
+  } else {
+    // No change: just update ultima_revision
+    await admin.from("proc_instructivos").update({
+      ultima_revision: ahora,
+      updated_at: ahora,
+    }).eq("id", params.id);
   }
 
-  return NextResponse.json({ ok: true, new_instructivo: newInstructivo });
+  return NextResponse.json({ ok: true });
 }

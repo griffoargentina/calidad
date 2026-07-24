@@ -27,7 +27,8 @@ export type TipoItem =
   | "revision_direccion"
   | "no_conformidad"
   | "accion_correctiva"
-  | "mejora";
+  | "mejora"
+  | "flujograma";
 
 export type EstadoItem =
   | "vigente"

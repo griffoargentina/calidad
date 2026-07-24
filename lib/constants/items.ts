@@ -28,6 +28,7 @@ export const TIPO_ITEM_LABELS: Record<TipoItem, string> = {
   no_conformidad: "No Conformidad",
   accion_correctiva: "Acción Correctiva",
   mejora: "Mejora",
+  flujograma: "Flujograma",
 };
 
 export const TIPO_ITEM_PREFIJOS: Record<TipoItem, string> = {
@@ -58,6 +59,7 @@ export const TIPO_ITEM_PREFIJOS: Record<TipoItem, string> = {
   no_conformidad: "NCR",
   accion_correctiva: "ACC",
   mejora: "MEJ",
+  flujograma: "FLU",
 };
 
 export const TIPO_ITEM_CLAUSULA_PRINCIPAL: Record<TipoItem, string> = {
@@ -88,6 +90,7 @@ export const TIPO_ITEM_CLAUSULA_PRINCIPAL: Record<TipoItem, string> = {
   no_conformidad: "10.2",
   accion_correctiva: "10.2",
   mejora: "10.3",
+  flujograma: "4.4",
 };
 
 export const TIPOS_REQUIEREN_APROBACION: TipoItem[] = [
