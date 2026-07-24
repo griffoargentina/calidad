@@ -240,27 +240,28 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
 
   function exportToExcel() {
     const hoyExport = new Date(); hoyExport.setHours(0, 0, 0, 0);
-    const rows = table.getSortedRowModel().rows.flatMap((row) => {
-      const id = row.original.id;
+    // Exporta TODOS los items sin importar los filtros activos
+    const rows = items.flatMap((item) => {
+      const id = item.id;
       const files = archivosDetalle?.[id];
-      const docNa = naOverrides[id] !== undefined ? naOverrides[id] : (row.original.metadata?.documento_na ?? false);
+      const docNa = naOverrides[id] !== undefined ? naOverrides[id] : (item.metadata?.documento_na ?? false);
       const hasAnyFile = (files?.length ?? 0) > 0;
       const hasProc = files?.some((f) => f.categoria === "procedimiento") ?? false;
       const compliant = docNa ? hasProc : hasAnyFile;
-      const fv = row.original.fecha_vencimiento ? new Date(row.original.fecha_vencimiento + "T00:00:00") : null;
+      const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
       const isExpired = fv ? fv < hoyExport : false;
-      const estadoReal: EstadoItem = (!compliant || isExpired) ? "vencido" : row.original.estado as EstadoItem;
+      const estadoReal: EstadoItem = (!compliant || isExpired) ? "vencido" : item.estado as EstadoItem;
       const base = {
-        "Código": row.original.codigo,
-        "Código formal": row.original.codigo_formal ?? "",
-        "Título": row.original.titulo,
-        Tipo: TIPO_ITEM_LABELS[row.original.tipo],
-        "Cláusula": row.original.clausula_iso,
-        "Área": getAreaNombre(row.original.areas),
-        Responsable: getUsuarioNombre(row.original.usuarios),
-        Vencimiento: row.original.fecha_vencimiento ?? "",
-        Estado: estadoReal,
-        "Versión": row.original.version_actual,
+        "Código": item.codigo,
+        "Código formal": item.codigo_formal ?? "",
+        "Título": item.titulo,
+        "Tipo": TIPO_ITEM_LABELS[item.tipo],
+        "Cláusula": item.clausula_iso,
+        "Área": getAreaNombre(item.areas),
+        "Responsable": getUsuarioNombre(item.usuarios),
+        "Vencimiento": item.fecha_vencimiento ?? "",
+        "Estado": estadoReal,
+        "Versión": item.version_actual,
       };
       if (!files?.length) return [{ ...base, "Tipo archivo": "", "Nombre archivo": "" }];
       return files.map(({ categoria, nombre }) => ({

@@ -74,7 +74,7 @@ export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId,
           responsable_id: responsableId === "__none__" ? null : responsableId,
           es_publico: esPublico,
           tipo_doc_id: tipoDocId === "__none__" ? null : tipoDocId,
-          estado: "borrador",
+          estado: pendingFile ? "vigente" : "borrador",
         }),
       });
       if (!res.ok) return;
