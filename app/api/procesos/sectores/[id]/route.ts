@@ -14,8 +14,8 @@ export async function GET(
   const [{ data: sector }, { data: responsables }, { data: flujogramas }, { data: instructivos }] = await Promise.all([
     admin.from("proc_sectores").select("*").eq("id", params.id).single(),
     admin.from("proc_sector_responsables").select("usuario_id, usuarios(id, nombre)").eq("sector_id", params.id),
-    admin.from("proc_flujogramas").select("id, nombre, version, estado, created_at, updated_at").eq("sector_id", params.id).order("created_at"),
-    admin.from("proc_instructivos").select("id, nombre, version, estado, responsable_id, ultima_revision, proxima_revision, es_publico, url_archivo, nombre_archivo").eq("sector_id", params.id).order("nombre"),
+    admin.from("proc_flujogramas").select("id, nombre, version, estado, codigo, tipo_doc_id, created_at, updated_at").eq("sector_id", params.id).order("created_at"),
+    admin.from("proc_instructivos").select("id, nombre, version, estado, codigo, tipo_doc_id, responsable_id, ultima_revision, proxima_revision, es_publico, url_archivo, nombre_archivo").eq("sector_id", params.id).order("nombre"),
   ]);
 
   if (!sector) return NextResponse.json({ error: "No encontrado" }, { status: 404 });

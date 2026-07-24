@@ -89,7 +89,16 @@ export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId,
           fd.append("tipo_documento", selectedTipo.prefijo);
           if (codigoNum) fd.append("codigo_manual", `${selectedTipo.prefijo}-${codigoNum}`);
         }
-        await fetch("/api/procesos/instructivos/upload", { method: "POST", body: fd });
+        const uploadRes = await fetch("/api/procesos/instructivos/upload", { method: "POST", body: fd });
+        const uploadData = uploadRes.ok ? await uploadRes.json() : null;
+        // Write the generated code back to the instructivo record
+        if (uploadData?.codigo) {
+          await fetch(`/api/procesos/instructivos/${instructivo.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ codigo: uploadData.codigo, tipo_doc_id: selectedTipo?.id ?? null }),
+          });
+        }
       }
 
       onOpenChange(false);
