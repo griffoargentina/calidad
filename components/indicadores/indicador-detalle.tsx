@@ -152,7 +152,7 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
   const currentMonth = new Date().getMonth() + 1;
   const isAdmin = usuario.rol === "admin";
   const isResponsable = indicador.responsable_id === usuario.id;
-  const canInput = isAdmin || isResponsable;
+  const canInput = isAdmin || isResponsable || usuario.rol === "editor";
 
   const [modalOpen, setModalOpen] = useState(false);
   const [valorInput, setValorInput] = useState("");

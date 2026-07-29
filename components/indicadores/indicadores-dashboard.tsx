@@ -64,6 +64,7 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
   const router = useRouter();
   const hoy = new Date(); const currentYear = hoy.getFullYear(); const currentMonth = hoy.getMonth() + 1;
   const isAdmin = usuario.rol === "admin";
+  const canDataEntry = isAdmin || usuario.rol === "editor";
   const [activeResp, setActiveResp] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"asc" | "desc" | null>(null);
@@ -197,15 +198,15 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
                       const reg = getRegistro(ind.registros, null, currentYear);
                       if (reg) {
                         const bgClass = reg.cumple === true ? "bg-green-50 text-green-700 border-green-200" : reg.cumple === false ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-50 text-slate-600 border-slate-200";
-                        if (isAdmin) return <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null, reg); }} className={cn("text-center text-xs font-medium px-2 py-1 rounded border w-full hover:opacity-80 transition-opacity", bgClass)}>{reg.valor}{reg.cumple === true && <Check className="inline ml-1 h-3 w-3" />}{reg.cumple === false && <X className="inline ml-1 h-3 w-3" />}</button>;
+                        if (canDataEntry) return <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null, reg); }} className={cn("text-center text-xs font-medium px-2 py-1 rounded border w-full hover:opacity-80 transition-opacity", bgClass)}>{reg.valor}{reg.cumple === true && <Check className="inline ml-1 h-3 w-3" />}{reg.cumple === false && <X className="inline ml-1 h-3 w-3" />}</button>;
                         return <div className={cn("text-center text-xs font-medium px-2 py-1 rounded border", bgClass)}>{reg.valor}{reg.cumple === true && <Check className="inline ml-1 h-3 w-3" />}{reg.cumple === false && <X className="inline ml-1 h-3 w-3" />}</div>;
                       }
-                      if (isAdmin) return <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null); }} className="w-full text-center text-xs text-primary hover:bg-primary/10 rounded py-1 flex items-center justify-center gap-1 transition-colors"><Plus className="h-3 w-3" /> Cargar dato anual</button>;
+                      if (canDataEntry) return <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null); }} className="w-full text-center text-xs text-primary hover:bg-primary/10 rounded py-1 flex items-center justify-center gap-1 transition-colors"><Plus className="h-3 w-3" /> Cargar dato anual</button>;
                       return <div className="text-center text-slate-300">—</div>;
                     })()}</td>
                   ) : visibleMonths.map((mes) => {
                     const reg = getRegistro(ind.registros, mes, currentYear);
-                    return <td key={mes} className="px-1 py-2 align-middle" onClick={(e) => e.stopPropagation()}><DataCell registro={reg} canInput={isAdmin} onAdd={() => openModal(ind, currentYear, mes, reg)} /></td>;
+                    return <td key={mes} className="px-1 py-2 align-middle" onClick={(e) => e.stopPropagation()}><DataCell registro={reg} canInput={canDataEntry} onAdd={() => openModal(ind, currentYear, mes, reg)} /></td>;
                   })}
                 </tr>);
               })}

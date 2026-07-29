@@ -60,9 +60,11 @@ export async function POST(
   const isAdmin = usuario.rol === "admin";
   const isResponsable = indicador.responsable_id === user.id;
 
-  if (!isAdmin && !isResponsable) {
+  const isEditor = usuario.rol === "editor";
+
+  if (!isAdmin && !isResponsable && !isEditor) {
     return NextResponse.json(
-      { error: "Solo el responsable o un administrador puede cargar datos" },
+      { error: "Solo el responsable, un editor o un administrador puede cargar datos" },
       { status: 403 }
     );
   }
