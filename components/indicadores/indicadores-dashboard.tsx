@@ -159,7 +159,7 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
   const yearOptions = [currentYear - 1, currentYear];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="flex flex-col gap-2 px-6 pt-4 pb-3 border-b">
         <div className="flex items-center gap-2">
           <div className="relative flex-1 max-w-xs"><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" /><Input placeholder="Filtrar por título..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-xs" /></div>
@@ -178,8 +178,8 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
           {responsables.map((r) => { const count = vencidosPorResp[r.id] ?? 0; return (<button key={r.id} onClick={() => setActiveResp(activeResp === r.id ? null : r.id)} className={cn("relative px-3 py-1 rounded-full text-xs font-medium transition-colors border", activeResp === r.id ? "bg-slate-700 text-white border-slate-700" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50")}>{r.nombre.split(" ").slice(0, 2).join(" ")}{count > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">{count}</span>}</button>); })}
         </div>
       </div>
-      <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
-        <div className="rounded-xl border bg-white overflow-clip shadow-sm">
+      <div className="flex-1 overflow-auto min-h-0 px-6 pb-6 pt-4">
+        <div className="rounded-xl border bg-white shadow-sm">
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10"><tr className="border-b bg-white text-slate-700 uppercase tracking-wide shadow-sm">
               <th className="text-left px-4 py-3 font-semibold min-w-[220px]"><button onClick={() => setSortDir((d) => d === null ? "asc" : d === "asc" ? "desc" : null)} className="flex items-center gap-1 hover:text-slate-700 transition-colors">Indicador{sortDir === null && <ArrowUpDown className="h-3 w-3 opacity-40" />}{sortDir === "asc" && <ArrowUp className="h-3 w-3" />}{sortDir === "desc" && <ArrowDown className="h-3 w-3" />}</button></th>

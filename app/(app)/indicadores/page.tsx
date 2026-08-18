@@ -92,7 +92,7 @@ export default async function IndicadoresPage() {
   }));
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       <Topbar title="Indicadores de Gestión" />
       <IndicadoresDashboard
         indicadores={indicadoresConRegistros}
