@@ -179,7 +179,7 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
         </div>
       </div>
       <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
-        <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
+        <div className="rounded-xl border bg-white overflow-clip shadow-sm">
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10"><tr className="border-b bg-white text-slate-700 uppercase tracking-wide shadow-sm">
               <th className="text-left px-4 py-3 font-semibold min-w-[220px]"><button onClick={() => setSortDir((d) => d === null ? "asc" : d === "asc" ? "desc" : null)} className="flex items-center gap-1 hover:text-slate-700 transition-colors">Indicador{sortDir === null && <ArrowUpDown className="h-3 w-3 opacity-40" />}{sortDir === "asc" && <ArrowUp className="h-3 w-3" />}{sortDir === "desc" && <ArrowDown className="h-3 w-3" />}</button></th>
