@@ -191,7 +191,7 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
             </tr></thead>
             <tbody>
               {(() => {
-                const sectors = [...new Set(filtered.map(i => i.sector))].sort((a, b) => a.localeCompare(b, "es"));
+                const sectors = Array.from(new Set(filtered.map(i => i.sector))).sort((a, b) => a.localeCompare(b, "es"));
                 return sectors.flatMap(sector => {
                   const sectorInds = filtered.filter(i => i.sector === sector);
                   const colCount = 5 + visibleMonths.length;
