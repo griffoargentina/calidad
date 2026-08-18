@@ -75,6 +75,18 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
   let filtered = indicadores.filter((i) => { const respOk = !activeResp || i.responsable_id === activeResp; const searchOk = !search || i.nombre.toLowerCase().includes(search.toLowerCase()); return respOk && searchOk; });
   if (sortDir) filtered = [...filtered].sort((a, b) => sortDir === "asc" ? a.nombre.localeCompare(b.nombre) : b.nombre.localeCompare(a.nombre));
 
+  // Inline name editing
+  const [editingName, setEditingName] = useState<{ id: string; value: string } | null>(null);
+  async function handleSaveName() {
+    if (!editingName) return;
+    const { id, value } = editingName;
+    const trimmed = value.trim();
+    if (!trimmed) { setEditingName(null); return; }
+    setEditingName(null);
+    await fetch("/api/indicadores/" + id, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre: trimmed }) });
+    router.refresh();
+  }
+
   // Data entry modal
   const [modal, setModal] = useState<ModalState>({ open: false, indicadorId: "", indicadorNombre: "", metaCondicion: null, metaValor: null, frecuencia: "mensual" });
   const [modalAnio, setModalAnio] = useState(currentYear);
@@ -178,38 +190,77 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
               {visibleMonths.map((m) => (<th key={m} className="text-center px-2 py-3 font-semibold w-[52px]">{MESES_CORTOS[m - 1]}</th>))}
             </tr></thead>
             <tbody>
-              {filtered.map((ind, idx) => {
-                const estado = calcularEstado(ind, hoy);
-                const metaCond = ind.meta_condicion; const metaSym = metaCond === "mayor" ? ">" : metaCond === "menor" ? "<" : metaCond === "mayor_igual" ? "≥" : metaCond === "menor_igual" ? "≤" : "=";
-                const metaDisplay = ind.meta_valor ? metaSym + " " + ind.meta_valor + " " + (ind.meta_unidad ?? "") : "— " + (ind.meta_unidad ?? "");
-                return (<tr key={ind.id} onClick={() => router.push("/indicadores/" + ind.id)} className={cn("border-b last:border-0 cursor-pointer hover:bg-slate-50 transition-colors", idx % 2 === 0 ? "bg-white" : "bg-slate-50/30")}>
-                  <td className="px-4 py-2.5 align-middle"><p className={cn("font-medium text-xs leading-snug", estado === "vencido" ? "text-red-600" : "text-slate-800")}>{ind.nombre}</p></td>
-                  <td className="px-4 py-2.5 align-middle"><span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", ind.frecuencia === "anual" ? "text-violet-600 bg-violet-50" : "text-blue-600 bg-blue-50")}>{ind.frecuencia === "anual" ? "Anual" : "Mensual"}</span></td>
-                  <td className="px-4 py-2.5 align-middle"><span className="text-slate-600 truncate block max-w-[110px]" title={ind.responsable?.nombre ?? ""}>{ind.responsable?.nombre ?? "—"}</span></td>
-                  <td className="px-4 py-2.5 align-middle" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center gap-1">
-                      <span className="text-slate-500 text-[10px] leading-tight">{metaDisplay}</span>
-                      {isAdmin && <button onClick={(e) => openEditMeta(ind, e)} className="text-slate-300 hover:text-slate-600 transition-colors flex-shrink-0" title="Editar meta"><Pencil className="h-3 w-3" /></button>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5 align-middle"><EstadoBadge estado={estado} /></td>
-                  {ind.frecuencia === "anual" ? (
-                    <td colSpan={visibleMonths.length} className="px-2 py-2 align-middle" onClick={(e) => e.stopPropagation()}>{(() => {
-                      const reg = getRegistro(ind.registros, null, currentYear);
-                      if (reg) {
-                        const bgClass = reg.cumple === true ? "bg-green-50 text-green-700 border-green-200" : reg.cumple === false ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-50 text-slate-600 border-slate-200";
-                        if (canDataEntry) return <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null, reg); }} className={cn("text-center text-xs font-medium px-2 py-1 rounded border w-full hover:opacity-80 transition-opacity", bgClass)}>{reg.valor}{reg.cumple === true && <Check className="inline ml-1 h-3 w-3" />}{reg.cumple === false && <X className="inline ml-1 h-3 w-3" />}</button>;
-                        return <div className={cn("text-center text-xs font-medium px-2 py-1 rounded border", bgClass)}>{reg.valor}{reg.cumple === true && <Check className="inline ml-1 h-3 w-3" />}{reg.cumple === false && <X className="inline ml-1 h-3 w-3" />}</div>;
-                      }
-                      if (canDataEntry) return <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null); }} className="w-full text-center text-xs text-primary hover:bg-primary/10 rounded py-1 flex items-center justify-center gap-1 transition-colors"><Plus className="h-3 w-3" /> Cargar dato anual</button>;
-                      return <div className="text-center text-slate-300">—</div>;
-                    })()}</td>
-                  ) : visibleMonths.map((mes) => {
-                    const reg = getRegistro(ind.registros, mes, currentYear);
-                    return <td key={mes} className="px-1 py-2 align-middle" onClick={(e) => e.stopPropagation()}><DataCell registro={reg} canInput={canDataEntry} onAdd={() => openModal(ind, currentYear, mes, reg)} /></td>;
-                  })}
-                </tr>);
-              })}
+              {(() => {
+                const sectors = [...new Set(filtered.map(i => i.sector))].sort((a, b) => a.localeCompare(b, "es"));
+                return sectors.flatMap(sector => {
+                  const sectorInds = filtered.filter(i => i.sector === sector);
+                  const colCount = 5 + visibleMonths.length;
+                  return [
+                    <tr key={`sector-${sector}`}>
+                      <td colSpan={colCount} className="px-4 pt-4 pb-1.5 bg-slate-50 border-b border-t">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{sector}</span>
+                      </td>
+                    </tr>,
+                    ...sectorInds.map((ind, idx) => {
+                      const estado = calcularEstado(ind, hoy);
+                      const metaCond = ind.meta_condicion; const metaSym = metaCond === "mayor" ? ">" : metaCond === "menor" ? "<" : metaCond === "mayor_igual" ? "≥" : metaCond === "menor_igual" ? "≤" : "=";
+                      const metaDisplay = ind.meta_valor ? metaSym + " " + ind.meta_valor + " " + (ind.meta_unidad ?? "") : "— " + (ind.meta_unidad ?? "");
+                      return (
+                        <tr key={ind.id} onClick={() => editingName?.id !== ind.id && router.push("/indicadores/" + ind.id)} className={cn("border-b last:border-0 cursor-pointer hover:bg-slate-50 transition-colors", idx % 2 === 0 ? "bg-white" : "bg-slate-50/30")}>
+                          <td className="px-4 py-2.5 align-middle">
+                            {editingName?.id === ind.id ? (
+                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  className="border rounded px-2 py-0.5 text-xs flex-1 min-w-0 focus:outline-none focus:ring-1 focus:ring-ring"
+                                  value={editingName.value}
+                                  onChange={(e) => setEditingName(n => n ? { ...n, value: e.target.value } : null)}
+                                  onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditingName(null); }}
+                                  autoFocus
+                                />
+                                <button onClick={handleSaveName} className="text-green-600 hover:text-green-700 p-0.5"><Check className="h-3.5 w-3.5" /></button>
+                                <button onClick={() => setEditingName(null)} className="text-slate-400 hover:text-slate-600 p-0.5"><X className="h-3.5 w-3.5" /></button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 group">
+                                <p className={cn("font-medium text-xs leading-snug", estado === "vencido" ? "text-red-600" : "text-slate-800")}>{ind.nombre}</p>
+                                {isAdmin && (
+                                  <button onClick={(e) => { e.stopPropagation(); setEditingName({ id: ind.id, value: ind.nombre }); }} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-slate-600 transition-opacity flex-shrink-0" title="Editar nombre">
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 align-middle"><span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", ind.frecuencia === "anual" ? "text-violet-600 bg-violet-50" : "text-blue-600 bg-blue-50")}>{ind.frecuencia === "anual" ? "Anual" : "Mensual"}</span></td>
+                          <td className="px-4 py-2.5 align-middle"><span className="text-slate-600 truncate block max-w-[110px]" title={ind.responsable?.nombre ?? ""}>{ind.responsable?.nombre ?? "—"}</span></td>
+                          <td className="px-4 py-2.5 align-middle" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-1">
+                              <span className="text-slate-500 text-[10px] leading-tight">{metaDisplay}</span>
+                              {isAdmin && <button onClick={(e) => openEditMeta(ind, e)} className="text-slate-300 hover:text-slate-600 transition-colors flex-shrink-0" title="Editar meta"><Pencil className="h-3 w-3" /></button>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5 align-middle"><EstadoBadge estado={estado} /></td>
+                          {ind.frecuencia === "anual" ? (
+                            <td colSpan={visibleMonths.length} className="px-2 py-2 align-middle" onClick={(e) => e.stopPropagation()}>{(() => {
+                              const reg = getRegistro(ind.registros, null, currentYear);
+                              if (reg) {
+                                const bgClass = reg.cumple === true ? "bg-green-50 text-green-700 border-green-200" : reg.cumple === false ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-50 text-slate-600 border-slate-200";
+                                if (canDataEntry) return <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null, reg); }} className={cn("text-center text-xs font-medium px-2 py-1 rounded border w-full hover:opacity-80 transition-opacity", bgClass)}>{reg.valor}{reg.cumple === true && <Check className="inline ml-1 h-3 w-3" />}{reg.cumple === false && <X className="inline ml-1 h-3 w-3" />}</button>;
+                                return <div className={cn("text-center text-xs font-medium px-2 py-1 rounded border", bgClass)}>{reg.valor}{reg.cumple === true && <Check className="inline ml-1 h-3 w-3" />}{reg.cumple === false && <X className="inline ml-1 h-3 w-3" />}</div>;
+                              }
+                              if (canDataEntry) return <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null); }} className="w-full text-center text-xs text-primary hover:bg-primary/10 rounded py-1 flex items-center justify-center gap-1 transition-colors"><Plus className="h-3 w-3" /> Cargar dato anual</button>;
+                              return <div className="text-center text-slate-300">—</div>;
+                            })()}</td>
+                          ) : visibleMonths.map((mes) => {
+                            const reg = getRegistro(ind.registros, mes, currentYear);
+                            return <td key={mes} className="px-1 py-2 align-middle" onClick={(e) => e.stopPropagation()}><DataCell registro={reg} canInput={canDataEntry} onAdd={() => openModal(ind, currentYear, mes, reg)} /></td>;
+                          })}
+                        </tr>
+                      );
+                    }),
+                  ];
+                });
+              })()}
             </tbody>
           </table>
           {filtered.length === 0 && <div className="py-16 text-center text-sm text-slate-400">No hay indicadores para este filtro</div>}

@@ -97,9 +97,13 @@ function MiniBarChart({ registros, metaValor }: { registros: Registro[]; metaVal
   const values = numericRegistros.map((r) => r.numVal);
   const meta = metaValor ? parseFloat(metaValor) : null;
   const allValues = meta !== null ? [...values, meta] : values;
-  const minVal = Math.min(...allValues);
-  const maxVal = Math.max(...allValues);
-  const range = maxVal - minVal || 1;
+  const rawMin = Math.min(...allValues);
+  const rawMax = Math.max(...allValues);
+  const rawRange = rawMax - rawMin || 1;
+  // Add 15% padding so meta line never sits flush against the chart edges
+  const minVal = rawMin - rawRange * 0.15;
+  const maxVal = rawMax + rawRange * 0.15;
+  const range = maxVal - minVal;
   const chartHeight = 80;
   const barWidth = Math.max(24, Math.min(40, 400 / numericRegistros.length));
   const gap = 4;
@@ -108,11 +112,16 @@ function MiniBarChart({ registros, metaValor }: { registros: Registro[]; metaVal
   return (
     <div className="overflow-x-auto">
       <svg width={totalWidth + 40} height={chartHeight + 36} className="overflow-visible">
-        {meta !== null && (
-          <line x1={20} y1={chartHeight - ((meta - minVal) / range) * chartHeight}
-            x2={totalWidth + 20} y2={chartHeight - ((meta - minVal) / range) * chartHeight}
-            stroke="#94a3b8" strokeWidth={1} strokeDasharray="4 3" />
-        )}
+        {meta !== null && (() => {
+          const metaY = chartHeight - ((meta - minVal) / range) * chartHeight;
+          return (
+            <g>
+              <line x1={20} y1={metaY} x2={totalWidth + 20} y2={metaY}
+                stroke="#f97316" strokeWidth={1.5} strokeDasharray="5 3" />
+              <text x={totalWidth + 24} y={metaY + 4} fontSize={9} fill="#f97316" fontWeight="600">{meta}</text>
+            </g>
+          );
+        })()}
         {numericRegistros.map((r, i) => {
           const x = 20 + i * (barWidth + gap);
           const barH = Math.max(2, ((r.numVal - minVal) / range) * chartHeight);
@@ -136,8 +145,8 @@ function MiniBarChart({ registros, metaValor }: { registros: Registro[]; metaVal
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-400 inline-block" /> No cumple</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-300 inline-block" /> Sin clasificar</span>
         {meta !== null && (
-          <span className="flex items-center gap-1.5">
-            <svg width="16" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2" /></svg>
+          <span className="flex items-center gap-1.5 text-orange-500 font-medium">
+            <svg width="16" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="#f97316" strokeWidth="1.5" strokeDasharray="5 3" /></svg>
             Meta: {meta}
           </span>
         )}
