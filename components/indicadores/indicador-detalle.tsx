@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   Target, User, RefreshCw, BarChart2, Plus, Check, X, Minus,
-  Calendar, MessageSquare, ArrowLeft
+  Calendar, MessageSquare, ArrowLeft, ClipboardList
 } from "lucide-react";
 import Link from "next/link";
 import { Usuario } from "@/types/database";
@@ -25,6 +25,7 @@ interface Registro {
   valor: string;
   cumple: boolean | null;
   comentario: string | null;
+  plan_accion: string | null;
   cargado_por: string | null;
   created_at: string;
   updated_at: string;
@@ -182,6 +183,7 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const [valorInput, setValorInput] = useState("");
   const [comentarioInput, setComentarioInput] = useState("");
+  const [planAccionInput, setPlanAccionInput] = useState("");
   const [anioBuscar, setAnioBuscar] = useState(currentYear);
   const [mesBuscar, setMesBuscar] = useState<number | null>(indicador.frecuencia === "anual" ? null : currentMonth);
   const [saving, setSaving] = useState(false);
@@ -198,7 +200,7 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
       const res = await fetch(`/api/indicadores/${indicador.id}/registros`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ anio: anioBuscar, mes: indicador.frecuencia === "anual" ? null : mesBuscar, valor: valorInput.trim(), comentario: comentarioInput.trim() || null }),
+        body: JSON.stringify({ anio: anioBuscar, mes: indicador.frecuencia === "anual" ? null : mesBuscar, valor: valorInput.trim(), comentario: comentarioInput.trim() || null, plan_accion: planAccionInput.trim() || null }),
       });
       if (!res.ok) { const err = await res.json(); setSaveError(err.error ?? "Error al guardar"); setSaving(false); return; }
       setModalOpen(false);
@@ -278,6 +280,7 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
                     <th className="text-left px-4 py-3 font-semibold">Valor</th>
                     <th className="text-left px-4 py-3 font-semibold">Estado</th>
                     <th className="text-left px-4 py-3 font-semibold">Comentario</th>
+                    <th className="text-left px-4 py-3 font-semibold">Plan de acción</th>
                     <th className="text-left px-4 py-3 font-semibold">Cargado por</th>
                   </tr>
                 </thead>
@@ -295,8 +298,13 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
                         {reg.cumple === false && <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-0.5 rounded-full text-[10px] font-medium"><X className="h-3 w-3" /> No cumple</span>}
                         {reg.cumple === null && <span className="inline-flex items-center gap-1 text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full text-[10px] font-medium"><Minus className="h-3 w-3" /> S/D</span>}
                       </td>
-                      <td className="px-4 py-3 text-slate-500">
-                        {reg.comentario ? <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3 shrink-0 text-slate-400" />{reg.comentario}</span> : "—"}
+                      <td className="px-4 py-3 text-slate-500 max-w-[180px]">
+                        {reg.comentario ? <span className="flex items-start gap-1"><MessageSquare className="h-3 w-3 shrink-0 text-slate-400 mt-0.5" />{reg.comentario}</span> : "—"}
+                      </td>
+                      <td className="px-4 py-3 max-w-[200px]">
+                        {reg.plan_accion
+                          ? <span className="flex items-start gap-1 text-blue-700"><ClipboardList className="h-3 w-3 shrink-0 text-blue-400 mt-0.5" />{reg.plan_accion}</span>
+                          : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-4 py-3 text-slate-500">{reg.cargado_por_usuario?.nombre ?? "—"}</td>
                     </tr>
@@ -337,7 +345,11 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="comentario-det">Comentario <span className="text-slate-400">(opcional)</span></Label>
-              <Textarea id="comentario-det" placeholder="Observaciones..." value={comentarioInput} onChange={(e) => setComentarioInput(e.target.value)} rows={2} />
+              <Textarea id="comentario-det" placeholder="Observaciones sobre el dato..." value={comentarioInput} onChange={(e) => setComentarioInput(e.target.value)} rows={2} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="plan-accion-det">Plan de acción <span className="text-slate-400">(opcional)</span></Label>
+              <Textarea id="plan-accion-det" placeholder="Acciones a tomar si no se cumple la meta..." value={planAccionInput} onChange={(e) => setPlanAccionInput(e.target.value)} rows={2} />
             </div>
             {saveError && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{saveError}</p>}
           </div>

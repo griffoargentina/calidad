@@ -70,7 +70,7 @@ export async function POST(
   }
 
   const body = await request.json();
-  const { anio, mes, valor, comentario } = body;
+  const { anio, mes, valor, comentario, plan_accion } = body;
 
   if (!anio || !valor) {
     return NextResponse.json({ error: "anio y valor son requeridos" }, { status: 400 });
@@ -94,6 +94,7 @@ export async function POST(
         valor: String(valor),
         cumple,
         comentario: comentario ?? null,
+        plan_accion: plan_accion ?? null,
         cargado_por: user.id,
       },
       { onConflict: "indicador_id,anio,mes" }
