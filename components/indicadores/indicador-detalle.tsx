@@ -104,36 +104,52 @@ function MiniBarChart({ registros, metaValor }: { registros: Registro[]; metaVal
   const minVal = rawMin - rawRange * 0.15;
   const maxVal = rawMax + rawRange * 0.15;
   const range = maxVal - minVal;
-  const chartHeight = 80;
-  const barWidth = Math.max(24, Math.min(40, 400 / numericRegistros.length));
-  const gap = 4;
+  const chartHeight = 200;
+  const barWidth = Math.max(36, Math.min(60, 660 / numericRegistros.length));
+  const gap = 6;
   const totalWidth = numericRegistros.length * (barWidth + gap);
 
   return (
     <div className="overflow-x-auto">
-      <svg width={totalWidth + 40} height={chartHeight + 36} className="overflow-visible">
+      <svg width={totalWidth + 70} height={chartHeight + 48} className="overflow-visible">
+        {/* Grid lines */}
+        {[0.25, 0.5, 0.75, 1].map((t) => {
+          const gy = chartHeight * (1 - t);
+          const val = minVal + t * range;
+          return (
+            <g key={t}>
+              <line x1={20} y1={gy} x2={totalWidth + 20} y2={gy} stroke="#e2e8f0" strokeWidth={1} />
+              <text x={14} y={gy + 4} textAnchor="end" fontSize={9} fill="#94a3b8">
+                {val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}
+              </text>
+            </g>
+          );
+        })}
+        {/* Meta line */}
         {meta !== null && (() => {
           const metaY = chartHeight - ((meta - minVal) / range) * chartHeight;
           return (
             <g>
               <line x1={20} y1={metaY} x2={totalWidth + 20} y2={metaY}
-                stroke="#f97316" strokeWidth={1.5} strokeDasharray="5 3" />
-              <text x={totalWidth + 24} y={metaY + 4} fontSize={9} fill="#f97316" fontWeight="600">{meta}</text>
+                stroke="#f97316" strokeWidth={2} strokeDasharray="6 3" />
+              <rect x={totalWidth + 23} y={metaY - 9} width={38} height={16} rx={4} fill="#fff7ed" stroke="#fed7aa" strokeWidth={1} />
+              <text x={totalWidth + 42} y={metaY + 3} textAnchor="middle" fontSize={10} fill="#f97316" fontWeight="700">{meta}</text>
             </g>
           );
         })()}
+        {/* Bars */}
         {numericRegistros.map((r, i) => {
           const x = 20 + i * (barWidth + gap);
-          const barH = Math.max(2, ((r.numVal - minVal) / range) * chartHeight);
+          const barH = Math.max(3, ((r.numVal - minVal) / range) * chartHeight);
           const y = chartHeight - barH;
           const color = r.cumple === true ? "#22c55e" : r.cumple === false ? "#ef4444" : "#94a3b8";
           return (
             <g key={r.id}>
-              <rect x={x} y={y} width={barWidth} height={barH} rx={3} fill={color} fillOpacity={0.8} />
-              <text x={x + barWidth / 2} y={y - 3} textAnchor="middle" fontSize={9} fill="#64748b">
+              <rect x={x} y={y} width={barWidth} height={barH} rx={4} fill={color} fillOpacity={0.85} />
+              <text x={x + barWidth / 2} y={y - 5} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="500">
                 {r.numVal % 1 === 0 ? r.numVal : r.numVal.toFixed(2)}
               </text>
-              <text x={x + barWidth / 2} y={chartHeight + 14} textAnchor="middle" fontSize={9} fill="#94a3b8">
+              <text x={x + barWidth / 2} y={chartHeight + 16} textAnchor="middle" fontSize={10} fill="#94a3b8">
                 {MESES_CORTOS[(r.mes ?? 1) - 1]}
               </text>
             </g>
