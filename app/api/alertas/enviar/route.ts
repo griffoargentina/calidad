@@ -209,10 +209,10 @@ export async function POST(req: Request) {
   });
 }
 
-// GET para prueba manual desde el browser (solo en dev)
-export async function GET() {
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Usar POST" }, { status: 405 });
+// GET — lo usa el cron de Vercel (envía GET con Authorization: Bearer <CRON_SECRET>)
+export async function GET(req: Request) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-  return POST(new Request("http://localhost/api/alertas/enviar", { method: "POST" }));
+  return POST(req);
 }
