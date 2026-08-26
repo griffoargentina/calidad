@@ -62,12 +62,11 @@ async function enviarResumen() {
   en30.setDate(en30.getDate() + 30);
   const en30Str = en30.toISOString().split("T")[0];
 
-  // Mes anterior para indicadores (si estamos en los primeros 7 días, usamos mes anterior)
+  // Indicadores: siempre referencia al mes ANTERIOR.
+  // Los primeros 7 días del mes son período de gracia → no alertar todavía.
   const diaDelMes = hoy.getDate();
-  const mesRef =
-    diaDelMes <= 7
-      ? new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1)
-      : new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const enPeriodoDeGracia = diaDelMes <= 7;
+  const mesRef = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1); // siempre mes anterior
   const anioRef = mesRef.getFullYear();
   const mesNumRef = mesRef.getMonth() + 1; // 1-12
 
@@ -196,7 +195,8 @@ async function enviarResumen() {
   const indIds = (todosIndicadores ?? []).map((i: { id: string }) => i.id);
   const indicadoresSinDatos: IndicadorSinDatos[] = [];
 
-  if (indIds.length > 0) {
+  // Solo alertar sobre indicadores si ya pasó el período de gracia (día 7)
+  if (indIds.length > 0 && !enPeriodoDeGracia) {
     const { data: registros } = await admin
       .from("indicador_registros")
       .select("indicador_id")
