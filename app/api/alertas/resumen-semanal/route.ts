@@ -362,7 +362,7 @@ export async function GET(req: NextRequest) {
 }
 
 // ── POST — disparo manual desde el panel (solo admin) ─────────────────────
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   const admin = createAdminClient();
   // Verificar sesión de usuario admin
   const { createClient } = await import("@/lib/supabase/server");
