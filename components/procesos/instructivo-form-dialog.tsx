@@ -24,7 +24,7 @@ interface Props {
   usuarios: Array<{ id: string; nombre: string }>;
 }
 
-export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId, sectorAbreviatura, usuarios }: Props) {
+export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId, usuarios }: Props) {
   const [nombre, setNombre] = useState("");
   const [responsableId, setResponsableId] = useState("__none__");
   const [esPublico, setEsPublico] = useState(false);

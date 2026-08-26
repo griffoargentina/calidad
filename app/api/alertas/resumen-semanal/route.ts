@@ -98,7 +98,7 @@ async function enviarResumen() {
     .eq("activo", true);
 
   const equipoIds = (equipos ?? []).map((e: { id: string }) => e.id);
-  let ultimasCalibraciones: Record<string, { fecha_vencimiento: string }> = {};
+  const ultimasCalibraciones: Record<string, { fecha_vencimiento: string }> = {};
 
   if (equipoIds.length > 0) {
     const { data: calibraciones } = await admin
@@ -364,8 +364,6 @@ export async function GET(req: NextRequest) {
 // ── POST — disparo manual desde el panel (solo admin) ─────────────────────
 export async function POST(req: NextRequest) {
   const admin = createAdminClient();
-  const authHeader = req.headers.get("authorization");
-
   // Verificar sesión de usuario admin
   const { createClient } = await import("@/lib/supabase/server");
   const supabase = await createClient();
