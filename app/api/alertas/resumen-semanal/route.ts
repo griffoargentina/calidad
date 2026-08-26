@@ -362,6 +362,7 @@ export async function GET(req: NextRequest) {
 }
 
 // ── POST — disparo manual desde el panel (solo admin) ─────────────────────
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function POST(_req: NextRequest) {
   const admin = createAdminClient();
   // Verificar sesión de usuario admin
