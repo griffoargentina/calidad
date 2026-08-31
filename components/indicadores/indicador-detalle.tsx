@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   Target, User, RefreshCw, BarChart2, Plus, Check, X, Minus,
-  Calendar, MessageSquare, ArrowLeft
+  Calendar, MessageSquare, ArrowLeft, ClipboardList
 } from "lucide-react";
 import Link from "next/link";
 import { Usuario } from "@/types/database";
@@ -25,6 +25,7 @@ interface Registro {
   valor: string;
   cumple: boolean | null;
   comentario: string | null;
+  plan_accion: string | null;
   cargado_por: string | null;
   created_at: string;
   updated_at: string;
@@ -152,18 +153,20 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
   const currentMonth = new Date().getMonth() + 1;
   const isAdmin = usuario.rol === "admin";
   const isResponsable = indicador.responsable_id === usuario.id;
-  const canInput = isAdmin || isResponsable;
+  const isEditor = usuario.rol === "editor";
+  const canInput = isAdmin || isResponsable || isEditor;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [valorInput, setValorInput] = useState("");
   const [comentarioInput, setComentarioInput] = useState("");
+  const [planAccionInput, setPlanAccionInput] = useState("");
   const [anioBuscar, setAnioBuscar] = useState(currentYear);
   const [mesBuscar, setMesBuscar] = useState<number | null>(indicador.frecuencia === "anual" ? null : currentMonth);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   function openModal() {
-    setValorInput(""); setComentarioInput(""); setSaveError(null); setModalOpen(true);
+    setValorInput(""); setComentarioInput(""); setPlanAccionInput(""); setSaveError(null); setModalOpen(true);
   }
 
   async function handleSave() {
@@ -173,7 +176,7 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
       const res = await fetch(`/api/indicadores/${indicador.id}/registros`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ anio: anioBuscar, mes: indicador.frecuencia === "anual" ? null : mesBuscar, valor: valorInput.trim(), comentario: comentarioInput.trim() || null }),
+        body: JSON.stringify({ anio: anioBuscar, mes: indicador.frecuencia === "anual" ? null : mesBuscar, valor: valorInput.trim(), comentario: comentarioInput.trim() || null, plan_accion: planAccionInput.trim() || null }),
       });
       if (!res.ok) { const err = await res.json(); setSaveError(err.error ?? "Error al guardar"); setSaving(false); return; }
       setModalOpen(false);
@@ -253,6 +256,9 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
                     <th className="text-left px-4 py-3 font-semibold">Valor</th>
                     <th className="text-left px-4 py-3 font-semibold">Estado</th>
                     <th className="text-left px-4 py-3 font-semibold">Comentario</th>
+                    <th className="text-left px-4 py-3 font-semibold">
+                      <span className="flex items-center gap-1"><ClipboardList className="h-3 w-3 text-blue-400" />Plan de acción</span>
+                    </th>
                     <th className="text-left px-4 py-3 font-semibold">Cargado por</th>
                   </tr>
                 </thead>
@@ -272,6 +278,9 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
                       </td>
                       <td className="px-4 py-3 text-slate-500">
                         {reg.comentario ? <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3 shrink-0 text-slate-400" />{reg.comentario}</span> : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 max-w-[200px]">
+                        {reg.plan_accion ? <span className="flex items-start gap-1"><ClipboardList className="h-3 w-3 shrink-0 text-blue-400 mt-0.5" /><span className="break-words">{reg.plan_accion}</span></span> : "—"}
                       </td>
                       <td className="px-4 py-3 text-slate-500">{reg.cargado_por_usuario?.nombre ?? "—"}</td>
                     </tr>
@@ -313,6 +322,13 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
             <div className="space-y-1.5">
               <Label htmlFor="comentario-det">Comentario <span className="text-slate-400">(opcional)</span></Label>
               <Textarea id="comentario-det" placeholder="Observaciones..." value={comentarioInput} onChange={(e) => setComentarioInput(e.target.value)} rows={2} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="plan-accion-det" className="flex items-center gap-1.5">
+                <ClipboardList className="h-3.5 w-3.5 text-blue-500" />
+                Plan de acción <span className="text-slate-400">(opcional)</span>
+              </Label>
+              <Textarea id="plan-accion-det" placeholder="Acciones a tomar..." value={planAccionInput} onChange={(e) => setPlanAccionInput(e.target.value)} rows={2} />
             </div>
             {saveError && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{saveError}</p>}
           </div>
