@@ -61,20 +61,21 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
   const [modal, setModal] = useState<ModalState>({ open: false, indicadorId: "", indicadorNombre: "", metaCondicion: null, metaValor: null, anio: currentYear, mes: null, frecuencia: "mensual" });
   const [valorInput, setValorInput] = useState("");
   const [comentarioInput, setComentarioInput] = useState("");
+  const [planAccionInput, setPlanAccionInput] = useState("");
   const [cumpleManual, setCumpleManual] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const openModal = useCallback((ind: Indicador, anio: number, mes: number | null) => {
     setModal({ open: true, indicadorId: ind.id, indicadorNombre: ind.nombre, metaCondicion: ind.meta_condicion, metaValor: ind.meta_valor, anio, mes, frecuencia: ind.frecuencia });
-    setValorInput(""); setComentarioInput(""); setCumpleManual(null); setSaveError(null);
+    setValorInput(""); setComentarioInput(""); setPlanAccionInput(""); setCumpleManual(null); setSaveError(null);
   }, []);
 
   async function handleSave() {
     if (!valorInput.trim()) return;
     setSaving(true); setSaveError(null);
     try {
-      const res = await fetch("/api/indicadores/" + modal.indicadorId + "/registros", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ anio: modal.anio, mes: modal.mes, valor: valorInput.trim(), comentario: comentarioInput.trim() || null }) });
+      const res = await fetch("/api/indicadores/" + modal.indicadorId + "/registros", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ anio: modal.anio, mes: modal.mes, valor: valorInput.trim(), comentario: comentarioInput.trim() || null, plan_accion: planAccionInput.trim() || null }) });
       if (!res.ok) { const err = await res.json(); setSaveError(err.error ?? "Error al guardar"); setSaving(false); return; }
       setModal((m) => ({ ...m, open: false })); router.refresh();
     } catch { setSaveError("Error de red"); } finally { setSaving(false); }
@@ -126,6 +127,7 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
           <div className="space-y-4 py-2">
             <div className="space-y-1.5"><Label htmlFor="valor-input">Valor</Label><Input id="valor-input" placeholder={"Ej: " + (modal.metaValor ?? "0")} value={valorInput} onChange={(e) => { setValorInput(e.target.value); setCumpleManual(null); }} autoFocus onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }} />{modal.metaValor && <p className="text-xs text-slate-500">Meta: {modal.metaCondicion === "mayor" ? ">" : modal.metaCondicion === "menor" ? "<" : "="} {modal.metaValor}</p>}</div>
             <div className="space-y-1.5"><Label htmlFor="comentario-input">Comentario <span className="text-slate-400">(opcional)</span></Label><Textarea id="comentario-input" placeholder="Observaciones sobre este dato..." value={comentarioInput} onChange={(e) => setComentarioInput(e.target.value)} rows={2} /></div>
+            <div className="space-y-1.5"><Label htmlFor="plan-accion-input">Plan de acción <span className="text-slate-400">(opcional)</span></Label><Textarea id="plan-accion-input" placeholder="Acciones a tomar..." value={planAccionInput} onChange={(e) => setPlanAccionInput(e.target.value)} rows={2} /></div>
             {needsManualCumple && valorInput && (<div className="space-y-1.5"><Label>¿Cumple la meta?</Label><div className="flex gap-2"><Button type="button" size="sm" variant={cumpleManual === true ? "default" : "outline"} onClick={() => setCumpleManual(true)} className="gap-1.5"><Check className="h-3 w-3" /> Sí</Button><Button type="button" size="sm" variant={cumpleManual === false ? "destructive" : "outline"} onClick={() => setCumpleManual(false)} className="gap-1.5"><X className="h-3 w-3" /> No</Button><Button type="button" size="sm" variant={cumpleManual === null ? "secondary" : "outline"} onClick={() => setCumpleManual(null)} className="gap-1.5"><Minus className="h-3 w-3" /> N/A</Button></div></div>)}
             {saveError && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{saveError}</p>}
           </div>
