@@ -71,6 +71,7 @@ export async function PATCH(
   const body = await request.json();
   const { meta_valor, meta_condicion, meta_unidad } = body;
 
+  // 1. Actualizar la meta del indicador
   const { data, error } = await admin
     .from("indicadores")
     .update({ meta_valor: meta_valor ?? null, meta_condicion: meta_condicion ?? null, meta_unidad: meta_unidad ?? null })
@@ -79,5 +80,35 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // 2. Recalcular cumple en todos los registros existentes con la nueva meta
+  if (meta_valor && meta_condicion) {
+    const { data: registros } = await admin
+      .from("indicador_registros")
+      .select("id, valor")
+      .eq("indicador_id", id);
+
+    for (const reg of registros ?? []) {
+      const r = reg as { id: string; valor: string };
+      const v = r.valor.trim().toLowerCase();
+      let cumple: boolean | null = null;
+
+      if (v && !["en proceso", "s/d"].includes(v)) {
+        if (meta_condicion === "igual") {
+          cumple = v === String(meta_valor).trim().toLowerCase();
+        } else {
+          const num = parseFloat(r.valor.replace(",", "."));
+          const meta = parseFloat(String(meta_valor).replace(",", "."));
+          if (!isNaN(num) && !isNaN(meta)) {
+            if (meta_condicion === "mayor") cumple = num > meta;
+            else if (meta_condicion === "menor") cumple = num < meta;
+          }
+        }
+      }
+
+      await admin.from("indicador_registros").update({ cumple }).eq("id", r.id);
+    }
+  }
+
   return NextResponse.json(data);
 }
