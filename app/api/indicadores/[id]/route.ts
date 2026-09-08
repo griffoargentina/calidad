@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(
   _request: Request,
@@ -50,4 +51,33 @@ export async function GET(
     ...indicador,
     registros: registros ?? [],
   });
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const admin = createAdminClient();
+  const { data: usuario } = await admin.from("usuarios").select("rol").eq("id", user.id).single();
+  if (usuario?.rol !== "admin") {
+    return NextResponse.json({ error: "Solo el administrador puede editar la meta" }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const { meta_valor, meta_condicion, meta_unidad } = body;
+
+  const { data, error } = await admin
+    .from("indicadores")
+    .update({ meta_valor: meta_valor ?? null, meta_condicion: meta_condicion ?? null, meta_unidad: meta_unidad ?? null })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
 }
