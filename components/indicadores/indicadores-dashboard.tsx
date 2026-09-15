@@ -101,20 +101,33 @@ export function IndicadoresDashboard({ indicadores, usuario }: Props) {
           <table className="w-full text-xs">
             <thead><tr className="border-b bg-slate-50 text-slate-500 uppercase tracking-wide"><th className="text-left px-4 py-3 font-semibold min-w-[220px]"><button onClick={() => setSortDir((d) => d === null ? "asc" : d === "asc" ? "desc" : null)} className="flex items-center gap-1 hover:text-slate-700 transition-colors">Indicador{sortDir === null && <ArrowUpDown className="h-3 w-3 opacity-40" />}{sortDir === "asc" && <ArrowUp className="h-3 w-3" />}{sortDir === "desc" && <ArrowDown className="h-3 w-3" />}</button></th><th className="text-left px-4 py-3 font-semibold w-[80px]">Periodo</th><th className="text-left px-4 py-3 font-semibold w-[115px]">Responsable</th><th className="text-left px-4 py-3 font-semibold w-[90px]">Meta</th><th className="text-left px-4 py-3 font-semibold w-[90px]">Estado</th>{visibleMonths.map((m) => (<th key={m} className="text-center px-2 py-3 font-semibold w-[52px]">{MESES_CORTOS[m - 1]}</th>))}</tr></thead>
             <tbody>
-              {filtered.map((ind, idx) => {
-                const estado = calcularEstado(ind, hoy);
-                const metaCond = ind.meta_condicion; const metaSym = metaCond === "mayor" ? ">" : metaCond === "menor" ? "<" : metaCond === "mayor_igual" ? "≥" : metaCond === "menor_igual" ? "≤" : "=";
-                const metaDisplay = ind.meta_valor ? metaSym + " " + ind.meta_valor + " " + (ind.meta_unidad ?? "") : "— " + (ind.meta_unidad ?? "");
-                return (<tr key={ind.id} onClick={() => router.push("/indicadores/" + ind.id)} className={cn("border-b last:border-0 cursor-pointer hover:bg-slate-50 transition-colors", idx % 2 === 0 ? "bg-white" : "bg-slate-50/30")}>
-                  <td className="px-4 py-2.5 align-middle"><p className={cn("font-medium text-xs leading-snug", estado === "vencido" ? "text-red-600" : "text-slate-800")}>{ind.nombre}</p></td>
-                  <td className="px-4 py-2.5 align-middle"><span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", ind.frecuencia === "anual" ? "text-violet-600 bg-violet-50" : "text-blue-600 bg-blue-50")}>{ind.frecuencia === "anual" ? "Anual" : "Mensual"}</span></td>
-                  <td className="px-4 py-2.5 align-middle"><span className="text-slate-600 truncate block max-w-[110px]" title={ind.responsable?.nombre ?? ""}>{ind.responsable?.nombre ?? "—"}</span></td>
-                  <td className="px-4 py-2.5 align-middle text-slate-500 text-[10px] leading-tight">{metaDisplay}</td>
-                  <td className="px-4 py-2.5 align-middle"><EstadoBadge estado={estado} /></td>
-                  {ind.frecuencia === "anual" ? (
-                    <td colSpan={visibleMonths.length} className="px-2 py-2 align-middle" onClick={(e) => e.stopPropagation()}>{(() => { const reg = getRegistro(ind.registros, null, currentYear); if (reg) { const bgClass = reg.cumple === true ? "bg-green-50 text-green-700 border-green-200" : reg.cumple === false ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-50 text-slate-600 border-slate-200"; return <div className={cn("text-center text-xs font-medium px-2 py-1 rounded border", bgClass)}>{reg.valor}{reg.cumple === true && <Check className="inline ml-1 h-3 w-3" />}{reg.cumple === false && <X className="inline ml-1 h-3 w-3" />}</div>; } if (isAdmin) return <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null); }} className="w-full text-center text-xs text-primary hover:bg-primary/10 rounded py-1 flex items-center justify-center gap-1 transition-colors"><Plus className="h-3 w-3" /> Cargar dato anual</button>; return <div className="text-center text-slate-300">—</div>; })()}</td>
-                  ) : visibleMonths.map((mes) => { const reg = getRegistro(ind.registros, mes, currentYear); return <td key={mes} className="px-1 py-2 align-middle" onClick={(e) => e.stopPropagation()}><DataCell registro={reg} isCurrentPeriod={mes === currentMonth} canInput={isAdmin} onAdd={() => openModal(ind, currentYear, mes)} /></td>; })}
-                </tr>);
+              {Array.from(new Set(filtered.map((i) => i.sector))).sort().flatMap((sector) => {
+                const sectorInds = filtered.filter((i) => i.sector === sector);
+                const totalCols = 5 + visibleMonths.length;
+                return [
+                  <tr key={`sector-${sector}`} className="bg-slate-100 border-b border-slate-200">
+                    <td colSpan={totalCols} className="px-4 py-1.5">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{sector}</span>
+                    </td>
+                  </tr>,
+                  ...sectorInds.map((ind) => {
+                    const estado = calcularEstado(ind, hoy);
+                    const metaCond = ind.meta_condicion; const metaSym = metaCond === "mayor" ? ">" : metaCond === "menor" ? "<" : metaCond === "mayor_igual" ? "≥" : metaCond === "menor_igual" ? "≤" : "=";
+                    const metaDisplay = ind.meta_valor ? metaSym + " " + ind.meta_valor + " " + (ind.meta_unidad ?? "") : "— " + (ind.meta_unidad ?? "");
+                    return (
+                      <tr key={ind.id} onClick={() => router.push("/indicadores/" + ind.id)} className="border-b last:border-0 cursor-pointer hover:bg-slate-50 transition-colors bg-white">
+                        <td className="px-4 py-2.5 align-middle"><p className={cn("font-medium text-xs leading-snug", estado === "vencido" ? "text-red-600" : "text-slate-800")}>{ind.nombre}</p></td>
+                        <td className="px-4 py-2.5 align-middle"><span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", ind.frecuencia === "anual" ? "text-violet-600 bg-violet-50" : "text-blue-600 bg-blue-50")}>{ind.frecuencia === "anual" ? "Anual" : "Mensual"}</span></td>
+                        <td className="px-4 py-2.5 align-middle"><span className="text-slate-600 truncate block max-w-[110px]" title={ind.responsable?.nombre ?? ""}>{ind.responsable?.nombre ?? "—"}</span></td>
+                        <td className="px-4 py-2.5 align-middle text-slate-500 text-[10px] leading-tight">{metaDisplay}</td>
+                        <td className="px-4 py-2.5 align-middle"><EstadoBadge estado={estado} /></td>
+                        {ind.frecuencia === "anual" ? (
+                          <td colSpan={visibleMonths.length} className="px-2 py-2 align-middle" onClick={(e) => e.stopPropagation()}>{(() => { const reg = getRegistro(ind.registros, null, currentYear); if (reg) { const bgClass = reg.cumple === true ? "bg-green-50 text-green-700 border-green-200" : reg.cumple === false ? "bg-red-50 text-red-700 border-red-200" : "bg-slate-50 text-slate-600 border-slate-200"; return <div className={cn("text-center text-xs font-medium px-2 py-1 rounded border", bgClass)}>{reg.valor}{reg.cumple === true && <Check className="inline ml-1 h-3 w-3" />}{reg.cumple === false && <X className="inline ml-1 h-3 w-3" />}</div>; } if (isAdmin) return <button onClick={(e) => { e.stopPropagation(); openModal(ind, currentYear, null); }} className="w-full text-center text-xs text-primary hover:bg-primary/10 rounded py-1 flex items-center justify-center gap-1 transition-colors"><Plus className="h-3 w-3" /> Cargar dato anual</button>; return <div className="text-center text-slate-300">—</div>; })()}</td>
+                        ) : visibleMonths.map((mes) => { const reg = getRegistro(ind.registros, mes, currentYear); return <td key={mes} className="px-1 py-2 align-middle" onClick={(e) => e.stopPropagation()}><DataCell registro={reg} isCurrentPeriod={mes === currentMonth} canInput={isAdmin} onAdd={() => openModal(ind, currentYear, mes)} /></td>; })}
+                      </tr>
+                    );
+                  }),
+                ];
               })}
             </tbody>
           </table>
