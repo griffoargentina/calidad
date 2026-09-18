@@ -42,12 +42,14 @@ interface ParticipaPaso {
 }
 
 const ESTADO_INST_COLORS: Record<string, string> = {
+  borrador: "bg-slate-100 text-slate-600",
   vigente: "bg-green-100 text-green-700",
   pendiente_aprobacion: "bg-amber-100 text-amber-700",
   rechazado: "bg-red-100 text-red-700",
   historico: "bg-gray-100 text-gray-500",
 };
 const ESTADO_INST_LABELS: Record<string, string> = {
+  borrador: "Borrador",
   vigente: "Vigente",
   pendiente_aprobacion: "Pendiente aprobación",
   rechazado: "Rechazado",
@@ -65,6 +67,7 @@ function EstadoInstIcon({ estado }: { estado: string }) {
   if (estado === "vigente") return <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />;
   if (estado === "pendiente_aprobacion") return <Clock className="h-3.5 w-3.5 text-amber-500" />;
   if (estado === "rechazado") return <XCircle className="h-3.5 w-3.5 text-red-500" />;
+  if (estado === "borrador") return <FileText className="h-3.5 w-3.5 text-slate-400" />;
   return <Archive className="h-3.5 w-3.5 text-gray-400" />;
 }
 
@@ -331,6 +334,20 @@ export default function SectorDetailPage() {
                                 Revisar
                               </Button>
                             )}
+                            {isAdmin && inst.estado === "borrador" && (
+                              <Button size="sm" variant="outline"
+                                className="h-7 px-2 text-xs text-green-700 border-green-200 hover:bg-green-50"
+                                onClick={async () => {
+                                  await fetch(`/api/procesos/instructivos/${inst.id}`, {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ estado: "vigente" }),
+                                  });
+                                  load();
+                                }}>
+                                Activar
+                              </Button>
+                            )}
                             {isAdmin && inst.estado === "pendiente_aprobacion" && (
                               <Button size="sm" variant="outline"
                                 className="h-7 px-2 text-xs text-amber-700 border-amber-200 hover:bg-amber-50"
@@ -409,7 +426,6 @@ export default function SectorDetailPage() {
         onOpenChange={setShowAddInstructivo}
         onSuccess={load}
         sectorId={sectorId}
-        sectorAbreviatura={sector?.abreviatura ?? null}
         usuarios={usuarios}
       />
       {revisarInstructivo && (

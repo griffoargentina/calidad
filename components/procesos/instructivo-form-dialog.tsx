@@ -20,7 +20,6 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   onSuccess: () => void;
   sectorId: string;
-  sectorAbreviatura?: string | null;
   usuarios: Array<{ id: string; nombre: string }>;
 }
 
@@ -75,7 +74,7 @@ export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId,
           responsable_id: responsableId === "__none__" ? null : responsableId,
           es_publico: esPublico,
           tipo_doc_id: tipoDocId === "__none__" ? null : tipoDocId,
-          estado: "borrador",
+          estado: pendingFile ? "vigente" : "borrador",
         }),
       });
       if (!res.ok) return;
@@ -90,7 +89,21 @@ export function InstructivoFormDialog({ open, onOpenChange, onSuccess, sectorId,
           fd.append("tipo_documento", selectedTipo.prefijo);
           if (codigoNum) fd.append("codigo_manual", `${selectedTipo.prefijo}-${codigoNum}`);
         }
-        await fetch("/api/procesos/instructivos/upload", { method: "POST", body: fd });
+        const uploadRes = await fetch("/api/procesos/instructivos/upload", { method: "POST", body: fd });
+        const uploadData = uploadRes.ok ? await uploadRes.json() : null;
+        // Write URL, filename and code back to the instructivo record
+        if (uploadData) {
+          await fetch(`/api/procesos/instructivos/${instructivo.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              codigo: uploadData.codigo ?? null,
+              tipo_doc_id: selectedTipo?.id ?? null,
+              url_archivo: uploadData.url ?? null,
+              nombre_archivo: uploadData.nombre_archivo ?? pendingFile.name,
+            }),
+          });
+        }
       }
 
       onOpenChange(false);

@@ -96,8 +96,15 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
       .then(d => setTipos(Array.isArray(d) ? d : []));
   }, []);
 
-  const activeEquipos = equipos.filter((e) => e.activo !== false);
+  const [filtroVenc, setFiltroVenc] = useState<"todos" | "vencido" | "por_vencer">("todos");
+
+  const allActiveEquipos = equipos.filter((e) => e.activo !== false);
   const inactiveEquipos = equipos.filter((e) => e.activo === false);
+  const activeEquipos = allActiveEquipos.filter((e) => {
+    if (filtroVenc === "todos") return true;
+    const sem = semaforo(e.ultima_calibracion?.fecha_vencimiento ?? null);
+    return filtroVenc === "vencido" ? sem === "rojo" : sem === "amarillo";
+  });
 
   async function loadProcedimientos() {
     if (procLoaded) return;
@@ -277,8 +284,33 @@ export function EquiposTab({ equiposIniciales, canEdit }: Props) {
     <div className="flex gap-4 h-full">
       <input ref={calCertRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleCalCertUpload} />
       <div className={cn("flex-1 min-w-0", selectedEquipo ? "hidden lg:block" : "")}>
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-sm text-muted-foreground">{activeEquipos.length} equipo{activeEquipos.length !== 1 ? "s" : ""}</p>
+        <div className="flex justify-between items-center mb-4 gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm text-muted-foreground">
+              {activeEquipos.length} equipo{activeEquipos.length !== 1 ? "s" : ""}
+              {filtroVenc !== "todos" ? ` de ${allActiveEquipos.length}` : ""}
+            </p>
+            <div className="flex gap-1">
+              {(["todos", "vencido", "por_vencer"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFiltroVenc(f)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                    filtroVenc === f
+                      ? f === "vencido"
+                        ? "bg-red-100 text-red-700 border-red-300"
+                        : f === "por_vencer"
+                        ? "bg-yellow-100 text-yellow-700 border-yellow-300"
+                        : "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:bg-muted"
+                  )}
+                >
+                  {f === "todos" ? "Todos" : f === "vencido" ? "Vencidos" : "A vencer"}
+                </button>
+              ))}
+            </div>
+          </div>
           {canEdit && (
             <Button size="sm" onClick={openNewEquipo}>
               <Plus className="h-4 w-4 mr-1.5" />

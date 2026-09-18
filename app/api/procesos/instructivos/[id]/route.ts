@@ -51,7 +51,7 @@ export async function PATCH(
 
   const body = await req.json();
   const allowed: Record<string, unknown> = {};
-  for (const k of ["nombre", "responsable_id", "es_publico", "url_archivo", "nombre_archivo", "ultima_revision", "proxima_revision"]) {
+  for (const k of ["nombre", "responsable_id", "es_publico", "url_archivo", "nombre_archivo", "ultima_revision", "proxima_revision", "codigo", "tipo_doc_id", "estado"]) {
     if (k in body) allowed[k] = body[k];
   }
   allowed.updated_at = new Date().toISOString();

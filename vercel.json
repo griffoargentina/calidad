@@ -7,6 +7,10 @@
     {
       "path": "/api/alertas/seh-diario",
       "schedule": "0 11 * * 1-5"
+    },
+    {
+      "path": "/api/alertas/enviar",
+      "schedule": "0 11 * * *"
     }
   ]
 }

@@ -14,11 +14,29 @@ export async function GET(
   const [{ data: sector }, { data: responsables }, { data: flujogramas }, { data: instructivos }] = await Promise.all([
     admin.from("proc_sectores").select("*").eq("id", params.id).single(),
     admin.from("proc_sector_responsables").select("usuario_id, usuarios(id, nombre)").eq("sector_id", params.id),
-    admin.from("proc_flujogramas").select("id, nombre, version, estado, created_at, updated_at").eq("sector_id", params.id).order("created_at"),
-    admin.from("proc_instructivos").select("id, nombre, version, estado, responsable_id, ultima_revision, proxima_revision, es_publico, url_archivo, nombre_archivo").eq("sector_id", params.id).order("nombre"),
+    admin.from("proc_flujogramas").select("id, nombre, version, estado, codigo, tipo_doc_id, created_at, updated_at").eq("sector_id", params.id).order("created_at"),
+    admin.from("proc_instructivos").select("id, nombre, version, estado, codigo, tipo_doc_id, responsable_id, ultima_revision, proxima_revision, es_publico, url_archivo, nombre_archivo").eq("sector_id", params.id).order("nombre"),
   ]);
 
   if (!sector) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  // Fetch codes from archivos for instructivos/flujogramas that don't have codigo set yet
+  const allRefIds = [
+    ...(instructivos ?? []).map(i => i.id),
+    ...(flujogramas ?? []).map(f => f.id),
+  ];
+  const codigosMap: Record<string, string> = {};
+  if (allRefIds.length > 0) {
+    const { data: archivosData } = await admin
+      .from("archivos")
+      .select("referencia_id, codigo")
+      .in("modulo", ["instructivos", "flujogramas"])
+      .in("referencia_id", allRefIds)
+      .not("codigo", "is", null);
+    for (const a of archivosData ?? []) {
+      if (a.referencia_id && a.codigo) codigosMap[a.referencia_id] = a.codigo;
+    }
+  }
 
   return NextResponse.json({
     ...sector,
@@ -27,8 +45,8 @@ export async function GET(
       if (Array.isArray(usuarios)) return usuarios[0] ?? null;
       return usuarios;
     }).filter(Boolean),
-    flujogramas: flujogramas ?? [],
-    instructivos: instructivos ?? [],
+    flujogramas: (flujogramas ?? []).map(f => ({ ...f, codigo: f.codigo || codigosMap[f.id] || null })),
+    instructivos: (instructivos ?? []).map(i => ({ ...i, codigo: i.codigo || codigosMap[i.id] || null })),
   });
 }
 

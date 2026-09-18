@@ -69,7 +69,8 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plantillaId, setPlantillaId] = useState("");
-  const [archivo] = useState<File | null>(null);
+  // archivo reserved for future file upload functionality
+  const [_archivo] = useState<File | null>(null); void _archivo;
 
   // Aplicar plantilla
   function aplicarPlantilla(id: string) {
@@ -135,16 +136,6 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
       setError(result.error.message);
       setLoading(false);
       return;
-    }
-
-    // Subir archivo si se adjuntó
-    if (archivo) {
-      const fd = new FormData();
-      fd.append("file", archivo);
-      fd.append("item_id", result.data.id);
-      fd.append("categoria", "documento");
-      fd.append("version", "1");
-      await fetch("/api/upload", { method: "POST", body: fd });
     }
 
     router.push(`/items/${result.data.id}`);

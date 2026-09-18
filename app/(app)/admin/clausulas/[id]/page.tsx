@@ -21,7 +21,7 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
   if (!user) redirect("/login");
 
   const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
-  if (usuario?.rol !== "admin") redirect("/dashboard");
+  const isAdmin = usuario?.rol === "admin";
 
   const admin = createAdminClient();
 
@@ -80,12 +80,14 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
         title={`${clausula.id} — ${clausula.titulo}`}
         actions={
           <div className="flex items-center gap-2">
-            <EliminarClausulaButton clausulaId={clausula.id} />
-            <EditClausulaButton
-              clausulaId={clausula.id}
-              titulo={clausula.titulo}
-              descripcion={clausula.descripcion ?? null}
-            />
+            {isAdmin && <EliminarClausulaButton clausulaId={clausula.id} />}
+            {isAdmin && (
+              <EditClausulaButton
+                clausulaId={clausula.id}
+                titulo={clausula.titulo}
+                descripcion={clausula.descripcion ?? null}
+              />
+            )}
             <Button asChild size="sm" variant="outline">
               <Link href="/admin/clausulas">
                 <ArrowLeft className="h-4 w-4 mr-1" />
@@ -101,10 +103,14 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
         {/* Puntos relacionados */}
         <div className="flex items-start gap-3">
           <p className="text-sm text-muted-foreground w-44 shrink-0 pt-0.5">Puntos relacionados</p>
-          <ClausulasRelacionadasEditor
-            clausulaId={clausula.id}
-            relacionadas={(clausula.relacionadas as string[]) ?? []}
-          />
+          {isAdmin ? (
+            <ClausulasRelacionadasEditor
+              clausulaId={clausula.id}
+              relacionadas={(clausula.relacionadas as string[]) ?? []}
+            />
+          ) : (
+            <p className="text-sm">{((clausula.relacionadas as string[]) ?? []).join(", ") || "—"}</p>
+          )}
         </div>
 
         {/* Estado general de la cláusula */}
@@ -208,14 +214,14 @@ export default async function ClausulaDetallePage({ params }: { params: { id: st
         )}
 
         {/* Agregar documento */}
-        <div className="flex justify-end pt-2">
+        {isAdmin && <div className="flex justify-end pt-2">
           <Button asChild size="sm" variant="outline">
             <Link href={`/items/nuevo?clausula=${params.id}`}>
               <Plus className="h-4 w-4 mr-1" />
               Agregar documento
             </Link>
           </Button>
-        </div>
+        </div>}
 
       </div>
     </div>

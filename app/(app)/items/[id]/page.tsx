@@ -259,6 +259,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                     responsableNombre={responsable?.nombre ?? null}
                     frecuenciaDias={item.frecuencia_dias ?? null}
                     fechaVencimiento={item.fecha_vencimiento ?? null}
+                    procFechaVencimiento={item.proc_fecha_vencimiento ?? null}
                     usuarios={todosUsuarios ?? []}
                     canEdit={canEdit}
                   />

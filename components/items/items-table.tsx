@@ -10,9 +10,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EstadoBadge } from "@/components/shared/estado-badge";
-import { ESTADO_LABELS } from "@/lib/constants/items";
+import { TIPO_ITEM_LABELS } from "@/lib/constants/items";
 import { formatFecha } from "@/lib/utils/format";
-import { EstadoItem } from "@/types/database";
+import { TipoItem, EstadoItem } from "@/types/database";
 import { FileText, ArrowUpDown, ArrowUp, ArrowDown, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -20,8 +20,8 @@ interface ItemRow {
   id: string;
   codigo: string;
   codigo_completo: string;
-  tipo_documento?: string | null;
-  tipo: string;
+  codigo_formal?: string | null;
+  tipo: TipoItem;
   clausula_iso: string;
   titulo: string;
   estado: string;
@@ -37,7 +37,6 @@ interface ItemRow {
 interface ArchivoDetalle {
   categoria: string;
   nombre: string;
-  url: string;
 }
 
 interface ItemsTableProps {
@@ -77,8 +76,8 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
       cell: ({ row }) => (
         <Link href={`/items/${row.original.id}`} className="block">
           <span className="font-mono text-xs font-semibold text-primary">{row.original.codigo}</span>
-          {row.original.tipo_documento && (
-            <span className="text-[10px] text-muted-foreground block mt-0.5">{row.original.tipo_documento}</span>
+          {row.original.codigo_formal && (
+            <span className="text-[10px] text-muted-foreground block mt-0.5">{row.original.codigo_formal}</span>
           )}
         </Link>
       ),
@@ -101,12 +100,12 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
       ),
     },
     {
-      accessorKey: "tipo_documento",
+      accessorKey: "tipo",
       header: "Tipo",
-      size: 80,
+      size: 160,
       cell: ({ getValue }) => (
-        <span className="text-xs font-mono font-medium text-muted-foreground">
-          {(getValue() as string) ?? "—"}
+        <span className="text-xs text-muted-foreground">
+          {TIPO_ITEM_LABELS[getValue() as TipoItem]}
         </span>
       ),
     },
@@ -241,52 +240,38 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
 
   function exportToExcel() {
     const hoyExport = new Date(); hoyExport.setHours(0, 0, 0, 0);
-    const rows = table.getSortedRowModel().rows.flatMap((row) => {
-      const id = row.original.id;
+    // Exporta TODOS los items sin importar los filtros activos
+    const rows = items.flatMap((item) => {
+      const id = item.id;
       const files = archivosDetalle?.[id];
-      const docNa = naOverrides[id] !== undefined ? naOverrides[id] : (row.original.metadata?.documento_na ?? false);
+      const docNa = naOverrides[id] !== undefined ? naOverrides[id] : (item.metadata?.documento_na ?? false);
       const hasAnyFile = (files?.length ?? 0) > 0;
       const hasProc = files?.some((f) => f.categoria === "procedimiento") ?? false;
       const compliant = docNa ? hasProc : hasAnyFile;
-      const fv = row.original.fecha_vencimiento ? new Date(row.original.fecha_vencimiento + "T00:00:00") : null;
+      const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
       const isExpired = fv ? fv < hoyExport : false;
-      const estadoReal: EstadoItem = (!compliant || isExpired) ? "vencido" : row.original.estado as EstadoItem;
+      const estadoReal: EstadoItem = (!compliant || isExpired) ? "vencido" : item.estado as EstadoItem;
       const base = {
-        "Código": row.original.codigo,
-        "Tipo documento": row.original.tipo_documento ?? "",
-        "Título": row.original.titulo,
-        "Cláusula": row.original.clausula_iso,
-        "Área": getAreaNombre(row.original.areas),
-        Responsable: getUsuarioNombre(row.original.usuarios),
-        Vencimiento: row.original.fecha_vencimiento ?? "",
-        Estado: ESTADO_LABELS[estadoReal] ?? estadoReal,
-        "Versión": row.original.version_actual,
+        "Código": item.codigo,
+        "Código formal": item.codigo_formal ?? "",
+        "Título": item.titulo,
+        "Tipo": TIPO_ITEM_LABELS[item.tipo],
+        "Cláusula": item.clausula_iso,
+        "Área": getAreaNombre(item.areas),
+        "Responsable": getUsuarioNombre(item.usuarios),
+        "Vencimiento": item.fecha_vencimiento ?? "",
+        "Estado": estadoReal,
+        "Versión": item.version_actual,
       };
-      if (!files?.length) return [{ ...base, "Tipo archivo": "", "Nombre archivo": "", "Link archivo": "" }];
-      return files.map(({ categoria, nombre, url }) => ({
+      if (!files?.length) return [{ ...base, "Tipo archivo": "", "Nombre archivo": "" }];
+      return files.map(({ categoria, nombre }) => ({
         ...base,
         "Tipo archivo": categoria === "procedimiento" ? "Proc" : "Doc",
         "Nombre archivo": nombre,
-        "Link archivo": url,
       }));
     });
 
     const ws = XLSX.utils.json_to_sheet(rows);
-
-    // Hacer la columna Link archivo clickeable en Excel
-    const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
-    const headers = rows[0] ? Object.keys(rows[0]) : [];
-    const linkCol = headers.indexOf("Link archivo");
-    if (linkCol >= 0) {
-      for (let r = 1; r <= range.e.r; r++) {
-        const cellAddr = XLSX.utils.encode_cell({ r, c: linkCol });
-        const cell = ws[cellAddr];
-        if (cell && cell.v) {
-          cell.l = { Target: cell.v as string };
-        }
-      }
-    }
-
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Documentos");
     XLSX.writeFile(wb, `documentos_sgc_${new Date().toISOString().slice(0, 10)}.xlsx`);

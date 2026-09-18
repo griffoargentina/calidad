@@ -13,7 +13,7 @@ export default async function ClausulasPage() {
   if (!user) redirect("/login");
 
   const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
-  if (usuario?.rol !== "admin") redirect("/dashboard");
+  const isAdmin = usuario?.rol === "admin";
 
   const { data: clausulasRaw } = await supabase.from("clausulas_iso").select("*");
 
@@ -109,9 +109,10 @@ export default async function ClausulasPage() {
     } else {
       const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
       const fv = item.fecha_vencimiento ? new Date(item.fecha_vencimiento + "T00:00:00") : null;
-      if (!fv || fv < hoy) {
+      // Sin fecha de vencimiento pero con archivo = no es un error, solo no tiene fecha
+      if (fv && fv < hoy) {
         s.vencidos++;
-      } else if (fv <= new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000)) {
+      } else if (fv && fv <= new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000)) {
         s.porVencer++;
       }
     }
@@ -141,7 +142,7 @@ export default async function ClausulasPage() {
     <div className="flex flex-col h-full">
       <Topbar
         title="Mapa de cobertura — Cláusulas ISO 9001:2015"
-        actions={<AgregarClausulaDialog />}
+        actions={isAdmin ? <AgregarClausulaDialog /> : undefined}
       />
       <div className="flex-1 p-6 space-y-4">
         <div className="flex gap-4 text-sm flex-wrap">

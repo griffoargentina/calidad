@@ -62,6 +62,9 @@ export default async function IndicadoresPage() {
     );
   }
 
+  // Fetch usuarios for dropdowns
+  const { data: usuarios } = await admin.from("usuarios").select("id, nombre, email, rol").eq("activo", true).order("nombre");
+
   // Fetch registros for current year
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const indicadorIds = (indicadores as any[]).map((i) => i.id);
@@ -89,11 +92,12 @@ export default async function IndicadoresPage() {
   }));
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       <Topbar title="Indicadores de Gestión" />
       <IndicadoresDashboard
         indicadores={indicadoresConRegistros}
         usuario={usuario as Usuario}
+        usuarios={usuarios ?? []}
       />
     </div>
   );

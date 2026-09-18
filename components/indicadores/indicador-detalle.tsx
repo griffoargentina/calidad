@@ -98,34 +98,59 @@ function MiniBarChart({ registros, metaValor }: { registros: Registro[]; metaVal
   const values = numericRegistros.map((r) => r.numVal);
   const meta = metaValor ? parseFloat(metaValor) : null;
   const allValues = meta !== null ? [...values, meta] : values;
-  const minVal = Math.min(...allValues);
-  const maxVal = Math.max(...allValues);
-  const range = maxVal - minVal || 1;
-  const chartHeight = 80;
-  const barWidth = Math.max(24, Math.min(40, 400 / numericRegistros.length));
-  const gap = 4;
+  const rawMin = Math.min(...allValues);
+  const rawMax = Math.max(...allValues);
+  const rawRange = rawMax - rawMin || 1;
+  // Add 15% padding so meta line never sits flush against the chart edges
+  const minVal = rawMin - rawRange * 0.15;
+  const maxVal = rawMax + rawRange * 0.15;
+  const range = maxVal - minVal;
+  const chartHeight = 200;
+  const barWidth = Math.max(36, Math.min(60, 660 / numericRegistros.length));
+  const gap = 6;
   const totalWidth = numericRegistros.length * (barWidth + gap);
 
   return (
     <div className="overflow-x-auto">
-      <svg width={totalWidth + 40} height={chartHeight + 36} className="overflow-visible">
-        {meta !== null && (
-          <line x1={20} y1={chartHeight - ((meta - minVal) / range) * chartHeight}
-            x2={totalWidth + 20} y2={chartHeight - ((meta - minVal) / range) * chartHeight}
-            stroke="#94a3b8" strokeWidth={1} strokeDasharray="4 3" />
-        )}
+      <svg width={totalWidth + 70} height={chartHeight + 48} className="overflow-visible">
+        {/* Grid lines */}
+        {[0.25, 0.5, 0.75, 1].map((t) => {
+          const gy = chartHeight * (1 - t);
+          const val = minVal + t * range;
+          return (
+            <g key={t}>
+              <line x1={20} y1={gy} x2={totalWidth + 20} y2={gy} stroke="#e2e8f0" strokeWidth={1} />
+              <text x={14} y={gy + 4} textAnchor="end" fontSize={9} fill="#94a3b8">
+                {val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}
+              </text>
+            </g>
+          );
+        })}
+        {/* Meta line */}
+        {meta !== null && (() => {
+          const metaY = chartHeight - ((meta - minVal) / range) * chartHeight;
+          return (
+            <g>
+              <line x1={20} y1={metaY} x2={totalWidth + 20} y2={metaY}
+                stroke="#f97316" strokeWidth={2} strokeDasharray="6 3" />
+              <rect x={totalWidth + 23} y={metaY - 9} width={38} height={16} rx={4} fill="#fff7ed" stroke="#fed7aa" strokeWidth={1} />
+              <text x={totalWidth + 42} y={metaY + 3} textAnchor="middle" fontSize={10} fill="#f97316" fontWeight="700">{meta}</text>
+            </g>
+          );
+        })()}
+        {/* Bars */}
         {numericRegistros.map((r, i) => {
           const x = 20 + i * (barWidth + gap);
-          const barH = Math.max(2, ((r.numVal - minVal) / range) * chartHeight);
+          const barH = Math.max(3, ((r.numVal - minVal) / range) * chartHeight);
           const y = chartHeight - barH;
           const color = r.cumple === true ? "#22c55e" : r.cumple === false ? "#ef4444" : "#94a3b8";
           return (
             <g key={r.id}>
-              <rect x={x} y={y} width={barWidth} height={barH} rx={3} fill={color} fillOpacity={0.8} />
-              <text x={x + barWidth / 2} y={y - 3} textAnchor="middle" fontSize={9} fill="#64748b">
+              <rect x={x} y={y} width={barWidth} height={barH} rx={4} fill={color} fillOpacity={0.85} />
+              <text x={x + barWidth / 2} y={y - 5} textAnchor="middle" fontSize={10} fill="#475569" fontWeight="500">
                 {r.numVal % 1 === 0 ? r.numVal : r.numVal.toFixed(2)}
               </text>
-              <text x={x + barWidth / 2} y={chartHeight + 14} textAnchor="middle" fontSize={9} fill="#94a3b8">
+              <text x={x + barWidth / 2} y={chartHeight + 16} textAnchor="middle" fontSize={10} fill="#94a3b8">
                 {MESES_CORTOS[(r.mes ?? 1) - 1]}
               </text>
             </g>
@@ -137,8 +162,8 @@ function MiniBarChart({ registros, metaValor }: { registros: Registro[]; metaVal
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-400 inline-block" /> No cumple</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-300 inline-block" /> Sin clasificar</span>
         {meta !== null && (
-          <span className="flex items-center gap-1.5">
-            <svg width="16" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2" /></svg>
+          <span className="flex items-center gap-1.5 text-orange-500 font-medium">
+            <svg width="16" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="#f97316" strokeWidth="1.5" strokeDasharray="5 3" /></svg>
             Meta: {meta}
           </span>
         )}
@@ -315,8 +340,13 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
                         {reg.cumple === false && <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-0.5 rounded-full text-[10px] font-medium"><X className="h-3 w-3" /> No cumple</span>}
                         {reg.cumple === null && <span className="inline-flex items-center gap-1 text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full text-[10px] font-medium"><Minus className="h-3 w-3" /> S/D</span>}
                       </td>
-                      <td className="px-4 py-3 text-slate-500">
-                        {reg.comentario ? <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3 shrink-0 text-slate-400" />{reg.comentario}</span> : "—"}
+                      <td className="px-4 py-3 text-slate-500 max-w-[180px]">
+                        {reg.comentario ? <span className="flex items-start gap-1"><MessageSquare className="h-3 w-3 shrink-0 text-slate-400 mt-0.5" />{reg.comentario}</span> : "—"}
+                      </td>
+                      <td className="px-4 py-3 max-w-[200px]">
+                        {reg.plan_accion
+                          ? <span className="flex items-start gap-1 text-blue-700"><ClipboardList className="h-3 w-3 shrink-0 text-blue-400 mt-0.5" />{reg.plan_accion}</span>
+                          : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-4 py-3 text-slate-500 max-w-[200px]">
                         {reg.plan_accion ? <span className="flex items-start gap-1"><ClipboardList className="h-3 w-3 shrink-0 text-blue-400 mt-0.5" /><span className="break-words">{reg.plan_accion}</span></span> : "—"}
@@ -395,7 +425,11 @@ export function IndicadorDetalle({ indicador, usuario }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="comentario-det">Comentario <span className="text-slate-400">(opcional)</span></Label>
-              <Textarea id="comentario-det" placeholder="Observaciones..." value={comentarioInput} onChange={(e) => setComentarioInput(e.target.value)} rows={2} />
+              <Textarea id="comentario-det" placeholder="Observaciones sobre el dato..." value={comentarioInput} onChange={(e) => setComentarioInput(e.target.value)} rows={2} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="plan-accion-det">Plan de acción <span className="text-slate-400">(opcional)</span></Label>
+              <Textarea id="plan-accion-det" placeholder="Acciones a tomar si no se cumple la meta..." value={planAccionInput} onChange={(e) => setPlanAccionInput(e.target.value)} rows={2} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="plan-accion-det" className="flex items-center gap-1.5">

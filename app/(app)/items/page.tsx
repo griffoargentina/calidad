@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Topbar } from "@/components/layout/topbar";
 import { Button } from "@/components/ui/button";
 import { ItemsTable } from "@/components/items/items-table";
 import { ItemsFilters } from "@/components/items/items-filters";
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { TipoItem } from "@/types/database";
 
 interface PageProps {
   searchParams: {
@@ -20,6 +22,7 @@ interface PageProps {
 
 export default async function ItemsPage({ searchParams }: PageProps) {
   const supabase = await createClient();
+  const admin = createAdminClient();
 
   const [{ data: areas }, { data: clausulas }, { data: usuario }] = await Promise.all([
     supabase.from("areas").select("id, nombre").eq("activa", true).order("nombre"),
@@ -29,6 +32,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
       .single(),
   ]);
 
+  // --- ISO items ---
   let query = supabase
     .from("items")
     .select(`
@@ -55,7 +59,7 @@ export default async function ItemsPage({ searchParams }: PageProps) {
 
   const { data: items } = await query.limit(200);
 
-  // Archivos: incluye archivo_url para el export de Excel
+  // --- Archivos de items ISO ---
   const { data: archivosExistentes } = await supabase
     .from("archivos")
     .select("item_id, nombre_archivo, categoria, archivo_url")
@@ -70,6 +74,77 @@ export default async function ItemsPage({ searchParams }: PageProps) {
       archivosDetalle[a.item_id].push({ categoria: cat, nombre: a.nombre_archivo, url: a.archivo_url ?? "" });
     }
   }
+
+  // --- Instructivos de procesos ---
+  // Only fetch when no clausula/area/tipo_documento filter active (they don't apply to instructivos)
+  const skipProcesos = !!(searchParams.clausula || searchParams.area || searchParams.tipo_documento);
+
+  let instructivoRows: ReturnType<typeof buildItemRow>[] = [];
+  let flujogramaRows: ReturnType<typeof buildItemRow>[] = [];
+
+  if (!skipProcesos) {
+    let instQuery = admin
+      .from("proc_instructivos")
+      .select(`id, nombre, version, estado, codigo, responsable_id, url_archivo, nombre_archivo, sector:proc_sectores(id, nombre), responsable:usuarios!responsable_id(nombre)`)
+      .neq("estado", "historico")
+      .order("nombre");
+
+    if (searchParams.estado) instQuery = instQuery.eq("estado", searchParams.estado);
+    if (searchParams.q) instQuery = instQuery.ilike("nombre", `%${searchParams.q}%`);
+
+    const { data: instructivosRaw } = await instQuery;
+
+    let flujQuery = admin
+      .from("proc_flujogramas")
+      .select(`id, nombre, version, estado, codigo, sector:proc_sectores(id, nombre)`)
+      .neq("estado", "historico")
+      .order("nombre");
+
+    if (searchParams.estado) flujQuery = flujQuery.eq("estado", searchParams.estado);
+    if (searchParams.q) flujQuery = flujQuery.ilike("nombre", `%${searchParams.q}%`);
+
+    const { data: flujogramasRaw } = await flujQuery;
+
+    // Archivos de instructivos y flujogramas (keyed by referencia_id)
+    const { data: archivosProc } = await admin
+      .from("archivos")
+      .select("referencia_id, nombre_archivo, categoria, codigo")
+      .in("modulo", ["instructivos", "flujogramas"])
+      .order("subido_at", { ascending: false });
+
+    for (const a of archivosProc ?? []) {
+      if (!a.referencia_id) continue;
+      const key = a.referencia_id;
+      if (!archivosDetalle[key]) archivosDetalle[key] = [];
+      const cat = a.categoria ?? "documento";
+      if (!archivosDetalle[key].find((x) => x.categoria === cat)) {
+        archivosDetalle[key].push({
+          categoria: cat,
+          nombre: a.codigo ? `${a.codigo} — ${a.nombre_archivo}` : a.nombre_archivo,
+          url: "",
+        });
+      }
+    }
+
+    instructivoRows = (instructivosRaw ?? []).map((inst) => {
+      const sector = Array.isArray(inst.sector) ? inst.sector[0] : inst.sector;
+      const resp = Array.isArray(inst.responsable) ? inst.responsable[0] : inst.responsable;
+      return buildItemRow({
+        id: inst.id, codigo: inst.codigo, nombre: inst.nombre,
+        tipo: "instructivo" as TipoItem, sector, resp, estado: inst.estado, version: inst.version,
+      });
+    });
+
+    flujogramaRows = (flujogramasRaw ?? []).map((fluj) => {
+      const sector = Array.isArray(fluj.sector) ? fluj.sector[0] : fluj.sector;
+      return buildItemRow({
+        id: fluj.id, codigo: fluj.codigo, nombre: fluj.nombre,
+        tipo: "flujograma" as TipoItem, sector, resp: null, estado: fluj.estado, version: fluj.version,
+      });
+    });
+  }
+
+  const allItems = [...(items ?? []), ...instructivoRows, ...flujogramaRows];
 
   const sortClausulas = (list: { id: string; titulo: string }[]) =>
     list.sort((a, b) => {
@@ -106,8 +181,45 @@ export default async function ItemsPage({ searchParams }: PageProps) {
           clausulas={sortClausulas(clausulas ?? [])}
           searchParams={searchParams}
         />
-        <ItemsTable items={items ?? []} archivosDetalle={archivosDetalle} />
+        {skipProcesos && (
+          <p className="text-xs text-muted-foreground">
+            Filtro activo: mostrando solo documentos ISO. Quitá el filtro de cláusula/área/tipo para ver también instructivos y flujogramas de procesos.
+          </p>
+        )}
+        <ItemsTable items={allItems} archivosDetalle={archivosDetalle} />
       </div>
     </div>
   );
+}
+
+function buildItemRow({
+  id, codigo, nombre, tipo, sector, resp, estado, version,
+}: {
+  id: string;
+  codigo: string | null | undefined;
+  nombre: string;
+  tipo: TipoItem;
+  sector: { id: string; nombre: string } | null | undefined;
+  resp: { nombre: string } | null | undefined;
+  estado: string;
+  version: number;
+}) {
+  const sectorNombre = sector?.nombre ?? "—";
+  return {
+    id,
+    codigo: codigo?.match(/\d+/)?.[0] ?? "",
+    codigo_completo: codigo ?? "",
+    codigo_formal: codigo ?? null,
+    tipo,
+    clausula_iso: sectorNombre,
+    titulo: nombre,
+    estado,
+    fecha_vencimiento: null as string | null,
+    version_actual: version,
+    etiquetas: [] as string[],
+    es_borrador: estado === "borrador",
+    metadata: null,
+    usuarios: resp ?? null,
+    areas: sector ? { nombre: sectorNombre } : null,
+  };
 }
