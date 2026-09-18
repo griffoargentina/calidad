@@ -69,6 +69,8 @@ export function ItemForm({ areas, clausulas, usuarios, plantillas, usuarioActual
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plantillaId, setPlantillaId] = useState("");
+  // archivo reserved for future file upload functionality
+  const [_archivo] = useState<File | null>(null); void _archivo;
 
   // Aplicar plantilla
   function aplicarPlantilla(id: string) {

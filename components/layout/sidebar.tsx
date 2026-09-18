@@ -20,6 +20,7 @@ import {
   Gauge,
   ClipboardList,
   ClipboardCheck,
+  HardHat,
 } from "lucide-react";
 import { Usuario } from "@/types/database";
 
@@ -38,6 +39,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/vencimientos", label: "Vencimientos", icon: CalendarClock },
   { href: "/calibracion", label: "Calibración", icon: Gauge },
   { href: "/indicadores", label: "Indicadores", icon: BarChart2 },
+  { href: "/seh", label: "Seg. e Higiene", icon: HardHat },
 ];
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
