@@ -5,7 +5,7 @@ import { getResend } from "@/lib/email/resend";
 
 export const dynamic = "force-dynamic";
 
-const TO = ["calidad@griffo.com.ar", "dgriffo@griffo.com.ar"];
+const TO = ["calidad@griffo.com.ar", "dgriffo@griffo.com.ar", "personal@griffo.com.ar"];
 const CC = ["javier@griffo.com.ar"];
 
 function formatDate(d: string | null) {
