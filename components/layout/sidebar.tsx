@@ -21,6 +21,7 @@ import {
   ClipboardList,
   ClipboardCheck,
   HardHat,
+  TrendingUp,
 } from "lucide-react";
 import { Usuario } from "@/types/database";
 
@@ -40,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/calibracion", label: "Calibración", icon: Gauge },
   { href: "/indicadores", label: "Indicadores", icon: BarChart2 },
   { href: "/seh", label: "Seg. e Higiene", icon: HardHat },
+  { href: "/mejoras", label: "Mejora Continua", icon: TrendingUp },
 ];
 
 const ADMIN_NAV_ITEMS: NavItem[] = [

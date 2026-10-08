@@ -1,0 +1,37 @@
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { Topbar } from "@/components/layout/topbar";
+import { MejorasDashboard } from "@/components/mejoras/mejoras-dashboard";
+
+export const dynamic = "force-dynamic";
+
+export default async function MejorasPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const admin = createAdminClient();
+
+  const [{ data: mejoras }, { data: usuarioData }] = await Promise.all([
+    admin
+      .from("mejoras")
+      .select("*, fotos:mejoras_fotos(*), creador:usuarios!mejoras_created_by_fkey(id, nombre)")
+      .order("created_at", { ascending: false }),
+    admin.from("usuarios").select("rol, nombre").eq("id", user?.id ?? "").single(),
+  ]);
+
+  const canEditAll = usuarioData?.rol === "admin" || usuarioData?.rol === "editor";
+
+  return (
+    <div className="flex flex-col h-full">
+      <Topbar title="Mejora Continua" />
+      <div className="flex-1 p-6 overflow-auto">
+        <MejorasDashboard
+          mejorasIniciales={mejoras ?? []}
+          userId={user?.id ?? ""}
+          canEditAll={canEditAll}
+          userName={usuarioData?.nombre ?? ""}
+        />
+      </div>
+    </div>
+  );
+}
