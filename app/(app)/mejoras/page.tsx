@@ -16,10 +16,11 @@ export default async function MejorasPage() {
       .from("mejoras")
       .select("*, fotos:mejoras_fotos(*), creador:usuarios!mejoras_created_by_fkey(id, nombre)")
       .order("created_at", { ascending: false }),
-    admin.from("usuarios").select("rol, nombre").eq("id", user?.id ?? "").single(),
+    admin.from("usuarios").select("rol, nombre, area:areas(nombre)").eq("id", user?.id ?? "").single(),
   ]);
 
   const canEditAll = usuarioData?.rol === "admin" || usuarioData?.rol === "editor";
+  const userSector = (usuarioData?.area as { nombre: string } | null)?.nombre ?? null;
 
   return (
     <div className="flex flex-col h-full">
@@ -30,6 +31,7 @@ export default async function MejorasPage() {
           userId={user?.id ?? ""}
           canEditAll={canEditAll}
           userName={usuarioData?.nombre ?? ""}
+          userSector={userSector}
         />
       </div>
     </div>

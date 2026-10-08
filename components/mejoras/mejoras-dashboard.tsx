@@ -15,6 +15,7 @@ interface Props {
   userId: string;
   canEditAll: boolean;
   userName: string;
+  userSector: string | null;
 }
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -28,7 +29,7 @@ function fdate(d: string | null) {
 
 type EstadoFilter = "all" | "en_ejecucion" | "implementada";
 
-export function MejorasDashboard({ mejorasIniciales, userId, canEditAll, userName }: Props) {
+export function MejorasDashboard({ mejorasIniciales, userId, canEditAll, userName, userSector }: Props) {
   const [mejoras, setMejoras] = useState<MejoraConFotos[]>(mejorasIniciales);
   const [yearFilter, setYearFilter] = useState<string>("todos");
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("all");
@@ -53,15 +54,15 @@ export function MejorasDashboard({ mejorasIniciales, userId, canEditAll, userNam
     return c;
   }, [byYear]);
 
-  const topSector = useMemo(() => {
-    const e = Object.entries(sectorCounts);
-    return e.length ? e.sort((a, b) => b[1] - a[1])[0] : null;
-  }, [sectorCounts]);
-
   const sectoresSinMejoras = useMemo(
     () => SECTORES.filter((s) => !sectorCounts[s]),
     [sectorCounts]
   );
+
+  const miSectorPendientes = useMemo(() => {
+    if (!userSector) return 0;
+    return byYear.filter((m) => m.sector === userSector && m.estado === "en_ejecucion").length;
+  }, [byYear, userSector]);
 
   const filtered = useMemo(() => {
     let list = byYear;
@@ -122,8 +123,49 @@ export function MejorasDashboard({ mejorasIniciales, userId, canEditAll, userNam
         </Button>
       </div>
 
+      {/* Mi sector banner */}
+      {userSector && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm px-4 py-3 flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="bg-green-100 dark:bg-green-900/30 rounded-lg p-2">
+              <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Mi sector</p>
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{userSector}</p>
+            </div>
+          </div>
+          {miSectorPendientes > 0 ? (
+            <div className="flex items-center gap-3">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">{miSectorPendientes}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wide">En ejecución</p>
+              </div>
+              <button
+                onClick={() => { setSectorFilter(userSector); setEstadoFilter("en_ejecucion"); }}
+                className="text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg px-3 py-2 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+              >
+                Ver las mías <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-1 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-full px-3 py-1 font-medium">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Sin pendientes
+              </span>
+              <button
+                onClick={() => { setSectorFilter(userSector); setEstadoFilter("all"); }}
+                className="text-xs font-medium text-slate-500 hover:text-green-600 transition-colors flex items-center gap-1"
+              >
+                Ver todas <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Stat tiles — clickeable para filtrar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatTile
           label="Total"
           value={byYear.length}
@@ -147,14 +189,6 @@ export function MejorasDashboard({ mejorasIniciales, userId, canEditAll, userNam
           color="amber"
           active={estadoFilter === "en_ejecucion"}
           onClick={() => setEstadoFilter("en_ejecucion")}
-        />
-        <StatTile
-          label="Sector más activo"
-          value={topSector ? topSector[1] : 0}
-          sub={topSector ? topSector[0] : "—"}
-          color="blue"
-          active={false}
-          onClick={() => {}}
         />
       </div>
 
@@ -283,37 +317,30 @@ function StatTile({ label, value, sub, color, active, onClick }: {
   const colors: Record<string, string> = {
     green:   "text-green-600 dark:text-green-400",
     amber:   "text-amber-600 dark:text-amber-400",
-    blue:    "text-blue-600 dark:text-blue-400",
     default: "text-slate-800 dark:text-slate-200",
   };
   const activeBorder: Record<string, string> = {
     green:   "border-green-400 dark:border-green-500",
     amber:   "border-amber-400 dark:border-amber-500",
-    blue:    "border-blue-400 dark:border-blue-500",
     default: "border-slate-400 dark:border-slate-400",
   };
-  const isClickable = color !== "blue";
 
   return (
     <button
       onClick={onClick}
-      disabled={!isClickable}
-      className={`text-left bg-white dark:bg-slate-900 border-2 rounded-xl p-4 shadow-sm transition-all
+      className={`text-left bg-white dark:bg-slate-900 border-2 rounded-xl p-4 shadow-sm transition-all cursor-pointer
         ${active
           ? `${activeBorder[color]} shadow-md -translate-y-0.5`
           : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
         }
-        ${isClickable ? "cursor-pointer" : "cursor-default"}
       `}
     >
       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</p>
       <p className={`text-3xl font-bold tabular-nums ${colors[color]}`}>{value}</p>
       <p className="text-xs text-slate-400 mt-0.5">{sub}</p>
-      {isClickable && (
-        <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-1">
-          {active ? "✓ filtrando" : "clic para filtrar"}
-        </p>
-      )}
+      <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-1">
+        {active ? "✓ filtrando" : "clic para filtrar"}
+      </p>
     </button>
   );
 }
