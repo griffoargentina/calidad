@@ -23,7 +23,7 @@ export interface Mejora {
   resultado_cambio: string | null;
   responsable_nombre: string | null;
   fecha_implementacion: string | null;
-  estado: "en_proceso" | "implementada";
+  estado: "en_ejecucion" | "implementada";
   created_by: string | null;
   created_at: string;
   updated_at: string;

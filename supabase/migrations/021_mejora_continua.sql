@@ -16,8 +16,8 @@ CREATE TABLE mejoras (
   resultado_cambio    TEXT,
   responsable_nombre  TEXT,
   fecha_implementacion DATE,
-  estado              TEXT        NOT NULL DEFAULT 'en_proceso'
-                        CHECK (estado IN ('en_proceso', 'implementada')),
+  estado              TEXT        NOT NULL DEFAULT 'en_ejecucion'
+                        CHECK (estado IN ('en_ejecucion', 'implementada')),
   created_by          UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()

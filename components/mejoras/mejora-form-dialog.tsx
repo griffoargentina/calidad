@@ -34,7 +34,7 @@ export function MejoraFormDialog({ open, onClose, onSaved, mejora, userName }: P
   const [resultadoCambio, setResultadoCambio] = useState("");
   const [responsable, setResponsable] = useState("");
   const [fechaImpl, setFechaImpl] = useState("");
-  const [estado, setEstado] = useState<"en_proceso" | "implementada">("en_proceso");
+  const [estado, setEstado] = useState<"en_ejecucion" | "implementada">("en_ejecucion");
 
   // Photo files (create mode only — in edit mode photos are added via detail view)
   const [fotosAntes, setFotosAntes] = useState<FileList | null>(null);
@@ -58,7 +58,7 @@ export function MejoraFormDialog({ open, onClose, onSaved, mejora, userName }: P
       setResultadoCambio(mejora?.resultado_cambio ?? "");
       setResponsable(mejora?.responsable_nombre ?? (isEdit ? "" : userName));
       setFechaImpl(mejora?.fecha_implementacion ?? "");
-      setEstado(mejora?.estado ?? "en_proceso");
+      setEstado(mejora?.estado ?? "en_ejecucion");
       setFotosAntes(null);
       setFotosDespues(null);
       setError(null);
@@ -282,10 +282,10 @@ export function MejoraFormDialog({ open, onClose, onSaved, mejora, userName }: P
 
           <div>
             <Label>Estado</Label>
-            <Select value={estado} onValueChange={(v) => setEstado(v as "en_proceso" | "implementada")}>
+            <Select value={estado} onValueChange={(v) => setEstado(v as "en_ejecucion" | "implementada")}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="en_proceso">En proceso</SelectItem>
+                <SelectItem value="en_ejecucion">En ejecución</SelectItem>
                 <SelectItem value="implementada">Implementada</SelectItem>
               </SelectContent>
             </Select>

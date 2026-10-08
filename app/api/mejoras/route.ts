@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       resultado_cambio: resultado_cambio || null,
       responsable_nombre: responsable_nombre || null,
       fecha_implementacion: fecha_implementacion || null,
-      estado: estado || "en_proceso",
+      estado: estado || "en_ejecucion",
       created_by: user.id,
     })
     .select("*, fotos:mejoras_fotos(*)")
