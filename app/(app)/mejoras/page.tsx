@@ -20,7 +20,7 @@ export default async function MejorasPage() {
   ]);
 
   const canEditAll = usuarioData?.rol === "admin" || usuarioData?.rol === "editor";
-  const userSector = (usuarioData?.area as { nombre: string } | null)?.nombre ?? null;
+  const userSector = (usuarioData?.area as unknown as { nombre: string } | null)?.nombre ?? null;
 
   return (
     <div className="flex flex-col h-full">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -396,7 +397,7 @@ function MejoraCard({ mejora, onClick }: { mejora: MejoraConFotos; onClick: () =
       <div className="grid grid-cols-[1fr_26px_1fr] h-28">
         <div className="relative overflow-hidden">
           {fotoAntes
-            ? <img src={fotoAntes.url} alt="Antes" className="w-full h-full object-cover" />
+            ? <NextImage src={fotoAntes.url} alt="Antes" fill className="object-cover" unoptimized />
             : <PlaceholderPhoto label="Antes" />}
           <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-[9px] font-bold uppercase tracking-widest text-center py-0.5">Antes</div>
         </div>
@@ -405,7 +406,7 @@ function MejoraCard({ mejora, onClick }: { mejora: MejoraConFotos; onClick: () =
         </div>
         <div className="relative overflow-hidden">
           {fotoDespues
-            ? <img src={fotoDespues.url} alt="Después" className="w-full h-full object-cover" />
+            ? <NextImage src={fotoDespues.url} alt="Después" fill className="object-cover" unoptimized />
             : <PlaceholderPhoto label="Después" />}
           <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-[9px] font-bold uppercase tracking-widest text-center py-0.5">Después</div>
         </div>
@@ -482,6 +483,7 @@ function MejoraDetail({ mejora, canEdit, onEdit, onDelete, onClose, onRefresh, d
     <div>
       {lightbox && (
         <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={lightbox} alt="Ampliada" className="max-w-full max-h-full rounded-lg" />
           <button className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 rounded-full p-2" onClick={() => setLightbox(null)}>
             <X className="h-5 w-5 text-white" />
@@ -581,7 +583,7 @@ function BACol({ tipo, label, fotos, desc, canEdit, uploading, deletingFoto, onU
         <div className={`grid gap-0.5 p-1.5 bg-slate-50 dark:bg-slate-800/50 ${fotos.length > 1 ? "grid-cols-2" : ""}`}>
           {fotos.map((f) => (
             <div key={f.id} className="relative group aspect-video overflow-hidden rounded">
-              <img src={f.url} alt={f.nombre_archivo} className="w-full h-full object-cover cursor-zoom-in" onClick={() => onLightbox(f.url)} />
+              <NextImage src={f.url} alt={f.nombre_archivo} fill className="object-cover cursor-zoom-in" unoptimized onClick={() => onLightbox(f.url)} />
               {canEdit && (
                 <button onClick={(e) => { e.stopPropagation(); onDelete(f.id); }} disabled={deletingFoto === f.id}
                   className="absolute top-1 right-1 bg-black/50 hover:bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
