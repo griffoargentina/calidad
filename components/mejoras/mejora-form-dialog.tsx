@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { MejoraConFotos, SECTORES, AREAS_OPORTUNIDAD } from "@/types/mejora";
+import { MejoraConFotos, AREAS_OPORTUNIDAD } from "@/types/mejora";
 
 interface Props {
   open: boolean;
@@ -17,9 +17,10 @@ interface Props {
   onSaved: () => void;
   mejora?: MejoraConFotos | null;
   userName: string;
+  sectores: string[];
 }
 
-export function MejoraFormDialog({ open, onClose, onSaved, mejora, userName }: Props) {
+export function MejoraFormDialog({ open, onClose, onSaved, mejora, userName, sectores }: Props) {
   const isEdit = !!mejora;
 
   const [titulo, setTitulo] = useState("");
@@ -46,7 +47,7 @@ export function MejoraFormDialog({ open, onClose, onSaved, mejora, userName }: P
   useEffect(() => {
     if (open) {
       setTitulo(mejora?.titulo ?? "");
-      const knownSector = SECTORES.includes(mejora?.sector as typeof SECTORES[number]);
+      const knownSector = mejora?.sector ? sectores.includes(mejora.sector) : false;
       setSector(mejora?.sector && knownSector ? mejora.sector : mejora?.sector ? "otro" : "");
       setSectorCustom(mejora?.sector && !knownSector ? mejora.sector : "");
       setMaquina(mejora?.maquina_equipo ?? "");
@@ -164,7 +165,7 @@ export function MejoraFormDialog({ open, onClose, onSaved, mejora, userName }: P
               <Select value={sector} onValueChange={setSector}>
                 <SelectTrigger><SelectValue placeholder="Seleccioná…" /></SelectTrigger>
                 <SelectContent>
-                  {SECTORES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {sectores.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   <SelectItem value="otro">Otro…</SelectItem>
                 </SelectContent>
               </Select>

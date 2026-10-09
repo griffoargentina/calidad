@@ -8,7 +8,7 @@ import {
   Plus, TrendingUp, AlertTriangle, Camera,
   ChevronRight, CheckCircle2, Clock, Pencil, Trash2, X,
 } from "lucide-react";
-import { MejoraConFotos, SECTORES } from "@/types/mejora";
+import { MejoraConFotos } from "@/types/mejora";
 import { MejoraFormDialog } from "./mejora-form-dialog";
 
 interface Props {
@@ -17,6 +17,7 @@ interface Props {
   canEditAll: boolean;
   userName: string;
   userSector: string | null;
+  sectores: string[];
 }
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -30,7 +31,7 @@ function fdate(d: string | null) {
 
 type EstadoFilter = "all" | "en_ejecucion" | "implementada";
 
-export function MejorasDashboard({ mejorasIniciales, userId, canEditAll, userName, userSector }: Props) {
+export function MejorasDashboard({ mejorasIniciales, userId, canEditAll, userName, userSector, sectores }: Props) {
   const [mejoras, setMejoras] = useState<MejoraConFotos[]>(mejorasIniciales);
   const [yearFilter, setYearFilter] = useState<string>("todos");
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("all");
@@ -56,8 +57,8 @@ export function MejorasDashboard({ mejorasIniciales, userId, canEditAll, userNam
   }, [byYear]);
 
   const sectoresSinMejoras = useMemo(
-    () => SECTORES.filter((s) => !sectorCounts[s]),
-    [sectorCounts]
+    () => sectores.filter((s) => !sectorCounts[s]),
+    [sectores, sectorCounts]
   );
 
   const miSectorPendientes = useMemo(() => {
@@ -304,6 +305,7 @@ export function MejorasDashboard({ mejorasIniciales, userId, canEditAll, userNam
         onSaved={async () => { setFormOpen(false); setEditTarget(null); await refresh(); }}
         mejora={editTarget}
         userName={userName}
+        sectores={sectores}
       />
     </div>
   );

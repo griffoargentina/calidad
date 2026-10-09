@@ -11,16 +11,18 @@ export default async function MejorasPage() {
 
   const admin = createAdminClient();
 
-  const [{ data: mejoras }, { data: usuarioData }] = await Promise.all([
+  const [{ data: mejoras }, { data: usuarioData }, { data: areasData }] = await Promise.all([
     admin
       .from("mejoras")
       .select("*, fotos:mejoras_fotos(*), creador:usuarios!mejoras_created_by_fkey(id, nombre)")
       .order("created_at", { ascending: false }),
     admin.from("usuarios").select("rol, nombre, area:areas(nombre)").eq("id", user?.id ?? "").single(),
+    admin.from("areas").select("nombre").eq("activa", true).order("nombre"),
   ]);
 
   const canEditAll = usuarioData?.rol === "admin" || usuarioData?.rol === "editor";
   const userSector = (usuarioData?.area as unknown as { nombre: string } | null)?.nombre ?? null;
+  const sectores = (areasData ?? []).map((a) => a.nombre);
 
   return (
     <div className="flex flex-col h-full">
@@ -32,6 +34,7 @@ export default async function MejorasPage() {
           canEditAll={canEditAll}
           userName={usuarioData?.nombre ?? ""}
           userSector={userSector}
+          sectores={sectores}
         />
       </div>
     </div>
