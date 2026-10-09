@@ -28,7 +28,7 @@ export default async function ClausulasPage() {
   });
 
   const currentYear = new Date().getFullYear();
-  const [{ data: todosItems }, { data: todosArchivos }, { data: ultimasCalibraciones }, { data: indicadores }, { data: indicadorRegistros }] = await Promise.all([
+  const [{ data: todosItems }, { data: todosArchivos }, { data: ultimasCalibraciones }, { data: indicadores }, { data: indicadorRegistros }, { data: mejorasData }] = await Promise.all([
     supabase
       .from("items")
       .select("id, clausula_iso, estado, fecha_vencimiento, metadata")
@@ -48,6 +48,9 @@ export default async function ClausulasPage() {
       .from("indicador_registros")
       .select("indicador_id, anio, mes")
       .eq("anio", currentYear),
+    supabase
+      .from("mejoras")
+      .select("estado"),
   ]);
 
   // Semáforo de calibración para 7.1.5
@@ -84,6 +87,11 @@ export default async function ClausulasPage() {
       if (diaActual <= 10) indPendientes++; else indVencidos++;
     }
   }
+
+  // Stats de mejoras para 6.3 y 10.3
+  const mejorasTotal      = (mejorasData ?? []).length;
+  const mejorasEnEjecucion = (mejorasData ?? []).filter((m) => m.estado === "en_ejecucion").length;
+  const mejorasImplementadas = mejorasTotal - mejorasEnEjecucion;
 
   // Qué items tienen al menos un documento (categoria != procedimiento)
   const itemsConDoc = new Set(
@@ -130,6 +138,11 @@ export default async function ClausulasPage() {
       if (indPendientes > 0) return "amarillo";
       return "verde";
     }
+    if (clausulaId === "6.3" || clausulaId === "10.3") {
+      if (mejorasTotal === 0)       return "rojo";
+      if (mejorasEnEjecucion > 0)   return "amarillo";
+      return "verde";
+    }
     const s = clausulaStats[clausulaId];
     if (!s || s.total === 0)      return "rojo";
     if (s.sinArchivo > 0)         return "rojo";
@@ -157,7 +170,10 @@ export default async function ClausulasPage() {
             const stats = clausulaStats[c.id];
             const problemas = (stats?.sinArchivo ?? 0) + (stats?.vencidos ?? 0);
 
-            const href = c.id === "7.1.5" ? "/calibracion" : c.id === "6.2" ? "/indicadores" : `/admin/clausulas/${c.id}`;
+            const href = c.id === "7.1.5" ? "/calibracion"
+              : c.id === "6.2" ? "/indicadores"
+              : (c.id === "6.3" || c.id === "10.3") ? "/mejoras"
+              : `/admin/clausulas/${c.id}`;
             return (
               <Link key={c.id} href={href}>
                 <Card className={`h-full transition-all hover:shadow-md cursor-pointer ${
@@ -198,6 +214,15 @@ export default async function ClausulasPage() {
                           : indPendientes > 0
                           ? <span className="text-yellow-600 font-medium">{indPendientes} indicador{indPendientes !== 1 ? "es" : ""} pendiente{indPendientes !== 1 ? "s" : ""}</span>
                           : <span className="text-green-600 font-medium">Todos los indicadores al día</span>
+                        }
+                      </p>
+                    ) : (c.id === "6.3" || c.id === "10.3") ? (
+                      <p className="text-xs text-muted-foreground">
+                        {mejorasTotal === 0
+                          ? <span className="text-red-600 font-medium">Sin mejoras registradas</span>
+                          : mejorasEnEjecucion > 0
+                          ? <span className="text-yellow-600 font-medium">{mejorasEnEjecucion} en ejecución · {mejorasImplementadas} implementada{mejorasImplementadas !== 1 ? "s" : ""}</span>
+                          : <span className="text-green-600 font-medium">{mejorasImplementadas} implementada{mejorasImplementadas !== 1 ? "s" : ""}</span>
                         }
                       </p>
                     ) : !stats || stats.total === 0 ? (
