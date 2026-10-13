@@ -93,6 +93,7 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
   const [modalMes, setModalMes] = useState<number | null>(currentMonth);
   const [valorInput, setValorInput] = useState("");
   const [comentarioInput, setComentarioInput] = useState("");
+  const [planAccionInput, setPlanAccionInput] = useState("");
   const [cumpleManual, setCumpleManual] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -103,6 +104,7 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
     setModalMes(mes);
     setValorInput(existingRegistro?.valor ?? "");
     setComentarioInput(existingRegistro?.comentario ?? "");
+    setPlanAccionInput((existingRegistro as unknown as { plan_accion?: string })?.plan_accion ?? "");
     setCumpleManual(null);
     setSaveError(null);
   }, []);
@@ -111,7 +113,7 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
     if (!valorInput.trim()) return;
     setSaving(true); setSaveError(null);
     try {
-      const res = await fetch("/api/indicadores/" + modal.indicadorId + "/registros", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ anio: modalAnio, mes: modalMes, valor: valorInput.trim(), comentario: comentarioInput.trim() || null }) });
+      const res = await fetch("/api/indicadores/" + modal.indicadorId + "/registros", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ anio: modalAnio, mes: modalMes, valor: valorInput.trim(), comentario: comentarioInput.trim() || null, plan_accion: planAccionInput.trim() || null }) });
       if (!res.ok) { const err = await res.json(); setSaveError(err.error ?? "Error al guardar"); setSaving(false); return; }
       setModal((m) => ({ ...m, open: false })); router.refresh();
     } catch { setSaveError("Error de red"); } finally { setSaving(false); }
@@ -314,6 +316,10 @@ export function IndicadoresDashboard({ indicadores, usuario, usuarios }: Props) 
             <div className="space-y-1.5">
               <Label htmlFor="comentario-input">Comentario <span className="text-slate-400">(opcional)</span></Label>
               <Textarea id="comentario-input" placeholder="Observaciones sobre este dato..." value={comentarioInput} onChange={(e) => setComentarioInput(e.target.value)} rows={2} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="plan-accion-input">Plan de acción <span className="text-slate-400">(opcional)</span></Label>
+              <Textarea id="plan-accion-input" placeholder="Acciones a tomar..." value={planAccionInput} onChange={(e) => setPlanAccionInput(e.target.value)} rows={2} />
             </div>
             {needsManualCumple && valorInput && (
               <div className="space-y-1.5">

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Resend } from "resend";
 import {
   isoVencimientoHtml,
   isoVencimientoText,
@@ -11,8 +10,7 @@ import {
   type IsoAlertItem,
   type IndAlertItem,
 } from "@/lib/email/templates";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { getResend } from "@/lib/email/resend";
 const FROM = `${process.env.RESEND_FROM_NAME ?? "Sistema de Calidad Griffo"} <${process.env.RESEND_FROM_EMAIL ?? "calidad@griffo.com.ar"}>`;
 
 // Protege el endpoint con un secret para que solo el cron de Vercel lo llame
@@ -91,7 +89,7 @@ export async function POST(req: Request) {
         ? `Documento${itemsResp.length > 1 ? "s" : ""} vencido${itemsResp.length > 1 ? "s" : ""} — revisión requerida`
         : `Documento${itemsResp.length > 1 ? "s" : ""} por vencer — recordatorio`;
 
-      const { error } = await resend.emails.send({
+      const { error } = await getResend().emails.send({
         from: FROM,
         to: usuario.email,
         subject,
@@ -190,7 +188,7 @@ export async function POST(req: Request) {
           ? `Recordatorio — Cargar datos de ${mesNombre} en indicadores`
           : `Indicadores de ${mesNombre} siguen sin datos`;
 
-        const { error } = await resend.emails.send({ from: FROM, to: usuario.email, subject, html, text });
+        const { error } = await getResend().emails.send({ from: FROM, to: usuario.email, subject, html, text });
 
         if (!error) {
           resultados.push(`IND (${esUltimoDia ? "fin-mes" : "7d"}) → ${usuario.email} (${inds.length} indicadores)`);

@@ -18,6 +18,7 @@ import * as XLSX from "xlsx";
 
 interface ItemRow {
   id: string;
+  href?: string | null;
   codigo: string;
   codigo_completo: string;
   codigo_formal?: string | null;
@@ -74,7 +75,7 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
       header: "Código",
       size: 120,
       cell: ({ row }) => (
-        <Link href={`/items/${row.original.id}`} className="block">
+        <Link href={row.original.href ?? `/items/${row.original.id}`} className="block">
           <span className="font-mono text-xs font-semibold text-primary">{row.original.codigo}</span>
           {row.original.codigo_formal && (
             <span className="text-[10px] text-muted-foreground block mt-0.5">{row.original.codigo_formal}</span>
@@ -87,7 +88,7 @@ export function ItemsTable({ items, archivosDetalle }: ItemsTableProps) {
       header: "Título",
       size: 220,
       cell: ({ row }) => (
-        <Link href={`/items/${row.original.id}`} className="block">
+        <Link href={row.original.href ?? `/items/${row.original.id}`} className="block">
           <span className="font-medium text-sm line-clamp-1">{row.original.titulo}</span>
           {row.original.etiquetas?.length > 0 && (
             <div className="flex gap-1 mt-1 flex-wrap">
