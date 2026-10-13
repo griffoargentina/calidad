@@ -207,6 +207,7 @@ function buildItemRow({
   const sectorNombre = sector?.nombre ?? "—";
   return {
     id,
+    href: sector?.id ? `/procesos/${sector.id}` : null as string | null,
     codigo: codigo?.match(/\d+/)?.[0] ?? "",
     codigo_completo: codigo ?? "",
     codigo_formal: codigo ?? null,
