@@ -18,7 +18,7 @@ CREATE TABLE mejoras (
   fecha_implementacion DATE,
   estado              TEXT        NOT NULL DEFAULT 'en_ejecucion'
                         CHECK (estado IN ('en_ejecucion', 'implementada')),
-  created_by          UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_by          UUID        REFERENCES usuarios(id) ON DELETE SET NULL,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -31,7 +31,7 @@ CREATE TABLE mejoras_fotos (
   nombre_archivo TEXT        NOT NULL,
   url            TEXT        NOT NULL,
   subido_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  subido_by      UUID        REFERENCES auth.users(id) ON DELETE SET NULL
+  subido_by      UUID        REFERENCES usuarios(id) ON DELETE SET NULL
 );
 
 -- Auto-generar número correlativo por año

@@ -14,7 +14,7 @@ export default async function MejorasPage() {
   const [{ data: mejoras }, { data: usuarioData }, { data: areasData }] = await Promise.all([
     admin
       .from("mejoras")
-      .select("*, fotos:mejoras_fotos(*), creador:usuarios!mejoras_created_by_fkey(id, nombre)")
+      .select("*, fotos:mejoras_fotos(*)")
       .order("created_at", { ascending: false }),
     admin.from("usuarios").select("rol, nombre, area:areas(nombre)").eq("id", user?.id ?? "").single(),
     admin.from("areas").select("nombre").eq("activa", true).order("nombre"),

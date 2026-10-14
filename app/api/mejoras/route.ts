@@ -12,7 +12,7 @@ export async function GET() {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("mejoras")
-    .select("*, fotos:mejoras_fotos(*), creador:usuarios!mejoras_created_by_fkey(id, nombre)")
+    .select("*, fotos:mejoras_fotos(*)")
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
